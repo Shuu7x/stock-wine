@@ -64,6 +64,13 @@ const parseInt0to100 = (t: string) => {
   return Number.isFinite(n) && n >= 0 && n <= 100 ? n : undefined
 }
 
+const DRINK_LABEL = { ready: 'ดื่มได้', young: 'ยังไม่ถึง', past: 'เลยช่วง', unknown: '' } as const
+
+/** ข้อความสถานะการดื่ม — ใช้ทั้งป้ายในตาราง ตัวกรอง และไฟล์ส่งออก */
+export function drinkLabel(from: number | null, to: number | null): string {
+  return DRINK_LABEL[drinkStatus(from, to)]
+}
+
 export function MaturityBadge({ from, to }: { from: number | null; to: number | null }) {
   const text = fmtMaturity(from, to)
   if (!text) return null
@@ -72,7 +79,7 @@ export function MaturityBadge({ from, to }: { from: number | null; to: number | 
   return (
     <span className="flex items-center gap-1.5">
       <span className="tabular-nums">{text}</span>
-      <Badge tone={tone}>{s === 'ready' ? 'ดื่มได้' : s === 'young' ? 'ยังไม่ถึง' : 'เลยช่วง'}</Badge>
+      <Badge tone={tone}>{DRINK_LABEL[s]}</Badge>
     </span>
   )
 }
@@ -167,6 +174,8 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
       return { ...r, maturity_from: m.from, maturity_to: m.to }
     },
     render: (r) => <MaturityBadge from={r.maturity_from} to={r.maturity_to} />,
+    // กรองด้วยสถานะ (ดื่มได้ / ยังไม่ถึง / เลยช่วง) แทนช่วงปี
+    filterValue: (r) => drinkLabel(r.maturity_from, r.maturity_to),
   }
   const price: GridColumn<R> = {
     key: 'price_per_bottle',

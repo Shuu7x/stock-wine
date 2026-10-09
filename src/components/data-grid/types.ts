@@ -38,6 +38,11 @@ export type GridColumn<R> = {
   suggest?: (query: string, row: R) => Suggestion<R>[]
   placeholder?: string
   filterable?: boolean
+  /**
+   * ค่าที่ใช้ในตัวกรองหัวคอลัมน์แทนข้อความที่แสดง เช่น Balance → "ใกล้หมด" / Maturity → "ดื่มได้"
+   * ช่องค้นหารวมของตารางก็หาด้วยคำนี้ได้ด้วย
+   */
+  filterValue?: (row: R) => string
 }
 
 export type CellPos = { r: number; c: number }

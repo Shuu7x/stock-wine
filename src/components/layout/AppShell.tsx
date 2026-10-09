@@ -1,6 +1,19 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { History, LogOut, PackagePlus, GlassWater, Settings, Warehouse, Wine, RotateCcw } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Link, useNavigate, type LinkProps } from '@tanstack/react-router'
+import {
+  GlassWater,
+  History,
+  LogOut,
+  PackagePlus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RotateCcw,
+  Settings,
+  Warehouse,
+  Wine,
+  type LucideIcon,
+} from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { cn } from '@/lib/cn'
 import { signOut, useSessionEmail } from '@/features/auth/api/auth.api'
 import { env } from '@/lib/env'
 import { queryClient } from '@/lib/query-client'
@@ -12,8 +25,72 @@ const NAV = [
   { to: '/history', label: 'ประวัติ', short: 'ประวัติ', icon: History },
 ] as const
 
+const COLLAPSE_KEY = 'stock-wine:sidebar-collapsed'
+
+function loadCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** ชื่อเมนูลอยข้างไอคอน ตอน sidebar ย่ออยู่ */
+function Tip({ show, children }: { show: boolean; children: ReactNode }) {
+  if (!show) return null
+  return (
+    <span className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 -translate-y-1/2 rounded-md bg-ink px-2.5 py-1 text-xs font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-visible:opacity-100">
+      {children}
+    </span>
+  )
+}
+
+function SideLink({
+  to,
+  label,
+  icon: Icon,
+  collapsed,
+  className,
+}: {
+  to: LinkProps['to']
+  label: string
+  icon: LucideIcon
+  collapsed: boolean
+  className?: string
+}) {
+  return (
+    <Link
+      to={to}
+      aria-label={collapsed ? label : undefined}
+      className={cn(
+        'group relative flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium text-brand-200 transition hover:bg-brand-800 hover:text-white',
+        collapsed ? 'justify-center px-0' : 'px-3',
+        className,
+      )}
+      activeProps={{ className: '!bg-brand-700 !text-white shadow-sm' }}
+    >
+      <Icon className="size-[18px] shrink-0" />
+      {!collapsed && <span className="truncate">{label}</span>}
+      <Tip show={collapsed}>{label}</Tip>
+    </Link>
+  )
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const email = useSessionEmail()
+  // จำว่าย่อเมนูไว้หรือไม่ (ต่อเครื่อง)
+  const [collapsed, setCollapsed] = useState(loadCollapsed)
+
+  function toggleSidebar() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1')
+      } catch {
+        /* ไม่จำ */
+      }
+      return !c
+    })
+  }
   const navigate = useNavigate()
 
   async function logout() {
@@ -33,55 +110,73 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-dvh flex-col lg:flex-row">
-      {/* sidebar (desktop) */}
-      <aside className="hidden w-60 shrink-0 flex-col bg-brand-900 text-brand-100 lg:flex">
-        <div className="flex items-center gap-3 px-5 py-5">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-brand-700 text-gold-100 shadow-inner">
+      {/* sidebar (desktop) ย่อ/ขยายได้ */}
+      <aside
+        className={cn(
+          'hidden shrink-0 flex-col bg-brand-900 text-brand-100 transition-[width] duration-200 lg:flex',
+          collapsed ? 'w-[72px]' : 'w-60',
+        )}
+      >
+        <div className={cn('flex items-center gap-3 py-5', collapsed ? 'justify-center px-0' : 'px-5')}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-gold-100 shadow-inner">
             <Wine className="size-5" />
           </div>
-          <div>
-            <div className="font-display text-lg leading-tight font-bold text-white">Wine Cellar</div>
-            <div className="text-xs text-brand-300">ระบบสต็อกไวน์</div>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <div className="truncate font-display text-lg leading-tight font-bold text-white">Wine Cellar</div>
+              <div className="truncate text-xs text-brand-300">ระบบสต็อกไวน์</div>
+            </div>
+          )}
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {NAV.map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-brand-200 transition hover:bg-brand-800 hover:text-white"
-              activeProps={{ className: '!bg-brand-700 !text-white shadow-sm' }}
-            >
-              <n.icon className="size-[18px]" />
-              {n.label}
-            </Link>
+            <SideLink key={n.to} to={n.to} label={n.label} icon={n.icon} collapsed={collapsed} />
           ))}
-          <Link
-            to="/settings"
-            className="mt-auto mb-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-brand-200 transition hover:bg-brand-800 hover:text-white"
-            activeProps={{ className: '!bg-brand-700 !text-white shadow-sm' }}
+          <SideLink to="/settings" label="ตั้งค่า" icon={Settings} collapsed={collapsed} className="mt-auto" />
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
+            aria-expanded={!collapsed}
+            className={cn(
+              'group relative mb-2 flex items-center gap-3 rounded-lg py-2.5 text-sm text-brand-300 transition hover:bg-brand-800 hover:text-white',
+              collapsed ? 'justify-center px-0' : 'px-3',
+            )}
           >
-            <Settings className="size-[18px]" />
-            ตั้งค่า
-          </Link>
+            {collapsed ? <PanelLeftOpen className="size-[18px] shrink-0" /> : <PanelLeftClose className="size-[18px] shrink-0" />}
+            {!collapsed && 'ย่อเมนู'}
+            <Tip show={collapsed}>ขยายเมนู</Tip>
+          </button>
         </nav>
-        <div className="border-t border-brand-800 p-3 text-xs">
+        <div className="border-t border-brand-800 px-3 py-3 text-xs">
           {env.VITE_ENABLE_MOCK && (
             <button
               type="button"
               onClick={resetMock}
-              className="mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-brand-300 hover:bg-brand-800 hover:text-white"
+              aria-label={collapsed ? 'รีเซ็ตข้อมูลทดลอง' : undefined}
+              className={cn(
+                'group relative mb-2 flex w-full items-center gap-2 rounded-lg py-2 text-brand-300 hover:bg-brand-800 hover:text-white',
+                collapsed ? 'justify-center px-0' : 'px-3',
+              )}
             >
-              <RotateCcw className="size-4" /> รีเซ็ตข้อมูลทดลอง
+              <RotateCcw className="size-4 shrink-0" />
+              {!collapsed && 'รีเซ็ตข้อมูลทดลอง'}
+              <Tip show={collapsed}>รีเซ็ตข้อมูลทดลอง</Tip>
             </button>
           )}
-          <div className="truncate px-3 text-brand-300">{email}</div>
+          {!collapsed && <div className="truncate px-3 text-brand-300">{email}</div>}
           <button
             type="button"
             onClick={logout}
-            className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-brand-200 hover:bg-brand-800 hover:text-white"
+            aria-label={collapsed ? 'ออกจากระบบ' : undefined}
+            className={cn(
+              'group relative mt-1 flex w-full items-center gap-2 rounded-lg py-2 text-brand-200 hover:bg-brand-800 hover:text-white',
+              collapsed ? 'justify-center px-0' : 'px-3',
+            )}
           >
-            <LogOut className="size-4" /> ออกจากระบบ
+            <LogOut className="size-4 shrink-0" />
+            {!collapsed && 'ออกจากระบบ'}
+            <Tip show={collapsed}>{`ออกจากระบบ (${email ?? ''})`}</Tip>
           </button>
         </div>
       </aside>

@@ -135,6 +135,12 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         const it = item(r)
         return it ? formatValue(col, it) : ''
       },
+      filterValue: col.filterValue
+        ? (r) => {
+            const it = item(r)
+            return it ? col.filterValue!(it) : ''
+          }
+        : undefined,
       render: col.render
         ? (r) => {
             const it = item(r)

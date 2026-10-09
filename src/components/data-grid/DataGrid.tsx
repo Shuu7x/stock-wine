@@ -22,6 +22,7 @@ import type { CellPos, CellValue, FilterState, GridColumn, Selection, SortState 
 import {
   BLANK_LABEL,
   fillSeries,
+  filterText,
   formatValue,
   getValue,
   isReadOnly,
@@ -140,10 +141,16 @@ export function DataGrid<R>({
         const col = columns.find((c) => c.key === key)
         if (!col) continue
         const set = new Set(allowed)
-        idx = idx.filter((i) => set.has(formatValue(col, rows[i]) || BLANK_LABEL))
+        idx = idx.filter((i) => set.has(filterText(col, rows[i])))
       }
       if (q) {
-        idx = idx.filter((i) => columns.some((c) => formatValue(c, rows[i]).toLowerCase().includes(q)))
+        idx = idx.filter((i) =>
+          columns.some(
+            (c) =>
+              formatValue(c, rows[i]).toLowerCase().includes(q) ||
+              (c.filterValue && c.filterValue(rows[i]).toLowerCase().includes(q)),
+          ),
+        )
       }
       if (sort) {
         const col = columns.find((c) => c.key === sort.key)
@@ -732,7 +739,7 @@ export function DataGrid<R>({
     const col = columns[filterMenu]
     const counts = new Map<string, number>()
     for (const r of rows) {
-      const v = formatValue(col, r) || BLANK_LABEL
+      const v = filterText(col, r)
       counts.set(v, (counts.get(v) ?? 0) + 1)
     }
     return [...counts.entries()]

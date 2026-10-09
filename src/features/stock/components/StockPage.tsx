@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, Download, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
+import { Archive, FileSpreadsheet, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -11,7 +11,8 @@ import { Dialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
 import { PageHeader, Stat } from '@/components/ui/page'
 import { Segmented } from '@/components/ui/segmented'
-import { drinkStatus, fmtDate, fmtInt, fmtMoney } from '@/lib/format'
+import { exportXlsx, type XlsxColumn } from '@/lib/export-xlsx'
+import { drinkStatus, fmtDateTime, fmtInt, fmtMaturity, fmtMoney, todayIso } from '@/lib/format'
 import {
   stockItemsOptions,
   storesOptions,
@@ -21,7 +22,7 @@ import {
 } from '../api/stock.api'
 import { ItemHistoryDialog } from '@/features/history/components/LogList'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
-import { buildLookups, storeName, wineColumns, wineLabel } from '../columns'
+import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
 
 /** 'all' หรือรหัสคลัง (stores.code) — คลังเพิ่ม/แก้ได้ในหน้าตั้งค่า */
 export type StoreTab = string
@@ -68,6 +69,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const lookups = useMemo(() => buildLookups(live, lookupQ.data), [live, lookupQ.data])
   const { low_stock_threshold: lowAt } = useAppSettings()
   const isLow = useCallback((b: number) => lowAt > 0 && b > 0 && b <= lowAt, [lowAt])
+  const balanceLabel = useCallback((b: number) => (b <= 0 ? 'หมด' : isLow(b) ? 'ใกล้หมด' : 'มีของ'), [isLow])
   const currentStore = stores.find((s) => s.code === tab)
 
   const serverRows = useMemo(
@@ -123,6 +125,8 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       type: 'number',
       align: 'right',
       readOnly: true,
+      // กรองด้วยสถานะคงเหลือแทนตัวเลข
+      filterValue: (r) => balanceLabel(r.balance),
       render: (r) => (
         <span className="flex items-center gap-1.5">
           {isLow(r.balance) && <Badge tone="warning">ใกล้หมด</Badge>}
@@ -168,7 +172,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       ...col,
       readOnly: col.readOnly === true ? true : ro,
     }))
-  }, [stores, lookups, tab, pendingSet, isLow])
+  }, [stores, lookups, tab, pendingSet, isLow, balanceLabel])
 
   const stats = useMemo(() => {
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter((i) => i.balance > 0)
@@ -225,28 +229,73 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const selectedWithStock = selectedToDelete.filter((id) => (byId.get(id)?.balance ?? 0) > 0)
   const single = selectedIds.length === 1 ? byId.get(selectedIds[0]) : undefined
 
-  function exportCsv() {
-    const cols = columns
-    const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
-    const lines = [
-      cols.map((c) => esc(c.title)).join(','),
-      ...rows.map((r) =>
-        cols
-          .map((c) => {
-            if (c.key === 'store_id') return esc(storeName(stores, r.store_id))
-            if (c.key === 'purchase_date') return esc(fmtDate(r.purchase_date))
-            const v = c.get ? c.get(r) : (r as Record<string, unknown>)[c.key]
-            return esc(v == null ? '' : String(v))
-          })
-          .join(','),
-      ),
-    ]
-    const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `stock-${tab}-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(a.href)
+  const [exporting, setExporting] = useState(false)
+
+  /** ส่งออก Excel: ข้อมูลที่บันทึกแล้วของแท็บนี้ พร้อมคอลัมน์สถานะไว้กรองใน Excel */
+  async function exportExcel() {
+    setExporting(true)
+    try {
+      const data = serverRows.filter((r) => !r.deleted_at)
+      const toDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`) : null)
+      const BAL_TONE = { ใกล้หมด: { fill: 'warning-100', font: 'warning-700' }, หมด: { fill: 'surface-3', font: 'muted' } } as const
+      const DRINK_TONE = {
+        ดื่มได้: { fill: 'success-100', font: 'success-700' },
+        ยังไม่ถึง: { fill: 'info-50', font: 'info-600' },
+        เลยช่วง: { fill: 'warning-100', font: 'warning-700' },
+      } as const
+      const cols: XlsxColumn<StockItem>[] = [
+        { header: 'Country', width: 14, value: (r) => r.country },
+        ...(tab === 'all'
+          ? [{ header: 'Store', width: 20, value: (r: StockItem) => storeName(stores, r.store_id) }]
+          : []),
+        { header: 'Wine racks', width: 11, value: (r) => r.rack, align: 'center' },
+        { header: 'Name of wine', width: 40, value: (r) => r.wine_name },
+        { header: 'Year', width: 8, value: (r) => r.vintage ?? 'NV', align: 'center' },
+        { header: 'Balance', width: 10, value: (r) => r.balance, numFmt: '#,##0', align: 'right', total: 'sum' },
+        {
+          header: 'สถานะคงเหลือ',
+          width: 13,
+          value: (r) => balanceLabel(r.balance),
+          align: 'center',
+          tone: (v) => BAL_TONE[v as keyof typeof BAL_TONE],
+        },
+        { header: 'RP', width: 7, value: (r) => r.rating_rp, align: 'center' },
+        { header: 'WS', width: 7, value: (r) => r.rating_ws, align: 'center' },
+        { header: 'Maturity', width: 12, value: (r) => fmtMaturity(r.maturity_from, r.maturity_to) || null, align: 'center' },
+        {
+          header: 'สถานะการดื่ม',
+          width: 13,
+          value: (r) => drinkLabel(r.maturity_from, r.maturity_to) || null,
+          align: 'center',
+          tone: (v) => DRINK_TONE[v as keyof typeof DRINK_TONE],
+        },
+        { header: 'Price/Btl.', width: 13, value: (r) => r.price_per_bottle, numFmt: '#,##0.00', align: 'right' },
+        {
+          header: 'มูลค่า',
+          width: 15,
+          value: (r) => (r.price_per_bottle == null ? null : r.balance * r.price_per_bottle),
+          numFmt: '#,##0.00',
+          align: 'right',
+          total: 'sum',
+        },
+        { header: 'ซื้อจากใคร', width: 18, value: (r) => r.supplier },
+        { header: 'วันที่ซื้อ', width: 12, value: (r) => toDate(r.purchase_date), align: 'center' },
+        { header: 'Remark', width: 30, value: (r) => r.remark },
+      ]
+      const name = currentStore?.name ?? 'All Stock Wines'
+      await exportXlsx({
+        fileName: `stock-${tab}-${todayIso()}`,
+        sheetName: name,
+        title: `สต็อกไวน์ · ${name}`,
+        subtitle: `ส่งออกเมื่อ ${fmtDateTime(new Date().toISOString())} · ${data.length} รายการ${
+          dirty ? ' · (ไม่รวมการแก้ไขที่ยังไม่บันทึก)' : ''
+        }`,
+        columns: cols,
+        rows: data,
+      })
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -256,8 +305,8 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         description="ดูและแก้ข้อมูลไวน์ได้ในตาราง · ยอดคงเหลือเปลี่ยนได้ผ่านการรับเข้าและเบิกเท่านั้น"
         actions={
           <>
-            <Button size="sm" variant="ghost" onClick={exportCsv}>
-              <Download className="size-4" /> ส่งออก CSV
+            <Button size="sm" variant="ghost" onClick={exportExcel} loading={exporting}>
+              {!exporting && <FileSpreadsheet className="size-4" />} ส่งออก Excel
             </Button>
           </>
         }

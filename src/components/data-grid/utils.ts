@@ -22,6 +22,11 @@ export function formatValue<R>(col: GridColumn<R>, row: R): string {
   return String(v)
 }
 
+/** ค่าที่ใช้กรองในหัวคอลัมน์ (ว่าง = BLANK_LABEL) */
+export function filterText<R>(col: GridColumn<R>, row: R): string {
+  return (col.filterValue ? col.filterValue(row) : formatValue(col, row)) || BLANK_LABEL
+}
+
 export function isReadOnly<R>(col: GridColumn<R>, row: R): boolean {
   return typeof col.readOnly === 'function' ? col.readOnly(row) : !!col.readOnly
 }
