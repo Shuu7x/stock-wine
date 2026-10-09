@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Minus, Plus, Printer, Search } from 'lucide-react'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Minus, Plus, Printer, QrCode as QrIcon, Search, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import { matchesWords } from '@/components/data-grid/utils'
@@ -30,50 +30,147 @@ type SizeKey = keyof typeof SIZES
 const PAGE = { w: 210, h: 297, margin: 8 }
 
 type Fields = { country: boolean; place: boolean; rating: boolean; maturity: boolean; price: boolean; hole: boolean }
-type Options = { size: SizeKey; fields: Fields }
+/** color = หัวป้ายสีไวน์ · mono = ขาวดำ ประหยัดหมึก */
+type TagStyle = 'color' | 'mono'
+type Options = { size: SizeKey; style: TagStyle; fields: Fields }
 const OPTIONS_KEY = 'stock-wine:qr-options:v1'
 const DEFAULT_OPTIONS: Options = {
   size: 'm',
+  style: 'color',
   fields: { country: true, place: true, rating: true, maturity: true, price: false, hole: true },
+}
+
+/** ขอบล่างของหัวป้ายเป็นคลื่นไวน์ */
+function WaveEdge({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="block w-full" style={{ height: '2.2mm' }} aria-hidden>
+      <path d="M0 0H100V3C88 8 75 8 62 4.5S38 0 25 3.5 8 8 0 4Z" fill={color} />
+    </svg>
+  )
 }
 
 function Tag({ it, stores, opt }: { it: StockItem; stores: Store[]; opt: Options }) {
   const s = SIZES[opt.size]
   const f = opt.fields
-  const small = opt.size === 's'
+  const mono = opt.style === 'mono'
+  // หน่วยขนาดตามความกว้างป้าย: ป้ายกลาง (50 มม.) = 1
+  const u = s.w / 50
+  const mm = (n: number) => `${(n * u).toFixed(2)}mm`
+  const maturity = fmtMaturity(it.maturity_from, it.maturity_to)
+  const hasRating = it.rating_rp != null || it.rating_ws != null
+
+  const ink = mono ? '#111' : 'var(--color-brand-900)'
+  const gold = mono ? '#111' : 'var(--color-gold-500)'
+  const headBg = mono ? '#fff' : 'linear-gradient(160deg, var(--color-brand-700), var(--color-brand-900) 70%)'
+  const headText = mono ? '#111' : '#fff'
+
   return (
-    <div
-      className="relative flex flex-col items-center overflow-hidden border border-dashed border-[#999] bg-white text-center text-black"
-      style={{ width: `${s.w}mm`, height: `${s.h}mm`, padding: small ? '2mm' : '3mm' }}
-    >
-      {f.hole && (
-        <div className="shrink-0 rounded-full border border-[#999]" style={{ width: '5mm', height: '5mm', marginBottom: '1.5mm' }} />
-      )}
-      <div className="w-full font-bold leading-tight" style={{ fontSize: small ? '2.6mm' : '3.4mm' }}>
-        <div className="line-clamp-2">{it.wine_name}</div>
-      </div>
-      <div className="font-bold" style={{ fontSize: small ? '3.4mm' : '4.6mm', margin: '0.5mm 0' }}>
-        {it.vintage ?? 'NV'}
-      </div>
-      <QrCode value={itemUrl(it.id)} margin={1} className="aspect-square w-full flex-1" />
-      <div className="w-full leading-snug" style={{ fontSize: small ? '2mm' : '2.5mm', marginTop: '1mm' }}>
-        {f.country && it.country && <div className="truncate">{it.country}</div>}
-        {f.place && (
-          <div className="truncate">
-            {storeName(stores, it.store_id)} · {it.rack ?? '-'}
+    // กรอบเส้นประ = แนวตัด
+    <div className="relative overflow-hidden bg-white" style={{ width: `${s.w}mm`, height: `${s.h}mm` }}>
+      <div className="flex h-full flex-col" style={{ fontFamily: 'var(--font-sans)', color: ink }}>
+        {/* หัวป้าย */}
+        <div className="shrink-0">
+          <div
+            className="flex flex-col items-center text-center"
+            style={{
+              background: headBg,
+              color: headText,
+              // ขอบบนอย่างน้อย 2.2 มม. ให้วงเจาะรูไม่ชิดแนวตัดบนป้ายเล็ก
+              padding: `${Math.max(2.4 * u, 2.2).toFixed(2)}mm ${mm(2.4)} ${mm(1.4)}`,
+              borderBottom: mono ? '0.35mm solid #111' : undefined,
+            }}
+          >
+            {f.hole && (
+              <div
+                className="shrink-0 rounded-full bg-white"
+                style={{
+                  width: mm(4.6),
+                  height: mm(4.6),
+                  marginBottom: mm(1.2),
+                  boxShadow: mono ? 'inset 0 0 0 0.3mm #111' : `0 0 0 0.45mm var(--color-gold-500)`,
+                }}
+              />
+            )}
+            <div
+              className="font-semibold tracking-[0.25em] uppercase"
+              style={{ fontSize: mm(1.5), color: mono ? '#555' : 'var(--color-gold-100)', marginBottom: mm(0.6) }}
+            >
+              Wine Cellar
+            </div>
+            <div
+              className="line-clamp-2 w-full leading-[1.12] font-bold"
+              style={{ fontFamily: 'var(--font-display)', fontSize: mm(3.5) }}
+            >
+              {it.wine_name}
+            </div>
+            <div
+              className="font-bold"
+              style={{ fontFamily: 'var(--font-display)', fontSize: mm(5), lineHeight: 1.1, color: mono ? '#111' : 'var(--color-gold-500)' }}
+            >
+              {it.vintage ?? 'NV'}
+            </div>
           </div>
-        )}
-        {f.rating && (it.rating_rp != null || it.rating_ws != null) && (
-          <div>
-            RP {it.rating_rp ?? '–'} · WS {it.rating_ws ?? '–'}
+          {!mono && <WaveEdge color="var(--color-brand-900)" />}
+        </div>
+
+        {/* QR */}
+        <div className="flex min-h-0 flex-1 items-center justify-center" style={{ padding: `${mm(1.2)} ${mm(3)}` }}>
+          <div
+            className="aspect-square h-full max-w-full bg-white"
+            style={{ padding: mm(1), border: `0.3mm solid ${gold}`, borderRadius: mm(1.4) }}
+          >
+            <QrCode value={itemUrl(it.id)} margin={0} className="block size-full" />
           </div>
-        )}
-        {f.maturity && fmtMaturity(it.maturity_from, it.maturity_to) && <div>ดื่มได้ {fmtMaturity(it.maturity_from, it.maturity_to)}</div>}
-        {f.price && it.price_per_bottle != null && <div className="font-semibold">฿{fmtMoney(it.price_per_bottle)}</div>}
-        <div className="font-mono" style={{ fontSize: small ? '1.6mm' : '1.9mm', color: '#666' }}>
-          {it.id.slice(0, 8).toUpperCase()}
+        </div>
+
+        {/* ข้อมูล */}
+        <div className="shrink-0 text-center leading-[1.35]" style={{ fontSize: mm(2.1), padding: `0 ${mm(2.4)}` }}>
+          {(f.country && it.country) || f.place ? (
+            <div className="truncate font-medium">
+              {[f.country && it.country, f.place && `${storeName(stores, it.store_id)} · ${it.rack ?? '-'}`].filter(Boolean).join('  |  ')}
+            </div>
+          ) : null}
+          {(f.rating && hasRating) || (f.maturity && maturity) ? (
+            <div className="flex items-center justify-center" style={{ gap: mm(1.2), marginTop: mm(0.6) }}>
+              {f.rating && hasRating && (
+                <span
+                  className="rounded-full font-semibold whitespace-nowrap"
+                  style={{
+                    padding: `0 ${mm(1.2)}`,
+                    background: mono ? 'transparent' : 'var(--color-gold-100)',
+                    border: mono ? '0.2mm solid #111' : undefined,
+                    color: mono ? '#111' : 'var(--color-gold-700)',
+                  }}
+                >
+                  RP {it.rating_rp ?? '–'} · WS {it.rating_ws ?? '–'}
+                </span>
+              )}
+              {f.maturity && maturity && <span className="whitespace-nowrap">ดื่ม {maturity}</span>}
+            </div>
+          ) : null}
+        </div>
+
+        {/* ท้ายป้าย */}
+        <div
+          className="flex shrink-0 items-center justify-between"
+          style={{
+            margin: `${mm(1)} ${mm(2.4)} ${mm(1.8)}`,
+            paddingTop: mm(0.8),
+            borderTop: `0.2mm dotted ${mono ? '#999' : 'var(--color-brand-200)'}`,
+          }}
+        >
+          <span className="font-mono" style={{ fontSize: mm(1.6), color: mono ? '#555' : 'var(--color-muted)' }}>
+            {it.id.slice(0, 8).toUpperCase()}
+          </span>
+          {f.price && it.price_per_bottle != null && (
+            <span className="font-bold" style={{ fontSize: mm(2.3), color: ink }}>
+              ฿{fmtMoney(it.price_per_bottle)}
+            </span>
+          )}
         </div>
       </div>
+      {/* แนวตัด (วาดทับขอบ) */}
+      <div className="pointer-events-none absolute inset-0 border border-dashed border-[#b5b5b5]" />
     </div>
   )
 }
@@ -110,12 +207,30 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
   const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data])
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
 
-  const [opt, setOpt] = useState<Options>(() => ({ ...DEFAULT_OPTIONS, ...loadDraft<Options>(OPTIONS_KEY) }))
+  const [opt, setOpt] = useState<Options>(() => {
+    const saved = loadDraft<Partial<Options>>(OPTIONS_KEY)
+    return { ...DEFAULT_OPTIONS, ...saved, fields: { ...DEFAULT_OPTIONS.fields, ...saved?.fields } }
+  })
   useEffect(() => saveDraft(OPTIONS_KEY, opt), [opt])
   const [copies, setCopies] = useState<Record<string, number>>({})
   const [scope, setScope] = useState(0)
   const [q, setQ] = useState('')
   const [onlyInStock, setOnlyInStock] = useState(true)
+  const [view, setView] = useState<'pick' | 'preview'>('pick')
+
+  // ย่อตัวอย่าง A4 ให้พอดีความกว้างกล่อง
+  const previewRef = useRef<HTMLDivElement>(null)
+  const [previewZoom, setPreviewZoom] = useState(1)
+  useLayoutEffect(() => {
+    const el = previewRef.current
+    if (!el) return
+    const sheetPx = (PAGE.w * 96) / 25.4
+    const update = () => setPreviewZoom(Math.min(1, Math.max(0.3, (el.clientWidth - 32) / sheetPx)))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [view])
 
   // มาจากหน้าสต็อก/หน้าไวน์: เลือกไว้ให้ จำนวนป้าย = จำนวนขวด
   useEffect(() => {
@@ -170,18 +285,13 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
     window.print()
   }
 
-  const field = (k: keyof Fields, label: string) => (
-    <label className="flex items-center justify-between gap-3 py-1 text-sm">
-      {label}
-      <Switch checked={opt.fields[k]} label={label} onChange={(v) => setOpt((o) => ({ ...o, fields: { ...o.fields, [k]: v } }))} />
-    </label>
-  )
+  const selectedCount = Object.keys(copies).length
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       <PageHeader
         title="ป้าย QR ห้อยขวด"
-        description="เลือกไวน์และจำนวนป้าย แล้วพิมพ์บนกระดาษ A4 ตัดตามเส้นประ · สแกนแล้วเปิดหน้าไวน์ในระบบ (ต้อง login)"
+        description="เลือกไวน์และจำนวนป้าย แล้วพิมพ์บนกระดาษ A4 ตัดตามเส้นประ · สแกนแล้วเปิดหน้าไวน์ในระบบ"
         actions={
           <Button variant="primary" onClick={print} disabled={!tags.length}>
             <Printer className="size-4" /> พิมพ์ {tags.length} ป้าย ({pageCount} แผ่น)
@@ -189,17 +299,33 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(360px,440px)_1fr]">
-        {/* เลือกไวน์ */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface">
-          <div className="flex flex-col gap-2 border-b border-line p-3">
+      {/* จอเล็ก: สลับระหว่างเลือกไวน์กับตัวอย่าง ให้แต่ละมุมมองได้ความสูงเต็มจอ */}
+      <Segmented
+        className="xl:hidden"
+        value={view}
+        onChange={setView}
+        items={[
+          { value: 'pick', label: 'เลือกไวน์', count: String(selectedCount) },
+          { value: 'preview', label: 'ตัวอย่างป้าย', count: String(tags.length) },
+        ]}
+      />
+
+      <div className="grid min-h-[420px] flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(340px,420px)_1fr]">
+        {/* ── เลือกไวน์ ── */}
+        <section
+          className={cn(
+            'flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface',
+            view !== 'pick' && 'max-xl:hidden',
+          )}
+        >
+          <div className="flex shrink-0 flex-col gap-2 border-b border-line p-3">
             <div className="flex gap-2">
-              <label className="relative flex-1">
+              <label className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
                 <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาไวน์…" className="pl-9" />
               </label>
               <Combobox
-                className="w-44"
+                className="w-40 shrink-0"
                 value={scope}
                 onChange={setScope}
                 options={[{ value: 0, label: 'ทุกคลัง' }, ...stores.filter((st) => st.is_active).map((st) => ({ value: st.id, label: st.name }))]}
@@ -216,7 +342,8 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
               </label>
             </div>
           </div>
-          <ul className="max-h-[60dvh] min-h-[240px] divide-y divide-line overflow-auto">
+
+          <ul className="min-h-0 flex-1 divide-y divide-line overflow-auto">
             {visible.map((i) => {
               const n = copies[i.id] ?? 0
               return (
@@ -236,7 +363,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
                       {storeName(stores, i.store_id)} · {i.rack ?? '-'} · คงเหลือ {i.balance}
                     </div>
                   </div>
-                  <div className={cn('flex items-center rounded-lg border border-line-strong', !n && 'opacity-40')}>
+                  <div className={cn('flex shrink-0 items-center rounded-lg border border-line-strong', !n && 'opacity-40')}>
                     <button type="button" className="p-1.5 hover:bg-surface-3" aria-label="ลดจำนวนป้าย" onClick={() => setCount(i.id, n - 1)}>
                       <Minus className="size-3.5" />
                     </button>
@@ -256,38 +383,64 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
             })}
             {!visible.length && <li className="p-8 text-center text-sm text-muted">ไม่พบไวน์</li>}
           </ul>
-        </section>
 
-        {/* รูปแบบ + ตัวอย่าง */}
-        <section className="flex min-w-0 flex-col gap-4">
-          <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-medium text-ink-2">ขนาดป้าย (มม.)</span>
-              <Segmented
-                className="!mx-0 !px-0"
-                value={opt.size}
-                onChange={(v) => setOpt((o) => ({ ...o, size: v }))}
-                items={(Object.keys(SIZES) as SizeKey[]).map((k) => ({ value: k, label: SIZES[k].label }))}
-              />
-              <span className="text-xs text-muted">A4 ได้ {perPage} ป้ายต่อแผ่น</span>
-            </div>
-            <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              {field('country', 'ประเทศ')}
-              {field('place', 'คลัง · Rack')}
-              {field('rating', 'คะแนน RP/WS')}
-              {field('maturity', 'ช่วงดื่ม')}
-              {field('price', 'ราคา')}
-              {field('hole', 'วงเจาะรูห้อย')}
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line bg-surface-2 px-3 py-2 text-sm">
+            <span className="text-ink-2">
+              เลือก <b className="tabular-nums">{selectedCount}</b> รายการ · <b className="tabular-nums">{tags.length}</b> ป้าย
+            </span>
+            <div className="flex gap-1">
+              {selectedCount > 0 && (
+                <Button size="sm" variant="ghost" onClick={() => setCopies({})}>
+                  ล้าง
+                </Button>
+              )}
+              <Button size="sm" className="xl:hidden" onClick={() => setView('preview')} disabled={!tags.length}>
+                ดูตัวอย่าง
+              </Button>
             </div>
           </div>
+        </section>
 
-          <div className="overflow-auto rounded-xl border border-line bg-surface-3 p-4">
+        {/* ── รูปแบบ + ตัวอย่าง ── */}
+        <section
+          className={cn(
+            'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface',
+            view !== 'preview' && 'max-xl:hidden',
+          )}
+        >
+          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line p-3">
+            <Segmented
+              className="!mx-0 !px-0"
+              value={opt.size}
+              onChange={(v) => setOpt((o) => ({ ...o, size: v }))}
+              items={(Object.keys(SIZES) as SizeKey[]).map((k) => ({ value: k, label: SIZES[k].label }))}
+            />
+            <Segmented
+              className="!mx-0 !px-0"
+              value={opt.style}
+              onChange={(v) => setOpt((o) => ({ ...o, style: v }))}
+              items={[
+                { value: 'color', label: 'สีไวน์' },
+                { value: 'mono', label: 'ขาวดำ' },
+              ]}
+            />
+            <FieldsMenu fields={opt.fields} onChange={(fields) => setOpt((o) => ({ ...o, fields }))} />
+            <span className="ml-auto text-xs text-muted">
+              A4 ได้ {perPage} ป้าย/แผ่น{pageCount ? ` · ${pageCount} แผ่น` : ''}
+            </span>
+          </div>
+
+          <div ref={previewRef} className="min-h-0 flex-1 overflow-auto bg-surface-3 p-4">
             {tags.length ? (
-              <div className="flex origin-top-left flex-col items-center gap-4 [&_.qr-sheet]:shadow-lg">
+              // ย่อแผ่น A4 ให้พอดีความกว้างกล่อง (ไม่กระทบขนาดตอนพิมพ์)
+              <div className="mx-auto flex w-fit flex-col gap-4 [&_.qr-sheet]:shadow-lg" style={{ zoom: previewZoom }}>
                 <Sheets tags={tags} stores={stores} opt={opt} />
               </div>
             ) : (
-              <div className="py-16 text-center text-sm text-muted">เลือกไวน์ทางซ้ายเพื่อดูตัวอย่างป้าย</div>
+              <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted">
+                <QrIcon className="size-10 text-line-strong" />
+                เลือกไวน์เพื่อดูตัวอย่างป้าย
+              </div>
             )}
           </div>
         </section>
@@ -301,6 +454,50 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
           </div>,
           document.body,
         )}
+    </div>
+  )
+}
+
+const FIELD_LABELS: Array<[keyof Fields, string]> = [
+  ['country', 'ประเทศ'],
+  ['place', 'คลัง · Rack'],
+  ['rating', 'คะแนน RP/WS'],
+  ['maturity', 'ช่วงดื่ม'],
+  ['price', 'ราคา'],
+  ['hole', 'วงเจาะรูห้อย'],
+]
+
+/** ปุ่ม "ข้อมูลบนป้าย" เปิดรายการสวิตช์ */
+function FieldsMenu({ fields, onChange }: { fields: Fields; onChange: (f: Fields) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', esc)
+    }
+  }, [open])
+  const on = FIELD_LABELS.filter(([k]) => fields[k]).length
+  return (
+    <div ref={ref} className="relative">
+      <Button size="sm" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <SlidersHorizontal className="size-4" /> ข้อมูลบนป้าย ({on})
+      </Button>
+      {open && (
+        <div className="absolute top-full left-0 z-30 mt-1 w-60 rounded-xl border border-line bg-surface p-2 shadow-xl">
+          {FIELD_LABELS.map(([k, label]) => (
+            <label key={k} className="flex cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2">
+              {label}
+              <Switch checked={fields[k]} label={label} onChange={(v) => onChange({ ...fields, [k]: v })} />
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

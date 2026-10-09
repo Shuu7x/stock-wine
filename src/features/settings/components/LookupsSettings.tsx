@@ -247,13 +247,9 @@ export function LookupsSettings() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-line bg-surface px-5 py-4">
-        <h2 className="text-base font-semibold">ตัวเลือกที่ใช้บ่อย</h2>
-        <p className="mt-0.5 text-sm text-muted">
-          รายการที่ขึ้นให้เลือกในตารางรับเข้า/สต็อก (ปุ่ม ▾) เรียงตาม “ลำดับ” ก่อน ตามด้วยค่าอื่นที่มีอยู่ในสต็อก ·
-          ค่าที่ปิดใช้งานจะไม่ขึ้นให้เลือก
-        </p>
-      </div>
+      <p className="text-sm text-muted">
+        รายการที่ขึ้นให้เลือกในตาราง (ปุ่ม ▾) เรียงตาม “ลำดับ” ก่อน ตามด้วยค่าอื่นที่มีอยู่ในสต็อก · ค่าที่ปิดใช้งานจะไม่ขึ้นให้เลือก
+      </p>
 
       <Segmented
         value={category}

@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus, Warehouse } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { toast } from 'sonner'
@@ -14,7 +14,6 @@ import { stockItemsOptions, storesOptions, type Store } from '@/features/stock/a
 import { cn } from '@/lib/cn'
 import { fmtInt } from '@/lib/format'
 import { useSaveStore } from '../api/settings.api'
-import { SettingsCard } from './SettingsLayout'
 
 const schema = z.object({
   name: z.string().trim().min(1, 'ระบุชื่อคลัง').max(60),
@@ -45,57 +44,66 @@ export function StoresSettings() {
     return m
   }, [itemsQ.data])
 
-  const stores = storesQ.data ?? []
+  const stores = [...(storesQ.data ?? [])].sort((a, b) => a.sort_order - b.sort_order)
 
   return (
     <>
-      <SettingsCard
-        title="คลังสินค้า"
-        description="คลังที่ปิดใช้งานจะไม่แสดงเป็นแท็บและเลือกไม่ได้ในการรับเข้า/เบิก แต่ข้อมูลเดิมยังอยู่ · ปิดคลังที่ยังมีไวน์คงเหลือไม่ได้"
-        footer={
-          <Button variant="primary" size="sm" onClick={() => setEditing('new')}>
-            <Plus className="size-4" /> เพิ่มคลัง
-          </Button>
-        }
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead className="bg-surface-2 text-left text-xs text-muted">
-              <tr>
-                <th className="px-5 py-2 font-medium">ลำดับ</th>
-                <th className="py-2 pr-4 font-medium">รหัส</th>
-                <th className="py-2 pr-4 font-medium">ชื่อคลัง</th>
-                <th className="py-2 pr-4 text-right font-medium">รายการ / ขวด</th>
-                <th className="py-2 pr-4 font-medium">สถานะ</th>
-                <th className="py-2 pr-5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {stores.map((s) => {
-                const st = stats.get(s.id)
-                return (
-                  <tr key={s.id} className={cn(!s.is_active && 'text-muted')}>
-                    <td className="px-5 py-3 tabular-nums">{s.sort_order}</td>
-                    <td className="py-3 pr-4 font-mono text-xs">{s.code}</td>
-                    <td className="py-3 pr-4 font-medium">{s.name}</td>
-                    <td className="py-3 pr-4 text-right tabular-nums">
-                      {fmtInt(st?.items ?? 0)} / {fmtInt(st?.bottles ?? 0)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {s.is_active ? <Badge tone="success">ใช้งาน</Badge> : <Badge>ปิดใช้งาน</Badge>}
-                    </td>
-                    <td className="py-3 pr-5 text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>
-                        <Pencil className="size-4" /> แก้ไข
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </SettingsCard>
+      <p className="mb-3 text-sm text-muted">
+        คลังที่ปิดใช้งานจะไม่แสดงเป็นแท็บและเลือกไม่ได้ตอนทำรายการ แต่ข้อมูลเดิมยังอยู่ · ปิดคลังที่ยังมีไวน์คงเหลือไม่ได้
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        {stores.map((s) => {
+          const st = stats.get(s.id)
+          return (
+            <article
+              key={s.id}
+              className={cn('flex flex-col rounded-xl border border-line bg-surface p-4', !s.is_active && 'bg-surface-2')}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={cn(
+                    'flex size-10 shrink-0 items-center justify-center rounded-xl',
+                    s.is_active ? 'bg-brand-50 text-brand-700' : 'bg-surface-3 text-muted',
+                  )}
+                >
+                  <Warehouse className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className={cn('truncate font-semibold', !s.is_active && 'text-muted')}>{s.name}</div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted">
+                    <span className="rounded bg-surface-3 px-1.5 py-0.5 font-mono">{s.code}</span>
+                    ลำดับ {s.sort_order}
+                  </div>
+                </div>
+                {s.is_active ? <Badge tone="success">ใช้งาน</Badge> : <Badge>ปิดใช้งาน</Badge>}
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-2 text-center">
+                <div className="rounded-lg bg-surface-2 py-2">
+                  <div className="text-lg font-semibold tabular-nums">{fmtInt(st?.items ?? 0)}</div>
+                  <div className="text-xs text-muted">รายการที่มีของ</div>
+                </div>
+                <div className="rounded-lg bg-surface-2 py-2">
+                  <div className="text-lg font-semibold tabular-nums">{fmtInt(st?.bottles ?? 0)}</div>
+                  <div className="text-xs text-muted">ขวด</div>
+                </div>
+              </div>
+              <Button size="sm" className="mt-3 self-end" onClick={() => setEditing(s)} aria-label={`แก้ไข ${s.name}`}>
+                <Pencil className="size-4" /> แก้ไข
+              </Button>
+            </article>
+          )
+        })}
+        <button
+          type="button"
+          onClick={() => setEditing('new')}
+          className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-strong text-sm font-medium text-ink-2 transition hover:border-brand-400 hover:bg-brand-50/50 hover:text-brand-800"
+        >
+          <span className="flex size-10 items-center justify-center rounded-full bg-surface-3">
+            <Plus className="size-5" />
+          </span>
+          เพิ่มคลัง
+        </button>
+      </div>
 
       <StoreDialog
         store={editing}
