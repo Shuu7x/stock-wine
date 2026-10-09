@@ -347,6 +347,7 @@ export function ReceivePage() {
         onRowsChange={setRows}
         createRow={() => newReceiveRow(defaultStore)}
         onSelectionChange={setSelectedIds}
+        pageSizeKey="receive"
         cellError={(r, key) => (showErrors && !isBlankRow(r) ? (errors.get(r._id)?.[key] ?? null) : null)}
         rowStatus={(r) => (!isBlankRow(r) && r.wine_name?.trim() && !matchOf(r) ? 'added' : null)}
         cellChanged={cellChanged}

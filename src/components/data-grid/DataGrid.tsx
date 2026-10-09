@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
+import { loadPageSize, Pager, savePageSize } from '@/components/ui/pager'
 import { cn } from '@/lib/cn'
 import { fmtMoney } from '@/lib/format'
 import { CellEditor, type EditorCommit, type MoveAfter } from './CellEditor'
@@ -64,6 +65,10 @@ export type DataGridProps<R> = {
   /** ค้นหาทุกคอลัมน์ */
   search?: string
   emptyState?: ReactNode
+  /** จำนวนแถวต่อหน้าเริ่มต้น (0 = ทั้งหมด) · false = ไม่แบ่งหน้า */
+  pageSize?: number | false
+  /** key สำหรับจำขนาดหน้าที่ผู้ใช้เลือก */
+  pageSizeKey?: string
   className?: string
 }
 
@@ -82,6 +87,8 @@ export function DataGrid<R>({
   rowClassName,
   search = '',
   emptyState,
+  pageSize: defaultPageSize = 50,
+  pageSizeKey,
   className,
 }: DataGridProps<R>) {
   const editable = !!onRowsChange
@@ -119,7 +126,8 @@ export function DataGrid<R>({
   const viewActive = viewKey !== JSON.stringify([null, {}, ''])
   const snap = useRef<{ key: string; ids: string[]; known: Set<string> } | null>(null)
 
-  const viewIdx = useMemo(() => {
+  /** ลำดับแถวทั้งหมดหลังกรอง/เรียง (ทุกหน้า) */
+  const fullIdx = useMemo(() => {
     if (!viewActive) {
       snap.current = null
       return rows.map((_, i) => i)
@@ -169,6 +177,34 @@ export function DataGrid<R>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, viewKey, viewActive])
 
+  // ── แบ่งหน้า (ฝั่งเบราว์เซอร์ บนผลลัพธ์ที่กรอง/เรียงแล้ว) ─────────────────────
+  const paged = defaultPageSize !== false
+  const [pageSize, setPageSize] = useState(() => (paged ? loadPageSize(pageSizeKey, defaultPageSize) : 0))
+  const [page, setPage] = useState(1)
+  const pages = pageSize ? Math.max(1, Math.ceil(fullIdx.length / pageSize)) : 1
+  const curPage = Math.min(page, pages)
+  const start = pageSize ? (curPage - 1) * pageSize : 0
+  const viewIdx = useMemo(
+    () => (pageSize ? fullIdx.slice(start, start + pageSize) : fullIdx),
+    [fullIdx, start, pageSize],
+  )
+
+  useEffect(() => setPage(1), [viewKey])
+
+  function goPage(p: number) {
+    setPage(p)
+    setSel(null)
+    setEditing(null)
+    scrollRef.current?.scrollTo({ top: 0 })
+  }
+
+  function changePageSize(n: number) {
+    // คงแถวบนสุดของหน้าปัจจุบันให้อยู่ในหน้าใหม่
+    setPageSize(n)
+    savePageSize(pageSizeKey, n)
+    goPage(n ? Math.floor(start / n) + 1 : 1)
+  }
+
   const nRows = viewIdx.length
   const nCols = columns.length
   const rowAt = (r: number) => rows[viewIdx[r]]
@@ -195,13 +231,23 @@ export function DataGrid<R>({
   const past = useRef<R[][]>([])
   const future = useRef<R[][]>([])
   const lastEmitted = useRef(rows)
+  const knownIds = useRef(new Set<string>())
   useEffect(() => {
     if (rows !== lastEmitted.current) {
+      // เพิ่มแถวจากภายนอก (ปุ่มเพิ่มแถว) แล้วแถวใหม่อยู่หน้าอื่น → พาไปหน้านั้น
+      if (pageSize) {
+        const firstNew = fullIdx.findIndex((i) => !knownIds.current.has(getRowId(rows[i])))
+        if (firstNew >= 0 && knownIds.current.size > 0 && (firstNew < start || firstNew >= start + pageSize)) {
+          goPage(Math.floor(firstNew / pageSize) + 1)
+        }
+      }
       // rows ถูกเปลี่ยนจากภายนอก (เช่นบันทึกแล้วรีเซ็ต) ประวัติเดิมใช้ไม่ได้แล้ว
       past.current = []
       future.current = []
       lastEmitted.current = rows
     }
+    knownIds.current = new Set(rows.map(getRowId))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
 
   const emit = useCallback(
@@ -382,7 +428,8 @@ export function DataGrid<R>({
     const w = single ? g.right - g.left + 1 : Math.max(...matrix.map((m) => m.length))
 
     const next = rows.slice()
-    const map = viewIdx.slice()
+    // วางล้นหน้าได้: ใช้ลำดับแถวของหน้านี้ต่อด้วยหน้าถัดไป
+    const map = fullIdx.slice(start)
     let need = g.top + h - map.length
     if (need > 0 && createRow) {
       while (need-- > 0) {
@@ -413,7 +460,10 @@ export function DataGrid<R>({
     if (changed || next.length !== rows.length) emit(next)
     setSel({
       anchor: { r: g.top, c: g.left },
-      focus: { r: Math.min(g.top + h - 1, map.length - 1), c: Math.min(g.left + w - 1, nCols - 1) },
+      focus: {
+        r: Math.min(g.top + h - 1, map.length - 1, pageSize ? pageSize - 1 : Infinity),
+        c: Math.min(g.left + w - 1, nCols - 1),
+      },
     })
     if (bad) toast.warning(`ข้าม ${bad} เซลล์ที่รูปแบบไม่ตรงกับคอลัมน์`)
   }
@@ -755,7 +805,7 @@ export function DataGrid<R>({
             />
           )}
           {rowErr && <span className="absolute left-2 size-1.5 rounded-full bg-danger-600" />}
-          {r + 1}
+          {start + r + 1}
         </div>
         {columns.map((col, c) => {
           const ro = !editable || isReadOnly(col, row)
@@ -817,7 +867,7 @@ export function DataGrid<R>({
         ref={scrollRef}
         tabIndex={0}
         role="grid"
-        aria-rowcount={nRows}
+        aria-rowcount={fullIdx.length}
         aria-colcount={nCols}
         onKeyDown={onKeyDown}
         onCopy={onCopy}
@@ -958,10 +1008,12 @@ export function DataGrid<R>({
 
       {/* แถบสถานะ */}
       <div className="flex min-h-9 flex-wrap items-center gap-x-4 gap-y-1 border-t border-line bg-surface-2 px-3 py-1 text-xs text-muted">
-        <span>
-          {nRows.toLocaleString('th-TH')}
-          {viewActive && nRows !== rows.length ? ` / ${rows.length.toLocaleString('th-TH')}` : ''} แถว
-        </span>
+        {viewActive && fullIdx.length !== rows.length && (
+          <span>
+            กรองได้ {fullIdx.length.toLocaleString('th-TH')} จาก {rows.length.toLocaleString('th-TH')} แถว
+          </span>
+        )}
+        {!paged && <span>{rows.length.toLocaleString('th-TH')} แถว</span>}
         {statusCounts && (
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {(['added', 'changed', 'deleted'] as const).map((k) =>
@@ -1000,7 +1052,7 @@ export function DataGrid<R>({
           </button>
         )}
         {summary && (
-          <span className="ml-auto tabular-nums">
+          <span className="tabular-nums">
             เลือก {summary.cells} เซลล์
             {summary.nums > 0 && (
               <>
@@ -1010,9 +1062,20 @@ export function DataGrid<R>({
           </span>
         )}
         {!summary && editable && (
-          <span className="ml-auto hidden md:inline">
+          <span className="hidden 2xl:inline">
             ดับเบิลคลิก/Enter แก้ไข · Ctrl+C / Ctrl+V คัดลอกวางกับ Excel · ลากมุม ■ เพื่อคัดลอกค่า · Ctrl+Z ย้อนกลับ
           </span>
+        )}
+        {paged && (
+          <Pager
+            className="ml-auto"
+            page={curPage}
+            pageSize={pageSize}
+            total={fullIdx.length}
+            unit="แถว"
+            onPage={goPage}
+            onPageSize={changePageSize}
+          />
         )}
       </div>
 

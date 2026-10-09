@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, ArchiveRestore, Download, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
+import { Archive, Download, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
@@ -15,7 +14,6 @@ import { drinkStatus, fmtDate, fmtInt, fmtMoney } from '@/lib/format'
 import {
   stockItemsOptions,
   storesOptions,
-  useArchiveStockItems,
   useSaveStockChanges,
   type StockItem,
   type StockItemPatch,
@@ -48,7 +46,6 @@ function diff(a: StockItem, b: StockItem): StockItemPatch | null {
 
 export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t: StoreTab) => void }) {
   const navigate = useNavigate()
-  const [showArchived, setShowArchived] = useState(false)
   const [search, setSearch] = useState('')
   const [edits, setEdits] = useState<Record<string, StockItem>>({})
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -58,9 +55,8 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const [historyOf, setHistoryOf] = useState<StockItem | null>(null)
 
   const storesQ = useQuery(storesOptions())
-  const itemsQ = useQuery(stockItemsOptions(showArchived))
+  const itemsQ = useQuery(stockItemsOptions())
   const save = useSaveStockChanges()
-  const archive = useArchiveStockItems()
 
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
   const all = useMemo(() => itemsQ.data ?? [], [itemsQ.data])
@@ -112,7 +108,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
   const columns = useMemo(() => {
     const c = wineColumns<StockItem>(stores, lookups)
-    const ro = (r: StockItem) => !!r.deleted_at || pendingSet.has(r.id)
+    const ro = (r: StockItem) => pendingSet.has(r.id)
     const balance: GridColumn<StockItem> = {
       key: 'balance',
       title: 'Balance',
@@ -136,21 +132,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       get: (r) => (r.price_per_bottle == null ? null : r.balance * r.price_per_bottle),
       format: (v) => fmtMoney(v as number | null),
     }
-    const status: GridColumn<StockItem> = {
-      key: 'status',
-      title: 'สถานะ',
-      width: 92,
-      readOnly: true,
-      get: (r) => (r.deleted_at ? 'ลบแล้ว' : r.balance === 0 ? 'หมด' : 'มีของ'),
-      render: (r) =>
-        r.deleted_at ? (
-          <Badge tone="danger">ลบแล้ว</Badge>
-        ) : r.balance === 0 ? (
-          <Badge>หมด</Badge>
-        ) : (
-          <Badge tone="success">มีของ</Badge>
-        ),
-    }
     const list: GridColumn<StockItem>[] = [
       c.country,
       // ย้ายคลังต้องทำผ่านเบิก/รับเข้า เพื่อให้มีเอกสารรองรับ
@@ -167,13 +148,12 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       c.supplier,
       c.purchaseDate,
       c.remark,
-      ...(showArchived ? [status] : []),
     ]
     return list.map((col) => ({
       ...col,
       readOnly: col.readOnly === true ? true : ro,
     }))
-  }, [stores, lookups, tab, showArchived, pendingSet])
+  }, [stores, lookups, tab, pendingSet])
 
   const stats = useMemo(() => {
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter((i) => i.balance > 0)
@@ -224,14 +204,13 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     const r = byId.get(id)
     return r && !r.deleted_at
   })
-  const selectedArchived = selectedIds.filter((id) => byId.get(id)?.deleted_at)
   const selectedToDelete = selectedLive.filter((id) => !pendingSet.has(id))
   const selectedPending = selectedLive.filter((id) => pendingSet.has(id))
   const selectedWithStock = selectedToDelete.filter((id) => (byId.get(id)?.balance ?? 0) > 0)
   const single = selectedIds.length === 1 ? byId.get(selectedIds[0]) : undefined
 
   function exportCsv() {
-    const cols = columns.filter((c) => c.key !== 'status')
+    const cols = columns
     const esc = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s)
     const lines = [
       cols.map((c) => esc(c.title)).join(','),
@@ -294,15 +273,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
             className="pl-9"
           />
         </label>
-        <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-ink-2 hover:bg-surface-3">
-          <input
-            type="checkbox"
-            className="size-4 accent-brand-700"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          แสดงรายการที่ลบแล้ว
-        </label>
         <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
           {selectedWithStock.length > 0 && (
             <Button
@@ -329,19 +299,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
               onClick={() => setPendingDeletes((p) => p.filter((id) => !selectedPending.includes(id)))}
             >
               <RotateCcw className="size-4" /> ยกเลิกการลบ {selectedPending.length} รายการ
-            </Button>
-          )}
-          {selectedArchived.length > 0 && (
-            <Button
-              size="sm"
-              loading={archive.isPending}
-              onClick={() =>
-                archive
-                  .mutateAsync({ ids: selectedArchived, restore: true })
-                  .then(() => toast.success(`กู้คืน ${selectedArchived.length} รายการแล้ว`))
-              }
-            >
-              <ArchiveRestore className="size-4" /> กู้คืน {selectedArchived.length} รายการ
             </Button>
           )}
         </div>
@@ -382,7 +339,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         onSelectionChange={setSelectedIds}
         rowStatus={(r) => (pendingSet.has(r.id) ? 'deleted' : null)}
         cellChanged={cellChanged}
-        rowClassName={(r) => (r.deleted_at ? 'opacity-55 line-through' : undefined)}
+        pageSizeKey="stock"
         search={search}
         emptyState={itemsQ.isLoading ? 'กำลังโหลด…' : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />

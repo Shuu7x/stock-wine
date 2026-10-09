@@ -62,23 +62,3 @@ export function useSaveStockChanges() {
     onSettled: () => qc.invalidateQueries({ queryKey: stockKeys.all }),
   })
 }
-
-/** กู้คืน/ลบทันที (ใช้กับปุ่มกู้คืนรายการที่ลบแล้ว) */
-export function useArchiveStockItems() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ ids, restore }: { ids: string[]; restore?: boolean }) => {
-      const { data: auth } = await supabase.auth.getUser()
-      const { error } = await supabase
-        .from('stock_items')
-        .update(
-          restore
-            ? { deleted_at: null, deleted_by: null }
-            : { deleted_at: new Date().toISOString(), deleted_by: auth.user?.id ?? null },
-        )
-        .in('id', ids)
-      if (error) throw error
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: stockKeys.all }),
-  })
-}

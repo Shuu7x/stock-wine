@@ -349,6 +349,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         onRowsChange={setRows}
         createRow={() => newRow()}
         onSelectionChange={setSelectedIds}
+        pageSizeKey="withdraw"
         cellError={(r, key) => (showErrors && !isBlank(r) ? (errors.get(r._id)?.[key] ?? null) : null)}
       />
 

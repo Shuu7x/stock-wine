@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
+import { DOC_PAGE_SIZES, loadPageSize, Pager, savePageSize } from '@/components/ui/pager'
 import type { Store, StockItem } from '@/features/stock/api/stock.api'
 import { storeName, wineLabel } from '@/features/stock/columns'
 import { cn } from '@/lib/cn'
@@ -121,17 +121,18 @@ function LogEntry({ log, stores, showWine }: { log: StockItemLog; stores: Store[
 export function LogList({
   stores,
   stockItemId,
-  pageSize = 30,
+  pageSize = 20,
 }: {
   stores: Store[]
   stockItemId?: string
   pageSize?: number
 }) {
   const [page, setPage] = useState(1)
+  const sizeKey = stockItemId ? 'item-logs' : 'logs'
+  const [size, setSize] = useState(() => loadPageSize(sizeKey, pageSize))
   const [action, setAction] = useState<StockAction | ''>('')
-  const q = useQuery(logsListOptions({ page, pageSize, stockItemId, action: action || undefined }))
+  const q = useQuery(logsListOptions({ page, pageSize: size, stockItemId, action: action || undefined }))
   const total = q.data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
     <div className="flex flex-col gap-3">
@@ -162,18 +163,20 @@ export function LogList({
           {q.data?.items.map((l) => <LogEntry key={l.id} log={l} stores={stores} showWine={!stockItemId} />)}
         </ul>
       </div>
-      {total > pageSize && (
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <span className="text-muted">
-            หน้า {page} / {pages} · {fmtInt(total)} รายการ
-          </span>
-          <Button size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="หน้าก่อน">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)} aria-label="หน้าถัดไป">
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+      {total > 0 && (
+        <Pager
+          className="justify-end"
+          page={page}
+          pageSize={size}
+          total={total}
+          options={DOC_PAGE_SIZES}
+          onPage={setPage}
+          onPageSize={(n) => {
+            setSize(n)
+            savePageSize(sizeKey, n)
+            setPage(1)
+          }}
+        />
       )}
     </div>
   )
@@ -197,7 +200,7 @@ export function ItemHistoryDialog({
       title={item ? `ประวัติ · ${wineLabel(item)}` : ''}
       description={item ? `${storeName(stores, item.store_id)} · Rack ${item.rack ?? '-'} · คงเหลือ ${item.balance} ขวด` : undefined}
     >
-      {item && <LogList key={item.id} stores={stores} stockItemId={item.id} pageSize={15} />}
+      {item && <LogList key={item.id} stores={stores} stockItemId={item.id} pageSize={10} />}
     </Dialog>
   )
 }

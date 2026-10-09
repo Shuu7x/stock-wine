@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, ChevronLeft, ChevronRight, Ban } from 'lucide-react'
+import { ChevronDown, Ban } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
+import { DOC_PAGE_SIZES, Pager } from '@/components/ui/pager'
 import { Segmented } from '@/components/ui/segmented'
 import { receiptsListOptions, useVoidReceipt } from '@/features/receipts/api/receipts.api'
 import { storesOptions } from '@/features/stock/api/stock.api'
@@ -18,7 +19,6 @@ import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney } from '@/lib/forma
 
 export type HistoryTab = 'receipts' | 'withdrawals' | 'logs'
 
-const PAGE_SIZE = 20
 
 type DocRow = {
   id: string
@@ -48,16 +48,18 @@ type DocRow = {
 export function HistoryPage({
   tab,
   page,
+  pageSize,
   onChange,
 }: {
   tab: HistoryTab
   page: number
-  onChange: (next: { tab?: HistoryTab; page?: number }) => void
+  pageSize: number
+  onChange: (next: { tab?: HistoryTab; page?: number; pageSize?: number }) => void
 }) {
   const storesQ = useQuery(storesOptions())
   const stores = storesQ.data ?? []
-  const receiptsQ = useQuery({ ...receiptsListOptions(page, PAGE_SIZE), enabled: tab === 'receipts' })
-  const withdrawalsQ = useQuery({ ...withdrawalsListOptions(page, PAGE_SIZE), enabled: tab === 'withdrawals' })
+  const receiptsQ = useQuery({ ...receiptsListOptions(page, pageSize), enabled: tab === 'receipts' })
+  const withdrawalsQ = useQuery({ ...withdrawalsListOptions(page, pageSize), enabled: tab === 'withdrawals' })
   const voidReceipt = useVoidReceipt()
   const voidWithdrawal = useVoidWithdrawal()
 
@@ -119,7 +121,6 @@ export function HistoryPage({
 
   const q = tab === 'receipts' ? receiptsQ : withdrawalsQ
   const total = q.data?.total ?? 0
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   async function confirmVoid() {
     if (!voiding) return
@@ -253,18 +254,20 @@ export function HistoryPage({
         </ul>
       </div>
 
-      {total > PAGE_SIZE && (
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <span className="text-muted">
-            หน้า {page} / {pages} · ทั้งหมด {fmtInt(total)} เอกสาร
-          </span>
-          <Button size="sm" disabled={page <= 1} onClick={() => onChange({ page: page - 1 })} aria-label="หน้าก่อน">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button size="sm" disabled={page >= pages} onClick={() => onChange({ page: page + 1 })} aria-label="หน้าถัดไป">
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+      {total > 0 && (
+        <Pager
+          className="justify-end"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          unit="เอกสาร"
+          options={DOC_PAGE_SIZES}
+          onPage={(p) => {
+            setOpen(null)
+            onChange({ page: p })
+          }}
+          onPageSize={(n) => onChange({ pageSize: n, page: 1 })}
+        />
       )}
 
       </>
