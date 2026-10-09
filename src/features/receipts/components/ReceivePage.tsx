@@ -198,7 +198,8 @@ export function ReceivePage() {
     return [
       status,
       c.country,
-      c.store,
+      // กว้างกว่าค่าปกติ: ช่องนี้มีปุ่ม ▾ เลือกคลัง ชื่อคลังจึงไม่ถูกตัด
+      { ...c.store, width: 200 },
       c.rack,
       wine,
       c.vintage,
