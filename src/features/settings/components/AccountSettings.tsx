@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Field, Input } from '@/components/ui/field'
+import { Field } from '@/components/ui/field'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useSessionEmail } from '@/features/auth/api/auth.api'
 import { useChangePassword } from '../api/settings.api'
 import { SettingRow, SettingsCard } from './SettingsLayout'
@@ -66,10 +67,10 @@ export function AccountSettings() {
       >
         <form onSubmit={submit} className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2">
           <Field label="รหัสผ่านใหม่" error={e.password?.message}>
-            <Input type="password" autoComplete="new-password" {...form.register('password')} />
+            <PasswordInput autoComplete="new-password" {...form.register('password')} />
           </Field>
           <Field label="ยืนยันรหัสผ่านใหม่" error={e.confirm?.message}>
-            <Input type="password" autoComplete="new-password" {...form.register('confirm')} />
+            <PasswordInput autoComplete="new-password" {...form.register('confirm')} />
           </Field>
           <button type="submit" hidden />
         </form>

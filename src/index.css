@@ -45,6 +45,17 @@
   --color-danger-700: #a12424;
   --color-info-50: #eef5fd;
   --color-info-600: #2864b4;
+
+  /* หน้า login: ฉากไวน์ */
+  --color-night-900: #1c0a12;
+  --color-night-800: #2a0f1c;
+  --color-wine-red: #6e1230;
+  --color-wine-deep: #4a0b20;
+  --color-wine-rose: #e7889b;
+  --color-wine-white: #f0d98a;
+  --color-bottle-green: #1f3b2a;
+  --color-bottle-amber: #5a3410;
+  --color-bottle-clear: #c9d6cf;
 }
 
 html,
@@ -62,4 +73,51 @@ body {
 
 input[type='number']::-webkit-inner-spin-button {
   appearance: none;
+}
+
+/* ─── หน้า login: คลื่นไวน์ไหล + ขวดลอย ─────────────────────────────────────── */
+@keyframes wave-flow {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* ขวดลอยข้ามจอ: ตำแหน่งเริ่ม/จบมาจาก CSS variable ของแต่ละขวด */
+@keyframes bottle-drift {
+  from {
+    transform: translateX(var(--from));
+  }
+  to {
+    transform: translateX(var(--to));
+  }
+}
+
+/* โคลงขึ้นลงเหมือนลอยบนน้ำ */
+@keyframes bottle-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--r0));
+  }
+  50% {
+    transform: translateY(var(--bob)) rotate(var(--r1));
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-scene * {
+    animation: none !important;
+  }
 }
