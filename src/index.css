@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+@import 'tailwindcss';
+
+/* สีทั้งหมดผ่าน token — ห้ามใช้ค่าสีตรงใน component */
+@theme {
+  --font-sans: 'IBM Plex Sans Thai', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Playfair Display', 'IBM Plex Sans Thai', serif;
+
+  --color-brand-50: #fbf2f4;
+  --color-brand-100: #f5e1e6;
+  --color-brand-200: #ebc3cd;
+  --color-brand-300: #d995a7;
+  --color-brand-400: #c1647f;
+  --color-brand-500: #a5405f;
+  --color-brand-600: #8c2c4b;
+  --color-brand-700: #7a1f3d;
+  --color-brand-800: #631a33;
+  --color-brand-900: #4a1427;
+
+  --color-gold-100: #f8eed8;
+  --color-gold-500: #c9a24a;
+  --color-gold-700: #8f6f22;
+
+  --color-ink: #23191c;
+  --color-ink-2: #4a3f42;
+  --color-muted: #7d7174;
+  --color-line: #e9e2e3;
+  --color-line-strong: #d8cdcf;
+  --color-surface: #ffffff;
+  --color-surface-2: #faf7f6;
+  --color-surface-3: #f3eeec;
+  --color-canvas: #f6f2ef;
+  --color-readonly: #f8f5f3;
+
+  --color-success-50: #eefaf3;
+  --color-success-600: #1f8a4c;
+  --color-success-700: #176b3b;
+  --color-warning-50: #fff7e8;
+  --color-warning-600: #c27a06;
+  --color-warning-700: #965e04;
+  --color-danger-50: #fdf0f0;
+  --color-danger-600: #c62f2f;
+  --color-danger-700: #a12424;
+  --color-info-50: #eef5fd;
+  --color-info-600: #2864b4;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+}
