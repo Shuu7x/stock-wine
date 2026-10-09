@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router'
 import {
+  ChevronLeft,
+  ChevronRight,
   GlassWater,
   History,
   PackagePlus,
-  PanelLeftClose,
-  PanelLeftOpen,
   Settings,
   Warehouse,
   Wine,
@@ -114,34 +114,41 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   return (
     <aside
       className={cn(
-        'hidden shrink-0 flex-col bg-brand-900 text-brand-100 transition-[width] duration-200 lg:flex',
+        'relative z-20 hidden shrink-0 flex-col bg-brand-900 text-brand-100 transition-[width] duration-200 lg:flex',
         collapsed ? 'w-[76px]' : 'w-64',
       )}
     >
-      {/* หัว: โลโก้ + ปุ่มย่อ/ขยาย */}
-      <div className={cn('flex h-16 shrink-0 items-center gap-3 border-b border-brand-800', collapsed ? 'justify-center px-2' : 'px-4')}>
-        {!collapsed && (
-          <Link to="/stock" className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-gold-100 shadow-inner">
-              <Wine className="size-5" />
-            </span>
+      {/* หัว: โลโก้แสดงตลอด (ย่อแล้วเหลือไอคอน) */}
+      <div className={cn('flex h-16 shrink-0 items-center border-b border-brand-800', collapsed ? 'justify-center' : 'px-4')}>
+        <Link
+          to="/stock"
+          aria-label="Wine Cellar — กลับหน้าสต็อก"
+          title={collapsed ? 'Wine Cellar' : undefined}
+          className="flex min-w-0 items-center gap-3"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-gold-100 shadow-inner">
+            <Wine className="size-5" />
+          </span>
+          {!collapsed && (
             <span className="min-w-0">
               <span className="block truncate font-display text-lg leading-tight font-bold text-white">Wine Cellar</span>
               <span className="block truncate text-[11px] text-brand-300">ระบบสต็อกไวน์</span>
             </span>
-          </Link>
-        )}
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
-          aria-expanded={!collapsed}
-          title={`${collapsed ? 'ขยายเมนู' : 'ย่อเมนู'} (Ctrl+B)`}
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg text-brand-300 transition hover:bg-brand-800 hover:text-white"
-        >
-          {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-        </button>
+          )}
+        </Link>
       </div>
+
+      {/* ปุ่มย่อ/ขยาย: ปุ่มกลมคร่อมขอบขวา ไม่แย่งที่โลโก้ */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
+        aria-expanded={!collapsed}
+        title={`${collapsed ? 'ขยายเมนู' : 'ย่อเมนู'} (Ctrl+B)`}
+        className="absolute top-[20px] -right-3 z-30 flex size-6 items-center justify-center rounded-full border border-brand-700 bg-brand-900 text-brand-200 shadow-md transition hover:scale-110 hover:bg-brand-700 hover:text-white focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:outline-none"
+      >
+        {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
+      </button>
 
       {/* ย่ออยู่: ไม่ตั้ง overflow ไม่งั้นชื่อเมนูที่ลอยออกไปทางขวาจะถูกตัด */}
       <nav
