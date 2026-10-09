@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowRight } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog } from '@/components/ui/dialog'
 import { DOC_PAGE_SIZES, loadPageSize, Pager, savePageSize } from '@/components/ui/pager'
@@ -8,7 +8,7 @@ import type { Store, StockItem } from '@/features/stock/api/stock.api'
 import { storeName, wineLabel } from '@/features/stock/columns'
 import { cn } from '@/lib/cn'
 import type { Json, StockAction } from '@/lib/database.types'
-import { fmtDate, fmtDateTime, fmtInt, fmtMoney } from '@/lib/format'
+import { fmtDate, fmtInt, fmtMoney } from '@/lib/format'
 import { logsListOptions, type StockItemLog } from '../api/logs.api'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'brand' | 'neutral'
@@ -90,24 +90,27 @@ function LogEntry({ log, stores, showWine }: { log: StockItemLog; stores: Store[
     ((log.action === 'receive' || log.action === 'transfer_in') && log.changes.balance?.old == null)
   const entries = Object.entries(log.changes).filter(([k]) => k !== 'deleted_at')
   return (
-    <li className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:gap-4">
-      <div className="flex shrink-0 items-start gap-2 sm:w-52 sm:flex-col sm:gap-1">
-        <Badge tone={a.tone}>{a.label}</Badge>
-        <div className="text-xs text-muted">
-          <div>{fmtDateTime(log.created_at)}</div>
-          <div className="truncate">{log.created_by_email ?? '-'}</div>
+    <li className="group/entry relative pb-3 pl-8 last:pb-0">
+      {/* เส้นเวลา + จุดสีตามประเภท */}
+      <span className="absolute top-0 bottom-0 left-[11px] w-px bg-line-strong/70 group-last/entry:bottom-auto group-last/entry:h-4" aria-hidden />
+      <span
+        className="absolute top-3 left-[5px] size-[13px] rounded-full border-[3px] border-canvas"
+        style={{ background: DOT[a.tone] }}
+        aria-hidden
+      />
+      <div className="rounded-xl border border-line bg-surface px-4 py-3">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Badge tone={a.tone}>{a.label}</Badge>
+          {showWine && (
+            <span className="min-w-0 text-sm font-medium">
+              {wineLabel(log)}
+              <span className="ml-1.5 text-xs font-normal text-muted">{storeName(stores, log.store_id)}</span>
+            </span>
+          )}
+          {log.ref_doc && <span className="ml-auto font-mono text-xs text-brand-700">{log.ref_doc}</span>}
         </div>
-      </div>
-      <div className="min-w-0 flex-1">
-        {showWine && (
-          <div className="text-sm font-medium">
-            {wineLabel(log)}
-            <span className="ml-2 text-xs font-normal text-muted">{storeName(stores, log.store_id)}</span>
-          </div>
-        )}
-        {log.ref_doc && <div className="font-mono text-xs text-brand-700">{log.ref_doc}</div>}
         {entries.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-1.5">
             {entries.map(([k, ch]) => (
               <span
                 key={k}
@@ -128,9 +131,34 @@ function LogEntry({ log, stores, showWine }: { log: StockItemLog; stores: Store[
             ))}
           </div>
         )}
+        <div className="mt-1.5 text-xs text-muted">
+          {new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น. · {log.created_by_email ?? '–'}
+        </div>
       </div>
     </li>
   )
+}
+
+/** สีจุดบนเส้นเวลา (ตาม tone ของป้าย) */
+const DOT: Record<Tone, string> = {
+  success: 'var(--color-success-600)',
+  warning: 'var(--color-warning-600)',
+  danger: 'var(--color-danger-600)',
+  info: 'var(--color-info-600)',
+  gold: 'var(--color-gold-500)',
+  brand: 'var(--color-brand-700)',
+  neutral: 'var(--color-muted)',
+}
+
+/** หัวข้อวันที่ของกลุ่มประวัติ */
+function dayLabel(iso: string) {
+  const d = new Date(iso)
+  const key = d.toLocaleDateString('sv-SE')
+  const today = new Date()
+  const yesterday = new Date(today.getTime() - 86_400_000)
+  if (key === today.toLocaleDateString('sv-SE')) return 'วันนี้'
+  if (key === yesterday.toLocaleDateString('sv-SE')) return 'เมื่อวาน'
+  return d.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 /** รายการประวัติการทำรายการ แบ่งหน้าฝั่ง server */
@@ -138,10 +166,13 @@ export function LogList({
   stores,
   stockItemId,
   pageSize = 20,
+  fill = false,
 }: {
   stores: Store[]
   stockItemId?: string
   pageSize?: number
+  /** สูงเต็มพื้นที่ที่เหลือ เลื่อนรายการในกรอบ (หน้าประวัติ) */
+  fill?: boolean
 }) {
   const [page, setPage] = useState(1)
   const sizeKey = stockItemId ? 'item-logs' : 'logs'
@@ -149,10 +180,18 @@ export function LogList({
   const [action, setAction] = useState<StockAction | ''>('')
   const q = useQuery(logsListOptions({ page, pageSize: size, stockItemId, action: action || undefined }))
   const total = q.data?.total ?? 0
+  const groups = useMemo(() => {
+    const m = new Map<string, StockItemLog[]>()
+    for (const l of q.data?.items ?? []) {
+      const k = dayLabel(l.created_at)
+      m.set(k, [...(m.get(k) ?? []), l])
+    }
+    return [...m.entries()]
+  }, [q.data])
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="-mx-1 flex flex-wrap gap-1">
+    <div className={cn('flex flex-col gap-3', fill && 'min-h-0 flex-1')}>
+      <div className="-mx-1 flex shrink-0 flex-wrap gap-1">
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -170,18 +209,25 @@ export function LogList({
           </button>
         ))}
       </div>
-      <div className="overflow-hidden rounded-xl border border-line bg-surface">
-        {q.isLoading && <div className="p-8 text-center text-sm text-muted">กำลังโหลด…</div>}
-        {!q.isLoading && !q.data?.items.length && (
-          <div className="p-10 text-center text-sm text-muted">ยังไม่มีประวัติ</div>
-        )}
-        <ul className="divide-y divide-line">
-          {q.data?.items.map((l) => <LogEntry key={l.id} log={l} stores={stores} showWine={!stockItemId} />)}
-        </ul>
+      <div className={cn(fill && 'min-h-[240px] flex-1 overflow-auto pr-1')}>
+      {q.isLoading && <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-muted">กำลังโหลด…</div>}
+      {!q.isLoading && !q.data?.items.length && (
+        <div className="rounded-xl border border-line bg-surface p-10 text-center text-sm text-muted">ยังไม่มีประวัติ</div>
+      )}
+      {groups.map(([day, logs]) => (
+        <section key={day}>
+          <h3 className="mb-2 text-xs font-semibold text-ink-2">{day}</h3>
+          <ul>
+            {logs.map((l) => (
+              <LogEntry key={l.id} log={l} stores={stores} showWine={!stockItemId} />
+            ))}
+          </ul>
+        </section>
+      ))}
       </div>
       {total > 0 && (
         <Pager
-          className="justify-end"
+          className="shrink-0 justify-end"
           page={page}
           pageSize={size}
           total={total}

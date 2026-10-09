@@ -13,7 +13,7 @@ export function Segmented<T extends string>({
   className?: string
 }) {
   return (
-    <div className={cn('-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0', className)}>
+    <div className={cn('no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0', className)}>
       <div role="tablist" className="inline-flex gap-1 rounded-xl bg-surface-3 p-1">
         {items.map((it) => (
           <button

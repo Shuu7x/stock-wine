@@ -1,5 +1,6 @@
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Tables } from '@/lib/database.types'
+import { applyDocFilter, type DocFilter } from '@/lib/doc-filter'
 import { supabase } from '@/lib/supabase'
 import { stockKeys } from '@/features/stock/api/stock.api'
 
@@ -27,24 +28,26 @@ export type ReceiptLineInput = Pick<
 
 export const receiptKeys = {
   all: ['receipts'] as const,
-  list: (page: number, pageSize: number) => [...receiptKeys.all, 'list', { page, pageSize }] as const,
+  list: (page: number, pageSize: number, f: DocFilter = {}) => [...receiptKeys.all, 'list', { page, pageSize, ...f }] as const,
 }
 
-async function fetchReceipts(page: number, pageSize: number) {
+async function fetchReceipts(page: number, pageSize: number, f: DocFilter) {
   const from = (page - 1) * pageSize
-  const { data, count, error } = await supabase
-    .from('receipts')
-    .select('*, receipt_lines(*)', { count: 'exact' })
+  const { data, count, error } = await applyDocFilter(
+    supabase.from('receipts').select('*, receipt_lines(*)', { count: 'exact' }),
+    'received_at',
+    f,
+  )
     .order('created_at', { ascending: false })
     .range(from, from + pageSize - 1)
   if (error) throw error
   return { items: data as ReceiptWithLines[], total: count ?? 0 }
 }
 
-export const receiptsListOptions = (page: number, pageSize = 20) =>
+export const receiptsListOptions = (page: number, pageSize = 20, f: DocFilter = {}) =>
   queryOptions({
-    queryKey: receiptKeys.list(page, pageSize),
-    queryFn: () => fetchReceipts(page, pageSize),
+    queryKey: receiptKeys.list(page, pageSize, f),
+    queryFn: () => fetchReceipts(page, pageSize, f),
     placeholderData: keepPreviousData,
   })
 

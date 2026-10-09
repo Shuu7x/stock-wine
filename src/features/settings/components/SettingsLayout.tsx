@@ -27,7 +27,7 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* มือถือ/แท็บเล็ต: เมนูแนวนอน */}
-      <nav className="-mx-4 overflow-x-auto px-4 lg:hidden" aria-label="เมนูตั้งค่า">
+      <nav className="no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 lg:hidden" aria-label="เมนูตั้งค่า">
         <div className="flex w-max gap-1 rounded-xl bg-surface-3 p-1">
           {SETTINGS_SECTIONS.filter((s) => s.to).map((s) => {
             const active = s.id === current?.id

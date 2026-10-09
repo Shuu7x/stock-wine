@@ -1,5 +1,6 @@
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Tables, VatMode } from '@/lib/database.types'
+import { applyDocFilter, type DocFilter } from '@/lib/doc-filter'
 import { supabase } from '@/lib/supabase'
 import { stockKeys } from '@/features/stock/api/stock.api'
 
@@ -18,21 +19,23 @@ export type AdjustmentLineInput = { stock_item_id: string; counted: number; reas
 export type TransferLineInput = { stock_item_id: string; qty: number; to_store_id: number; to_rack: string | null; remark: string | null }
 
 export const opKeys = {
-  sales: (page: number, size: number) => ['ops', 'sales', { page, size }] as const,
-  adjustments: (page: number, size: number) => ['ops', 'adjustments', { page, size }] as const,
-  transfers: (page: number, size: number) => ['ops', 'transfers', { page, size }] as const,
+  sales: (page: number, size: number, f: DocFilter) => ['ops', 'sales', { page, size, ...f }] as const,
+  adjustments: (page: number, size: number, f: DocFilter) => ['ops', 'adjustments', { page, size, ...f }] as const,
+  transfers: (page: number, size: number, f: DocFilter) => ['ops', 'transfers', { page, size, ...f }] as const,
 }
 
 const range = (page: number, size: number) => [(page - 1) * size, page * size - 1] as const
 
-export const salesListOptions = (page: number, size = 20) =>
+export const salesListOptions = (page: number, size = 20, f: DocFilter = {}) =>
   queryOptions({
-    queryKey: opKeys.sales(page, size),
+    queryKey: opKeys.sales(page, size, f),
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, count, error } = await supabase
-        .from('sales')
-        .select('*, sale_lines(*)', { count: 'exact' })
+      const { data, count, error } = await applyDocFilter(
+        supabase.from('sales').select('*, sale_lines(*)', { count: 'exact' }),
+        'sold_at',
+        f,
+      )
         .order('created_at', { ascending: false })
         .range(...range(page, size))
       if (error) throw error
@@ -40,14 +43,16 @@ export const salesListOptions = (page: number, size = 20) =>
     },
   })
 
-export const adjustmentsListOptions = (page: number, size = 20) =>
+export const adjustmentsListOptions = (page: number, size = 20, f: DocFilter = {}) =>
   queryOptions({
-    queryKey: opKeys.adjustments(page, size),
+    queryKey: opKeys.adjustments(page, size, f),
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, count, error } = await supabase
-        .from('stock_adjustments')
-        .select('*, stock_adjustment_lines(*)', { count: 'exact' })
+      const { data, count, error } = await applyDocFilter(
+        supabase.from('stock_adjustments').select('*, stock_adjustment_lines(*)', { count: 'exact' }),
+        'adjusted_at',
+        f,
+      )
         .order('created_at', { ascending: false })
         .range(...range(page, size))
       if (error) throw error
@@ -55,14 +60,16 @@ export const adjustmentsListOptions = (page: number, size = 20) =>
     },
   })
 
-export const transfersListOptions = (page: number, size = 20) =>
+export const transfersListOptions = (page: number, size = 20, f: DocFilter = {}) =>
   queryOptions({
-    queryKey: opKeys.transfers(page, size),
+    queryKey: opKeys.transfers(page, size, f),
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const { data, count, error } = await supabase
-        .from('transfers')
-        .select('*, transfer_lines(*)', { count: 'exact' })
+      const { data, count, error } = await applyDocFilter(
+        supabase.from('transfers').select('*, transfer_lines(*)', { count: 'exact' }),
+        'transferred_at',
+        f,
+      )
         .order('created_at', { ascending: false })
         .range(...range(page, size))
       if (error) throw error
