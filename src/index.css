@@ -2,7 +2,8 @@
 @import 'tailwindcss';
 
 /* สีทั้งหมดผ่าน token — ห้ามใช้ค่าสีตรงใน component */
-@theme {
+/* static: ส่งตัวแปรสีออกครบทุกตัว (ตัวส่งออก Excel และป้าย QR อ่านสีจาก CSS ตอนใช้งาน) */
+@theme static {
   --font-sans: 'IBM Plex Sans Thai', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Playfair Display', 'IBM Plex Sans Thai', serif;
 

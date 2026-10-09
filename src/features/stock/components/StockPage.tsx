@@ -245,11 +245,13 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
   const [exporting, setExporting] = useState(false)
 
-  /** ส่งออก Excel: ข้อมูลที่บันทึกแล้วของแท็บนี้ พร้อมคอลัมน์สถานะไว้กรองใน Excel */
+  /**
+   * ส่งออก Excel (ข้อมูลที่บันทึกแล้ว) พร้อมคอลัมน์สถานะไว้กรองใน Excel
+   * แท็บ All Stock Wines = ไฟล์เดียวหลาย sheet: รวมทุกคลัง + แยกแต่ละคลังที่เปิดใช้งาน
+   */
   async function exportExcel() {
     setExporting(true)
     try {
-      const data = serverRows.filter((r) => !r.deleted_at)
       const toDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00`) : null)
       const BAL_TONE = { ใกล้หมด: { fill: 'warning-100', font: 'warning-700' }, หมด: { fill: 'surface-3', font: 'muted' } } as const
       const DRINK_TONE = {
@@ -257,11 +259,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         ยังไม่ถึง: { fill: 'info-50', font: 'info-600' },
         เลยช่วง: { fill: 'warning-100', font: 'warning-700' },
       } as const
-      const cols: XlsxColumn<StockItem>[] = [
+      const cols = (withStore: boolean): XlsxColumn<StockItem>[] => [
         { header: 'Country', width: 14, value: (r) => r.country },
-        ...(tab === 'all'
-          ? [{ header: 'Store', width: 20, value: (r: StockItem) => storeName(stores, r.store_id) }]
-          : []),
+        ...(withStore ? [{ header: 'Store', width: 20, value: (r: StockItem) => storeName(stores, r.store_id) }] : []),
         { header: 'Wine racks', width: 11, value: (r) => r.rack, align: 'center' },
         { header: 'Name of wine', width: 40, value: (r) => r.wine_name },
         { header: 'Year', width: 8, value: (r) => r.vintage ?? 'NV', align: 'center' },
@@ -296,17 +296,26 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         { header: 'วันที่ซื้อ', width: 12, value: (r) => toDate(r.purchase_date), align: 'center' },
         { header: 'Remark', width: 30, value: (r) => r.remark },
       ]
-      const name = currentStore?.name ?? 'All Stock Wines'
-      await exportXlsx({
-        fileName: `stock-${tab}-${todayIso()}`,
-        sheetName: name,
+      const at = fmtDateTime(new Date().toISOString())
+      const note = dirty ? ' · (ไม่รวมการแก้ไขที่ยังไม่บันทึก)' : ''
+      const sheet = (name: string, rows: StockItem[], withStore: boolean) => ({
+        name,
         title: `สต็อกไวน์ · ${name}`,
-        subtitle: `ส่งออกเมื่อ ${fmtDateTime(new Date().toISOString())} · ${data.length} รายการ${
-          dirty ? ' · (ไม่รวมการแก้ไขที่ยังไม่บันทึก)' : ''
-        }`,
-        columns: cols,
-        rows: data,
+        subtitle: `ส่งออกเมื่อ ${at} · ${rows.length} รายการ${note}`,
+        columns: cols(withStore),
+        rows,
       })
+      const live = all.filter((r) => !r.deleted_at)
+      const sheets = currentStore
+        ? [sheet(currentStore.name, live.filter((r) => r.store_id === currentStore.id), false)]
+        : [
+            sheet('All Stock Wines', live, true),
+            ...stores
+              .filter((st) => st.is_active)
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((st) => sheet(st.name, live.filter((r) => r.store_id === st.id), false)),
+          ]
+      await exportXlsx({ fileName: `stock-${tab}-${todayIso()}`, sheets })
     } finally {
       setExporting(false)
     }
