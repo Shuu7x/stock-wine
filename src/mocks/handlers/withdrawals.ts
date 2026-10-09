@@ -1,6 +1,6 @@
 import { http } from 'msw/http'
 import type { Tables } from '@/lib/database.types'
-import { auditNow, db, docNo, MOCK_USER, persist, PgError } from '@/mocks/db'
+import { auditNow, db, docNo, logStockChange, MOCK_USER, persist, PgError } from '@/mocks/db'
 import { emailOf, requireAuth, respondList, rest, rpc, withLines } from '@/mocks/postgrest'
 
 type LineInput = { stock_item_id: string; qty: number; withdraw_date: string | null; remark: string | null }
@@ -20,6 +20,7 @@ function postWithdrawal(email: string, note: string | null, lines: LineInput[]) 
     created_by_email: email,
     ...auditNow(),
   }
+  const logs: Array<[Tables<'stock_items'>, Tables<'stock_items'>]> = []
   const newLines: Tables<'withdrawal_lines'>[] = lines.map((l, i) => {
     const item = items.find((s) => s.id === l.stock_item_id && s.deleted_at == null)
     if (!item) throw new PgError(`แถว ${i + 1}: ไม่พบไวน์ในสต็อก`)
@@ -27,7 +28,9 @@ function postWithdrawal(email: string, note: string | null, lines: LineInput[]) 
     if (l.qty > item.balance) {
       throw new PgError(`แถว ${i + 1}: ${item.wine_name} คงเหลือ ${item.balance} ขวด เบิก ${l.qty} ขวดไม่ได้`)
     }
+    const before = structuredClone(item)
     item.balance -= l.qty
+    logs.push([before, structuredClone(item)])
     return {
       id: crypto.randomUUID(),
       withdrawal_id: doc.id,
@@ -49,17 +52,21 @@ function postWithdrawal(email: string, note: string | null, lines: LineInput[]) 
   db.stock_items = items
   db.withdrawals.push(doc)
   db.withdrawal_lines.push(...newLines)
+  for (const [b, a] of logs) logStockChange(b, a, email, 'withdraw', doc.doc_no)
   persist()
   return doc
 }
 
 // เลียนแบบ public.void_withdrawal
-function voidWithdrawal(id: string, reason: string | null) {
+function voidWithdrawal(email: string, id: string, reason: string | null) {
   const doc = db.withdrawals.find((r) => r.id === id)
   if (!doc) throw new PgError('ไม่พบเอกสาร')
   if (doc.status === 'void') throw new PgError('เอกสารนี้ถูกยกเลิกแล้ว')
   for (const l of db.withdrawal_lines.filter((x) => x.withdrawal_id === id)) {
-    db.stock_items.find((s) => s.id === l.stock_item_id)!.balance += l.qty
+    const item = db.stock_items.find((s) => s.id === l.stock_item_id)!
+    const before = structuredClone(item)
+    item.balance += l.qty
+    logStockChange(before, item, email, 'void_withdrawal', doc.doc_no)
   }
   Object.assign(doc, {
     status: 'void',
@@ -87,6 +94,6 @@ export const withdrawalHandlers = [
   ),
   http.post(
     rest('rpc/void_withdrawal'),
-    rpc<{ p_id: string; p_reason: string | null }>((_req, a) => voidWithdrawal(a.p_id, a.p_reason)),
+    rpc<{ p_id: string; p_reason: string | null }>((req, a) => voidWithdrawal(emailOf(req), a.p_id, a.p_reason)),
   ),
 ]

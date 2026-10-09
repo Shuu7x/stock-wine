@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Eraser, Plus, Save, Trash2 } from 'lucide-react'
+import { Eraser, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn, Suggestion } from '@/components/data-grid/types'
 import { formatValue, getValue } from '@/components/data-grid/utils'
+import { AddRows } from '@/components/ui/add-rows'
 import { Button } from '@/components/ui/button'
+import { Combobox } from '@/components/ui/combobox'
 import { Dialog } from '@/components/ui/dialog'
-import { Field, Input, Select } from '@/components/ui/field'
+import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
 import { buildLookups, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
@@ -294,14 +296,14 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
 
       <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[220px_1fr]">
         <Field label="ค้นหาไวน์จากคลัง">
-          <Select value={scope} onChange={(e) => setScope(Number(e.target.value))}>
-            <option value={0}>ทุกคลัง (All Stock Wines)</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
+          <Combobox
+            value={scope}
+            onChange={setScope}
+            options={[
+              { value: 0, label: 'ทุกคลัง (All Stock Wines)' },
+              ...stores.map((st) => ({ value: st.id, label: st.name, hint: st.code })),
+            ]}
+          />
         </Field>
         <Field label="หมายเหตุ / ผู้เบิก / โอกาส">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น งานเลี้ยงลูกค้า 12 ต.ค. — คุณสมชาย" />
@@ -309,9 +311,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setRows((rs) => [...rs, ...Array.from({ length: 5 }, () => newRow())])}>
-          <Plus className="size-4" /> เพิ่ม 5 แถว
-        </Button>
+        <AddRows onAdd={(n) => setRows((rs) => [...rs, ...Array.from({ length: n }, () => newRow())])} />
         {selectedIds.length > 0 && rows.length > 1 && (
           <Button
             size="sm"

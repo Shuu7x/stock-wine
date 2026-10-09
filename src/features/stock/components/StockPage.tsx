@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, ArchiveRestore, Download, GlassWater, Save, Search, Undo2 } from 'lucide-react'
+import { Archive, ArchiveRestore, Download, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -16,10 +16,11 @@ import {
   stockItemsOptions,
   storesOptions,
   useArchiveStockItems,
-  useUpdateStockItems,
+  useSaveStockChanges,
   type StockItem,
   type StockItemPatch,
 } from '../api/stock.api'
+import { ItemHistoryDialog } from '@/features/history/components/LogList'
 import { buildLookups, storeName, wineColumns, wineLabel } from '../columns'
 
 export type StoreTab = 'all' | 'SW1' | 'SW2' | 'BIG'
@@ -51,11 +52,14 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const [search, setSearch] = useState('')
   const [edits, setEdits] = useState<Record<string, StockItem>>({})
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [confirmArchive, setConfirmArchive] = useState<string[] | null>(null)
+  // ลบที่พักไว้ (ยังไม่บันทึก) — แสดงเป็นแถวสีแดง
+  const [pendingDeletes, setPendingDeletes] = useState<string[]>([])
+  const [confirmSave, setConfirmSave] = useState(false)
+  const [historyOf, setHistoryOf] = useState<StockItem | null>(null)
 
   const storesQ = useQuery(storesOptions())
   const itemsQ = useQuery(stockItemsOptions(showArchived))
-  const update = useUpdateStockItems()
+  const save = useSaveStockChanges()
   const archive = useArchiveStockItems()
 
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
@@ -70,7 +74,25 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   )
   const rows = useMemo(() => serverRows.map((r) => edits[r.id] ?? r), [serverRows, edits])
   const byId = useMemo(() => new Map(all.map((i) => [i.id, i])), [all])
-  const dirtyCount = Object.keys(edits).length
+  const pendingSet = useMemo(() => new Set(pendingDeletes), [pendingDeletes])
+  const editCount = Object.keys(edits).filter((id) => !pendingSet.has(id)).length
+  const dirty = editCount + pendingDeletes.length > 0
+
+  const cellChanged = useCallback(
+    (row: StockItem, key: string) => {
+      if (!edits[row.id]) return false
+      const orig = byId.get(row.id)
+      if (!orig) return false
+      const fields = (key === 'maturity' ? ['maturity_from', 'maturity_to'] : [key]) as Array<keyof StockItem>
+      return fields.some((f) => orig[f] !== row[f])
+    },
+    [edits, byId],
+  )
+
+  function stageDelete(ids: string[]) {
+    const live = ids.filter((id) => !byId.get(id)?.deleted_at)
+    if (live.length) setPendingDeletes((p) => [...new Set([...p, ...live])])
+  }
 
   const onRowsChange = useCallback(
     (next: StockItem[]) => {
@@ -90,7 +112,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
   const columns = useMemo(() => {
     const c = wineColumns<StockItem>(stores, lookups)
-    const ro = (r: StockItem) => !!r.deleted_at
+    const ro = (r: StockItem) => !!r.deleted_at || pendingSet.has(r.id)
     const balance: GridColumn<StockItem> = {
       key: 'balance',
       title: 'Balance',
@@ -151,7 +173,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       ...col,
       readOnly: col.readOnly === true ? true : ro,
     }))
-  }, [stores, lookups, tab, showArchived])
+  }, [stores, lookups, tab, showArchived, pendingSet])
 
   const stats = useMemo(() => {
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter((i) => i.balance > 0)
@@ -166,19 +188,36 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
   const tabCount = (id?: number) => fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
 
-  async function saveEdits() {
-    const changes = Object.values(edits)
-      .map((row) => {
-        const orig = byId.get(row.id)
-        const patch = orig && diff(orig, row)
-        return patch ? { id: row.id, patch } : null
-      })
-      .filter((x) => x !== null)
-    const bad = changes.find((c) => c.patch.wine_name !== undefined && !c.patch.wine_name?.trim())
-    if (bad) return toast.error('ชื่อไวน์ห้ามว่าง')
-    await update.mutateAsync(changes)
+  const updates = Object.values(edits)
+    .filter((row) => !pendingSet.has(row.id))
+    .map((row) => {
+      const orig = byId.get(row.id)
+      const patch = orig && diff(orig, row)
+      return patch ? { id: row.id, patch } : null
+    })
+    .filter((x) => x !== null)
+
+  function trySave() {
+    if (updates.some((c) => c.patch.wine_name !== undefined && !c.patch.wine_name?.trim())) {
+      return toast.error('ชื่อไวน์ห้ามว่าง')
+    }
+    setConfirmSave(true)
+  }
+
+  async function submitChanges() {
+    await save.mutateAsync({ updates, deletes: pendingDeletes })
+    const msg = [updates.length && `แก้ไข ${updates.length}`, pendingDeletes.length && `ลบ ${pendingDeletes.length}`]
+      .filter(Boolean)
+      .join(' · ')
     setEdits({})
-    toast.success(`บันทึกการแก้ไข ${changes.length} รายการแล้ว`)
+    setPendingDeletes([])
+    setConfirmSave(false)
+    toast.success(`บันทึกแล้ว (${msg} รายการ)`, { description: 'ดูรายละเอียดได้ที่ ประวัติ › บันทึกการแก้ไข' })
+  }
+
+  function discardAll() {
+    setEdits({})
+    setPendingDeletes([])
   }
 
   const selectedLive = selectedIds.filter((id) => {
@@ -186,7 +225,10 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     return r && !r.deleted_at
   })
   const selectedArchived = selectedIds.filter((id) => byId.get(id)?.deleted_at)
-  const selectedWithStock = selectedLive.filter((id) => (byId.get(id)?.balance ?? 0) > 0)
+  const selectedToDelete = selectedLive.filter((id) => !pendingSet.has(id))
+  const selectedPending = selectedLive.filter((id) => pendingSet.has(id))
+  const selectedWithStock = selectedToDelete.filter((id) => (byId.get(id)?.balance ?? 0) > 0)
+  const single = selectedIds.length === 1 ? byId.get(selectedIds[0]) : undefined
 
   function exportCsv() {
     const cols = columns.filter((c) => c.key !== 'status')
@@ -270,9 +312,23 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
               <GlassWater className="size-4" /> เบิก {selectedWithStock.length} รายการ
             </Button>
           )}
-          {selectedLive.length > 0 && (
-            <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => setConfirmArchive(selectedLive)}>
-              <Archive className="size-4" /> ลบ {selectedLive.length} รายการ
+          {single && (
+            <Button size="sm" variant="ghost" onClick={() => setHistoryOf(single)}>
+              <History className="size-4" /> ประวัติ
+            </Button>
+          )}
+          {selectedToDelete.length > 0 && (
+            <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => stageDelete(selectedToDelete)}>
+              <Archive className="size-4" /> ลบ {selectedToDelete.length} รายการ
+            </Button>
+          )}
+          {selectedPending.length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setPendingDeletes((p) => p.filter((id) => !selectedPending.includes(id)))}
+            >
+              <RotateCcw className="size-4" /> ยกเลิกการลบ {selectedPending.length} รายการ
             </Button>
           )}
           {selectedArchived.length > 0 && (
@@ -291,16 +347,27 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         </div>
       </div>
 
-      {dirtyCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning-600/30 bg-warning-50 px-4 py-2 text-sm">
-          <span className="flex-1 text-warning-700">
-            แก้ไขแล้ว <b>{dirtyCount}</b> รายการ ยังไม่ได้บันทึก
+      {dirty && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-warning-600/30 bg-warning-50 px-4 py-2 text-sm">
+          <span className="flex flex-1 flex-wrap items-center gap-x-3 text-warning-700">
+            ยังไม่ได้บันทึก:
+            {editCount > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-3 rounded-sm border border-warning-600/40 bg-warning-100" /> แก้ไข <b>{editCount}</b>
+              </span>
+            )}
+            {pendingDeletes.length > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-3 rounded-sm border border-danger-600/40 bg-danger-50" /> ลบ{' '}
+                <b>{pendingDeletes.length}</b>
+              </span>
+            )}
           </span>
-          <Button size="sm" variant="ghost" onClick={() => setEdits({})}>
-            <Undo2 className="size-4" /> ยกเลิก
+          <Button size="sm" variant="ghost" onClick={discardAll}>
+            <Undo2 className="size-4" /> ยกเลิกทั้งหมด
           </Button>
-          <Button size="sm" variant="primary" loading={update.isPending} onClick={saveEdits}>
-            <Save className="size-4" /> บันทึกการแก้ไข
+          <Button size="sm" variant="primary" onClick={trySave}>
+            <Save className="size-4" /> บันทึก
           </Button>
         </div>
       )}
@@ -311,66 +378,78 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         columns={columns}
         getRowId={(r) => r.id}
         onRowsChange={onRowsChange}
-        onDeleteRows={(ids) => {
-          const liveIds = ids.filter((id) => !byId.get(id)?.deleted_at)
-          if (liveIds.length) setConfirmArchive(liveIds)
-        }}
+        onDeleteRows={stageDelete}
         onSelectionChange={setSelectedIds}
-        rowClassName={(r) =>
-          r.deleted_at ? 'opacity-55 line-through' : edits[r.id] ? '[&>div:not(:first-child)]:bg-warning-50/60' : undefined
-        }
+        rowStatus={(r) => (pendingSet.has(r.id) ? 'deleted' : null)}
+        cellChanged={cellChanged}
+        rowClassName={(r) => (r.deleted_at ? 'opacity-55 line-through' : undefined)}
         search={search}
         emptyState={itemsQ.isLoading ? 'กำลังโหลด…' : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />
 
       <Dialog
-        open={!!confirmArchive}
-        onClose={() => setConfirmArchive(null)}
-        title={`ลบ ${confirmArchive?.length ?? 0} รายการออกจากสต็อก?`}
-        description="รายการจะถูกซ่อนจากสต็อก แต่ยังเก็บไว้ในฐานข้อมูลพร้อมประวัติรับเข้า/เบิก กู้คืนได้ภายหลัง"
+        open={confirmSave}
+        onClose={() => setConfirmSave(false)}
+        title="ยืนยันบันทึกการเปลี่ยนแปลง"
+        description="ทุกการเปลี่ยนแปลงจะถูกเก็บในประวัติ (ใคร · เมื่อไร · ค่าเดิม → ค่าใหม่) รายการที่ลบยังอยู่ในฐานข้อมูลและกู้คืนได้"
+        size="lg"
         footer={
           <>
-            <Button onClick={() => setConfirmArchive(null)}>ยกเลิก</Button>
-            <Button
-              variant="danger"
-              loading={archive.isPending}
-              onClick={async () => {
-                const ids = confirmArchive ?? []
-                await archive.mutateAsync({ ids })
-                setEdits((e) => {
-                  const out = { ...e }
-                  for (const id of ids) delete out[id]
-                  return out
-                })
-                setConfirmArchive(null)
-                toast.success(`ลบ ${ids.length} รายการแล้ว (เก็บประวัติไว้)`)
-              }}
-            >
-              ลบ
+            <Button onClick={() => setConfirmSave(false)}>กลับไปแก้ไข</Button>
+            <Button variant="primary" loading={save.isPending} onClick={submitChanges}>
+              ยืนยันบันทึก
             </Button>
           </>
         }
       >
-        <ul className="space-y-1 text-sm">
-          {(confirmArchive ?? []).slice(0, 8).map((id) => {
-            const r = byId.get(id)
-            return r ? (
-              <li key={id} className="flex justify-between gap-3">
-                <span className="truncate">{wineLabel(r)}</span>
-                <span className="shrink-0 text-muted">
-                  {storeName(stores, r.store_id)} · คงเหลือ {r.balance}
-                </span>
-              </li>
-            ) : null
-          })}
-          {(confirmArchive?.length ?? 0) > 8 && <li className="text-muted">และอีก {confirmArchive!.length - 8} รายการ</li>}
-        </ul>
-        {(confirmArchive ?? []).some((id) => (byId.get(id)?.balance ?? 0) > 0) && (
-          <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
-            บางรายการยังมีของคงเหลือ ถ้านำไวน์ออกไปจริงควรทำรายการเบิกแทน
-          </p>
+        {updates.length > 0 && (
+          <section className="mb-4">
+            <h3 className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+              <span className="size-3 rounded-sm border border-warning-600/40 bg-warning-100" /> แก้ไข {updates.length} รายการ
+            </h3>
+            <ul className="space-y-1 text-sm">
+              {updates.slice(0, 10).map(({ id, patch }) => {
+                const r = byId.get(id)!
+                return (
+                  <li key={id} className="flex justify-between gap-3">
+                    <span className="truncate">{wineLabel(r)}</span>
+                    <span className="shrink-0 text-xs text-muted">{Object.keys(patch).length} ช่อง</span>
+                  </li>
+                )
+              })}
+              {updates.length > 10 && <li className="text-muted">และอีก {updates.length - 10} รายการ</li>}
+            </ul>
+          </section>
+        )}
+        {pendingDeletes.length > 0 && (
+          <section>
+            <h3 className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+              <span className="size-3 rounded-sm border border-danger-600/40 bg-danger-50" /> ลบ {pendingDeletes.length} รายการ
+            </h3>
+            <ul className="space-y-1 text-sm">
+              {pendingDeletes.slice(0, 10).map((id) => {
+                const r = byId.get(id)
+                return r ? (
+                  <li key={id} className="flex justify-between gap-3">
+                    <span className="truncate">{wineLabel(r)}</span>
+                    <span className="shrink-0 text-muted">
+                      {storeName(stores, r.store_id)} · คงเหลือ {r.balance}
+                    </span>
+                  </li>
+                ) : null
+              })}
+              {pendingDeletes.length > 10 && <li className="text-muted">และอีก {pendingDeletes.length - 10} รายการ</li>}
+            </ul>
+            {pendingDeletes.some((id) => (byId.get(id)?.balance ?? 0) > 0) && (
+              <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-sm text-warning-700">
+                บางรายการยังมีของคงเหลือ ถ้านำไวน์ออกไปจริงควรทำรายการเบิกแทน
+              </p>
+            )}
+          </section>
         )}
       </Dialog>
+
+      <ItemHistoryDialog item={historyOf} stores={stores} onClose={() => setHistoryOf(null)} />
     </div>
   )
 }

@@ -1,9 +1,10 @@
-import { CalendarDays } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/cn'
+import { parseDate } from '@/lib/format'
 import { Floating } from './floating'
 import type { GridColumn, Suggestion } from './types'
-import { getOptions, parseText } from './utils'
+import { getOptions, matchesWords, parseText } from './utils'
 
 export type EditorCommit<R> =
   | { kind: 'value'; text: string }
@@ -30,7 +31,6 @@ export function CellEditor<R>({
   onCancel: () => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const dateRef = useRef<HTMLInputElement>(null)
   const [text, setText] = useState(initialText)
   const [typed, setTyped] = useState(!openList && initialText !== '')
   // ช่องพิมพ์อิสระไม่เลือกให้อัตโนมัติ (พิมพ์ชื่อใหม่แล้ว Enter = ค่าใหม่) · select เลือกตัวแรกให้
@@ -47,8 +47,7 @@ export function CellEditor<R>({
       return column.suggest(q, row).map((s) => ({ ...s, suggestion: s }))
     }
     const opts = getOptions(column, row)
-    const ql = q.toLowerCase()
-    const filtered = ql ? opts.filter((o) => o.toLowerCase().includes(ql)) : opts
+    const filtered = q ? opts.filter((o) => matchesWords(o, q)) : opts
     return filtered.slice(0, 80).map((o) => ({ key: o, label: o }))
   }, [hasList, column, row, text, typed])
 
@@ -58,11 +57,17 @@ export function CellEditor<R>({
     const el = inputRef.current
     if (!el) return
     el.focus()
-    const len = el.value.length
-    el.setSelectionRange(len, len)
+    // เปิดจากปุ่ม/ดับเบิลคลิกบนช่องที่มีรายการ: เลือกข้อความทั้งหมด พิมพ์แล้วจะค้นใหม่แทนการต่อท้าย
+    if (openList) el.select()
+    else el.setSelectionRange(el.value.length, el.value.length)
   }, [])
 
-  useEffect(() => setHighlight(defaultHighlight), [text, defaultHighlight])
+  // select: ชี้ที่ค่าปัจจุบันในรายการ (ถ้ามี) · ช่องอื่นไม่ชี้อะไร
+  useEffect(() => {
+    if (defaultHighlight < 0) return setHighlight(-1)
+    const t = text.trim().toLowerCase()
+    setHighlight(Math.max(0, items.findIndex((it) => it.label.toLowerCase() === t)))
+  }, [items, text, defaultHighlight])
 
   function commit(move: MoveAfter, pick?: Item<R>): void {
     if (committed.current) return
@@ -75,6 +80,13 @@ export function CellEditor<R>({
       committed.current = false
       setInvalid(true)
     }
+  }
+
+  function commitText(t: string) {
+    setText(t)
+    if (committed.current) return
+    committed.current = true
+    if (!onCommit({ kind: 'value', text: t }, 'none')) committed.current = false
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -141,39 +153,28 @@ export function CellEditor<R>({
         className={cn(
           'h-full w-full bg-surface px-2 text-sm outline-none ring-2 ring-brand-600 ring-inset',
           column.align === 'right' && 'text-right',
-          column.type === 'date' && 'pr-8',
           invalid && 'ring-danger-600 bg-danger-50',
         )}
         aria-invalid={invalid}
         title={invalid ? 'รูปแบบไม่ถูกต้อง' : undefined}
       />
       {column.type === 'date' && (
-        <>
-          <button
-            type="button"
-            tabIndex={-1}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => dateRef.current?.showPicker?.()}
-            className="absolute top-1/2 right-1 -translate-y-1/2 rounded p-1 text-muted hover:bg-surface-2"
-            aria-label="เลือกวันที่"
-          >
-            <CalendarDays className="size-4" />
-          </button>
-          <input
-            ref={dateRef}
-            type="date"
-            tabIndex={-1}
-            className="pointer-events-none absolute right-0 bottom-0 h-0 w-0 opacity-0"
-            onChange={(e) => {
-              if (!e.target.value) return
-              const [y, m, d] = e.target.value.split('-')
-              const t = `${d}/${m}/${y}`
-              setText(t)
-              committed.current = true
-              onCommit({ kind: 'value', text: t }, 'none')
+        <Floating
+          anchor={inputRef}
+          keepFocus
+          width={272}
+          maxHeight={360}
+          className="rounded-xl border border-line bg-surface shadow-2xl"
+        >
+          <Calendar
+            value={parseDate(text)}
+            onSelect={(v) => {
+              const [y, m, d] = v.split('-')
+              commitText(`${d}/${m}/${y}`)
             }}
+            onClear={() => commitText('')}
           />
-        </>
+        </Floating>
       )}
       {invalid && (
         <div className="absolute top-full left-0 z-30 mt-1 rounded bg-danger-600 px-2 py-1 text-xs whitespace-nowrap text-white shadow">

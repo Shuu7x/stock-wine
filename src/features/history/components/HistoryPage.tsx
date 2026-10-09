@@ -13,9 +13,10 @@ import { storesOptions } from '@/features/stock/api/stock.api'
 import { storeName, wineLabel } from '@/features/stock/columns'
 import { useVoidWithdrawal, withdrawalsListOptions } from '@/features/withdrawals/api/withdrawals.api'
 import { cn } from '@/lib/cn'
+import { LogList } from './LogList'
 import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney } from '@/lib/format'
 
-export type HistoryTab = 'receipts' | 'withdrawals'
+export type HistoryTab = 'receipts' | 'withdrawals' | 'logs'
 
 const PAGE_SIZE = 20
 
@@ -131,7 +132,10 @@ export function HistoryPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="ประวัติ" description="เอกสารรับเข้าและเบิกทั้งหมด ยกเลิกได้โดยระบบจะปรับยอดกลับและเก็บเอกสารไว้" />
+      <PageHeader
+        title="ประวัติ"
+        description="เอกสารรับเข้า/เบิก (ยกเลิกได้ ระบบปรับยอดกลับและเก็บเอกสารไว้) และบันทึกทุกการเปลี่ยนแปลงของข้อมูลไวน์"
+      />
 
       <Segmented
         value={tab}
@@ -142,8 +146,14 @@ export function HistoryPage({
         items={[
           { value: 'receipts', label: 'รับเข้า' },
           { value: 'withdrawals', label: 'เบิก' },
+          { value: 'logs', label: 'บันทึกการแก้ไข' },
         ]}
       />
+
+      {tab === 'logs' && <LogList stores={stores} />}
+
+      {tab !== 'logs' && (
+      <>
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface">
         {q.isLoading && <div className="p-8 text-center text-sm text-muted">กำลังโหลด…</div>}
@@ -255,6 +265,9 @@ export function HistoryPage({
             <ChevronRight className="size-4" />
           </Button>
         </div>
+      )}
+
+      </>
       )}
 
       <Dialog

@@ -31,13 +31,14 @@ export function parseDate(input: string): string | null {
   let match = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
   if (match) {
     ;[y, m, d] = [+match[1], +match[2], +match[3]]
-  } else if ((match = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/))) {
+  } else if ((match = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/))) {
     ;[d, m, y] = [+match[1], +match[2], +match[3]]
     if (y < 100) y += 2000
   } else {
     return null
   }
   if (y > 2400) y -= 543 // พ.ศ.
+  if (y < 1800 || y > 2200) return null
   const dt = new Date(y, m - 1, d)
   if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null
   const p = (n: number) => String(n).padStart(2, '0')

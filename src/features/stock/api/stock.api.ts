@@ -47,20 +47,23 @@ export const storesOptions = () =>
 export const stockItemsOptions = (includeDeleted = false) =>
   queryOptions({ queryKey: stockKeys.items(includeDeleted), queryFn: () => fetchStockItems(includeDeleted) })
 
-export function useUpdateStockItems() {
+/** บันทึกการแก้ไข + ลบ (แบบเก็บประวัติ) ที่พักไว้ในหน้าสต็อก ในครั้งเดียว */
+export function useSaveStockChanges() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (changes: Array<{ id: string; patch: StockItemPatch }>) => {
-      for (const { id, patch } of changes) {
-        const { error } = await supabase.from('stock_items').update(patch).eq('id', id)
-        if (error) throw error
-      }
+    mutationFn: async (input: { updates: Array<{ id: string; patch: StockItemPatch }>; deletes: string[] }) => {
+      const { data, error } = await supabase.rpc('save_stock_changes', {
+        p_updates: input.updates,
+        p_deletes: input.deletes,
+      })
+      if (error) throw error
+      return data
     },
     onSettled: () => qc.invalidateQueries({ queryKey: stockKeys.all }),
   })
 }
 
-/** ลบแบบเก็บประวัติ: ตั้ง deleted_at แถวยังอยู่ใน DB และเอกสารเดิมยังอ้างถึงได้ */
+/** กู้คืน/ลบทันที (ใช้กับปุ่มกู้คืนรายการที่ลบแล้ว) */
 export function useArchiveStockItems() {
   const qc = useQueryClient()
   return useMutation({

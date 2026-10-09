@@ -1,4 +1,4 @@
-import type { Tables } from '@/lib/database.types'
+import type { StockAction, Tables } from '@/lib/database.types'
 
 // ฐานข้อมูลจำลองในหน่วยความจำ เก็บลง localStorage ให้รีเฟรชแล้วข้อมูลยังอยู่
 // รูปข้อมูลตรงกับตารางจริงใน supabase/migrations
@@ -10,7 +10,8 @@ type DB = {
   receipt_lines: Tables<'receipt_lines'>[]
   withdrawals: Tables<'withdrawals'>[]
   withdrawal_lines: Tables<'withdrawal_lines'>[]
-  seq: { receipt: number; withdrawal: number }
+  stock_item_logs: Tables<'stock_item_logs'>[]
+  seq: { receipt: number; withdrawal: number; log: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -89,14 +90,21 @@ function seed(): DB {
     receipt_lines: [],
     withdrawals: [],
     withdrawal_lines: [],
-    seq: { receipt: 0, withdrawal: 0 },
+    stock_item_logs: [],
+    seq: { receipt: 0, withdrawal: 0, log: 0 },
   }
 }
 
 function load(): DB {
   try {
     const raw = localStorage.getItem(KEY)
-    if (raw) return JSON.parse(raw) as DB
+    if (raw) {
+      const saved = JSON.parse(raw) as DB
+      // ข้อมูลที่บันทึกไว้ก่อนมีตาราง log
+      saved.stock_item_logs ??= []
+      saved.seq.log ??= 0
+      return saved
+    }
   } catch {
     /* ใช้ seed */
   }
@@ -133,4 +141,48 @@ export function docNo(prefix: 'RC' | 'WD', n: number) {
   const d = new Date()
   const yymm = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}`
   return `${prefix}${yymm}-${String(n).padStart(4, '0')}`
+}
+
+// ─── เลียนแบบ trigger public.log_stock_item_change ───────────────────────────
+type StockItem = Tables<'stock_items'>
+const TRACKED = [
+  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'rating_rp', 'rating_ws', 'maturity_from',
+  'maturity_to', 'price_per_bottle', 'supplier', 'purchase_date', 'remark', 'balance', 'deleted_at',
+] as const
+
+export function logStockChange(
+  before: StockItem | null,
+  after: StockItem,
+  email: string,
+  action: StockAction | null = null,
+  refDoc: string | null = null,
+) {
+  const changes: Tables<'stock_item_logs'>['changes'] = {}
+  for (const k of TRACKED) {
+    const o = before ? before[k] : null
+    const n = after[k]
+    if (o === n || (!before && n == null)) continue
+    changes[k] = { old: o, new: n }
+  }
+  if (before && !Object.keys(changes).length) return
+  const derived: StockAction = !before
+    ? 'create'
+    : !before.deleted_at && after.deleted_at
+      ? 'delete'
+      : before.deleted_at && !after.deleted_at
+        ? 'restore'
+        : 'update'
+  db.seq.log += 1
+  db.stock_item_logs.push({
+    id: db.seq.log,
+    stock_item_id: after.id,
+    action: action ?? derived,
+    ref_doc: refDoc,
+    changes,
+    store_id: after.store_id,
+    wine_name: after.wine_name,
+    vintage: after.vintage,
+    created_by_email: email,
+    ...audit(),
+  })
 }

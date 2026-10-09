@@ -1,6 +1,6 @@
 import { http } from 'msw/http'
 import type { Tables } from '@/lib/database.types'
-import { auditNow, db, docNo, MOCK_USER, persist, PgError } from '@/mocks/db'
+import { auditNow, db, docNo, logStockChange, MOCK_USER, persist, PgError } from '@/mocks/db'
 import { stockIdentity } from '@/mocks/handlers/stock'
 import { emailOf, requireAuth, respondList, rest, rpc, withLines } from '@/mocks/postgrest'
 
@@ -46,6 +46,7 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
     ...auditNow(),
   }
   const newLines: Tables<'receipt_lines'>[] = []
+  const logs: Array<[Tables<'stock_items'> | null, Tables<'stock_items'>]> = []
 
   lines.forEach((l, i) => {
     const key = stockIdentity({ ...l, rack: blank(l.rack) })
@@ -73,7 +74,9 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
         ...auditNow(),
       }
       items.push(item)
+      logs.push([null, structuredClone(item)])
     } else {
+      const before = structuredClone(item)
       item.balance += l.qty
       item.country = blank(l.country) ?? item.country
       item.rating_rp = l.rating_rp ?? item.rating_rp
@@ -85,6 +88,7 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
       item.purchase_date = l.purchase_date ?? item.purchase_date
       item.remark = blank(l.remark) ?? item.remark
       item.updated_at = new Date().toISOString()
+      logs.push([before, structuredClone(item)])
     }
     newLines.push({
       id: crypto.randomUUID(),
@@ -114,12 +118,13 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
   db.stock_items = items
   db.receipts.push(receipt)
   db.receipt_lines.push(...newLines)
+  for (const [b, a] of logs) logStockChange(b, a, email, 'receive', receipt.doc_no)
   persist()
   return receipt
 }
 
 // เลียนแบบ public.void_receipt
-function voidReceipt(id: string, reason: string | null) {
+function voidReceipt(email: string, id: string, reason: string | null) {
   const doc = db.receipts.find((r) => r.id === id)
   if (!doc) throw new PgError('ไม่พบเอกสาร')
   if (doc.status === 'void') throw new PgError('เอกสารนี้ถูกยกเลิกแล้ว')
@@ -134,7 +139,12 @@ function voidReceipt(id: string, reason: string | null) {
       )
     }
   }
-  for (const [itemId, qty] of need) db.stock_items.find((s) => s.id === itemId)!.balance -= qty
+  for (const [itemId, qty] of need) {
+    const item = db.stock_items.find((s) => s.id === itemId)!
+    const before = structuredClone(item)
+    item.balance -= qty
+    logStockChange(before, item, email, 'void_receipt', doc.doc_no)
+  }
   Object.assign(doc, {
     status: 'void',
     void_reason: blank(reason),
@@ -158,6 +168,6 @@ export const receiptHandlers = [
   ),
   http.post(
     rest('rpc/void_receipt'),
-    rpc<{ p_id: string; p_reason: string | null }>((_req, a) => voidReceipt(a.p_id, a.p_reason)),
+    rpc<{ p_id: string; p_reason: string | null }>((req, a) => voidReceipt(emailOf(req), a.p_id, a.p_reason)),
   ),
 ]

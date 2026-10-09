@@ -124,3 +124,13 @@ export function fillSeries(source: CellValue[], count: number, forward: boolean)
   // ย้อนขึ้น: out[0] คือเซลล์ที่อยู่ติดขอบบนของต้นฉบับ
   return out
 }
+
+/** ค้นแบบหลายคำ: ทุกคำที่พิมพ์ต้องอยู่ในข้อความ ("room 2" เจอ "Showroom Wines 2") */
+export function matchesWords(text: string, query: string): boolean {
+  const t = text.toLowerCase()
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((w) => t.includes(w))
+}

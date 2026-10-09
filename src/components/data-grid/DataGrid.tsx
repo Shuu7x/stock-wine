@@ -38,6 +38,10 @@ const OVERSCAN = 6
 
 type Range = { top: number; bottom: number; left: number; right: number }
 
+export type RowStatus = 'added' | 'deleted'
+
+const STATUS_LABELS = { added: 'เพิ่มใหม่', changed: 'แก้ไข', deleted: 'ลบ' }
+
 export type DataGridProps<R> = {
   rows: R[]
   columns: GridColumn<R>[]
@@ -50,6 +54,12 @@ export type DataGridProps<R> = {
   onDeleteRows?: (ids: string[]) => void
   onSelectionChange?: (rowIds: string[]) => void
   cellError?: (row: R, key: string) => string | null | undefined
+  /** สถานะทั้งแถว: เพิ่มใหม่ (เขียว) · ลบ (แดง) */
+  rowStatus?: (row: R) => RowStatus | null | undefined
+  /** เซลล์ที่ค่าเปลี่ยนจากเดิม (เหลือง) */
+  cellChanged?: (row: R, key: string) => boolean
+  /** ชื่อสถานะในแถบล่าง */
+  statusLabels?: Partial<Record<RowStatus | 'changed', string>>
   rowClassName?: (row: R) => string | undefined
   /** ค้นหาทุกคอลัมน์ */
   search?: string
@@ -66,6 +76,9 @@ export function DataGrid<R>({
   onDeleteRows,
   onSelectionChange,
   cellError,
+  rowStatus,
+  cellChanged,
+  statusLabels,
   rowClassName,
   search = '',
   emptyState,
@@ -284,7 +297,9 @@ export function DataGrid<R>({
   function startEdit(r: number, c: number, text?: string, openList = false) {
     if (!canEdit(r, c)) return
     const col = columns[c]
-    setEditing({ r, c, text: text ?? formatValue(col, rowAt(r)), openList })
+    // select เปิดรายการทันทีเมื่อเข้าแก้ (ยกเว้นเริ่มจากการพิมพ์ทับ ซึ่งจะกรองรายการให้เอง)
+    const showAll = openList || (col.type === 'select' && text === undefined)
+    setEditing({ r, c, text: text ?? formatValue(col, rowAt(r)), openList: showAll })
     setMenu(null)
   }
 
@@ -689,6 +704,17 @@ export function DataGrid<R>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, rows, viewIdx, columns])
 
+  const statusCounts = useMemo(() => {
+    if (!rowStatus && !cellChanged) return null
+    const n = { added: 0, changed: 0, deleted: 0 }
+    for (const r of rows) {
+      const st = rowStatus?.(r)
+      if (st) n[st]++
+      else if (cellChanged && columns.some((c) => cellChanged(r, c.key))) n.changed++
+    }
+    return n.added + n.changed + n.deleted ? n : null
+  }, [rows, columns, rowStatus, cellChanged])
+
   // ── render ──────────────────────────────────────────────────────────────
   const range = sel ? normRange(sel) : null
   const rect = (g: Range) => ({
@@ -704,6 +730,8 @@ export function DataGrid<R>({
     const row = rowAt(r)
     const inRows = range && r >= range.top && r <= range.bottom
     const rowErr = cellError && columns.some((c) => cellError(row, c.key))
+    const status = rowStatus?.(row)
+    const rowChanged = !status && cellChanged && columns.some((c) => cellChanged(row, c.key))
     bodyRows.push(
       <div
         key={getRowId(row)}
@@ -718,25 +746,38 @@ export function DataGrid<R>({
           )}
           style={{ width: ROWHEAD_W }}
         >
-          {rowErr && <span className="absolute left-1.5 size-1.5 rounded-full bg-danger-600" />}
+          {(status || rowChanged) && (
+            <span
+              className={cn(
+                'absolute inset-y-0 left-0 w-1',
+                status === 'added' ? 'bg-success-600' : status === 'deleted' ? 'bg-danger-600' : 'bg-warning-600',
+              )}
+            />
+          )}
+          {rowErr && <span className="absolute left-2 size-1.5 rounded-full bg-danger-600" />}
           {r + 1}
         </div>
         {columns.map((col, c) => {
           const ro = !editable || isReadOnly(col, row)
-          const inRange = inRows && c >= range!.left && c <= range!.right
           const err = cellError?.(row, col.key)
-          const showChevron = editable && !ro && (col.options || col.suggest) && sel?.anchor.r === r && sel.anchor.c === c
+          const changed = !err && status !== 'deleted' && !!cellChanged?.(row, col.key)
+          const active = sel?.anchor.r === r && sel.anchor.c === c
+          // select มีลูกศรตลอดให้รู้ว่าเลือกได้ · ช่องที่มีตัวเลือกช่วยแสดงเมื่อชี้/เลือก
+          const chevron = editable && !ro && (col.options || col.suggest) ? (col.type === 'select' || active ? 'show' : 'hover') : null
           return (
             <div
               key={col.key}
               title={err ?? undefined}
               className={cn(
-                'relative flex shrink-0 items-center overflow-hidden border-r border-b border-line px-2 text-sm whitespace-nowrap',
+                'group/cell relative flex shrink-0 items-center overflow-hidden border-r border-b border-line px-2 text-sm whitespace-nowrap',
                 col.align === 'right' && 'justify-end tabular-nums',
                 col.align === 'center' && 'justify-center',
                 ro && editable && 'bg-readonly text-ink-2',
-                inRange && 'bg-brand-50/70',
+                status === 'added' && 'bg-success-50',
+                status === 'deleted' && 'bg-danger-50 text-danger-700 line-through decoration-danger-600/60',
+                changed && 'bg-warning-100',
                 err && 'bg-danger-50',
+                chevron && 'pr-6',
               )}
               style={{ width: widths[c] }}
             >
@@ -744,7 +785,7 @@ export function DataGrid<R>({
                 <span className="absolute top-0 left-0 size-0 border-t-[7px] border-r-[7px] border-t-danger-600 border-r-transparent" />
               )}
               <span className="truncate">{col.render ? col.render(row) : formatValue(col, row)}</span>
-              {showChevron && (
+              {chevron && (
                 <button
                   type="button"
                   tabIndex={-1}
@@ -754,7 +795,11 @@ export function DataGrid<R>({
                     e.stopPropagation()
                     startEdit(r, c, formatValue(col, row), true)
                   }}
-                  className="absolute top-1/2 right-0.5 z-10 -translate-y-1/2 rounded bg-surface/90 p-0.5 text-muted shadow-sm hover:text-brand-700"
+                  className={cn(
+                    'absolute top-1/2 right-0.5 z-10 -translate-y-1/2 rounded p-0.5 text-muted transition hover:bg-surface hover:text-brand-700',
+                    chevron === 'hover' && !active && 'opacity-0 group-hover/cell:opacity-100',
+                    active && 'bg-surface/90 shadow-sm',
+                  )}
                 >
                   <ChevronDown className="size-4" />
                 </button>
@@ -870,7 +915,7 @@ export function DataGrid<R>({
           {/* กรอบช่วงที่เลือก + มุมลากคัดลอก */}
           {range && nRows > 0 && (
             <div
-              className="pointer-events-none absolute z-10 border-2 border-brand-600"
+              className="pointer-events-none absolute z-10 border-2 border-brand-600 bg-brand-600/[0.07]"
               style={rect(range)}
             >
               {editable && !editing && (
@@ -917,6 +962,25 @@ export function DataGrid<R>({
           {nRows.toLocaleString('th-TH')}
           {viewActive && nRows !== rows.length ? ` / ${rows.length.toLocaleString('th-TH')}` : ''} แถว
         </span>
+        {statusCounts && (
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {(['added', 'changed', 'deleted'] as const).map((k) =>
+              statusCounts[k] ? (
+                <span key={k} className="inline-flex items-center gap-1.5">
+                  <span
+                    className={cn(
+                      'size-3 rounded-sm border',
+                      k === 'added' && 'border-success-600/40 bg-success-50',
+                      k === 'changed' && 'border-warning-600/40 bg-warning-100',
+                      k === 'deleted' && 'border-danger-600/40 bg-danger-50',
+                    )}
+                  />
+                  {statusLabels?.[k] ?? STATUS_LABELS[k]} <b className="text-ink tabular-nums">{statusCounts[k]}</b>
+                </span>
+              ) : null,
+            )}
+          </span>
+        )}
         {activeFilters > 0 && (
           <button
             type="button"

@@ -95,6 +95,28 @@ type WithdrawalLineRow = Audit & {
   price_per_bottle: number | null
 }
 
+export type StockAction =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'restore'
+  | 'receive'
+  | 'withdraw'
+  | 'void_receipt'
+  | 'void_withdrawal'
+
+type StockItemLogRow = Audit & {
+  id: number
+  stock_item_id: string
+  action: StockAction
+  ref_doc: string | null
+  changes: Record<string, { old: Json | undefined; new: Json | undefined }>
+  store_id: number
+  wine_name: string
+  vintage: number | null
+  created_by_email: string | null
+}
+
 type ReadOnlyTable<Row> = {
   Row: Row
   Insert: never
@@ -148,6 +170,7 @@ export type Database = {
           },
         ]
       }
+      stock_item_logs: ReadOnlyTable<StockItemLogRow>
       withdrawals: ReadOnlyTable<WithdrawalRow>
       withdrawal_lines: {
         Row: WithdrawalLineRow
@@ -173,6 +196,10 @@ export type Database = {
       post_withdrawal: {
         Args: { p_note: string | null; p_lines: Json }
         Returns: WithdrawalRow
+      }
+      save_stock_changes: {
+        Args: { p_updates: Json; p_deletes: string[] }
+        Returns: number
       }
       void_receipt: { Args: { p_id: string; p_reason: string | null }; Returns: ReceiptRow }
       void_withdrawal: { Args: { p_id: string; p_reason: string | null }; Returns: WithdrawalRow }

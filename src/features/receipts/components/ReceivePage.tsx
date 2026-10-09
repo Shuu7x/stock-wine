@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Eraser, Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Eraser, Save, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn, Suggestion } from '@/components/data-grid/types'
+import { AddRows } from '@/components/ui/add-rows'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Field, Input, Select } from '@/components/ui/field'
+import { Combobox } from '@/components/ui/combobox'
+import { DateInput } from '@/components/ui/date-input'
+import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
 import { buildLookups, identityKey, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
@@ -24,6 +27,8 @@ import {
 } from '../draft'
 
 const START_ROWS = 10
+
+const UPDATABLE = ['country', 'rating_rp', 'rating_ws', 'price_per_bottle', 'supplier', 'purchase_date', 'remark'] as const
 
 function wineSuggest(items: StockItem[], stores: Store[]) {
   return (q: string, row: ReceiveRow): Suggestion<ReceiveRow>[] => {
@@ -107,9 +112,32 @@ export function ReceivePage() {
   const errors = useMemo(() => new Map(filled.map((r) => [r._id, validateReceiveRow(r)])), [filled])
   const errorRows = filled.filter((r) => Object.keys(errors.get(r._id) ?? {}).length > 0).length
 
+  const matchOf = useCallback(
+    (r: ReceiveRow) => (r.wine_name?.trim() && r.store_id ? byIdentity.get(identityKey(r)) : undefined),
+    [byIdentity],
+  )
+
+  // ไวน์เดิม: ช่องที่กรอกค่าต่างจากในสต็อก จะไปทับค่าเดิมตอนบันทึก (ช่องว่าง = คงค่าเดิม)
+  const cellChanged = useCallback(
+    (r: ReceiveRow, key: string) => {
+      const m = matchOf(r)
+      if (!m) return false
+      if (key === 'maturity') {
+        return (
+          (r.maturity_from != null && r.maturity_from !== m.maturity_from) ||
+          (r.maturity_to != null && r.maturity_to !== m.maturity_to)
+        )
+      }
+      if (!UPDATABLE.includes(key as (typeof UPDATABLE)[number])) return false
+      const v = r[key as (typeof UPDATABLE)[number]]
+      return v != null && v !== '' && v !== m[key as (typeof UPDATABLE)[number]]
+    },
+    [matchOf],
+  )
+
   const columns = useMemo(() => {
     const c = wineColumns<ReceiveRow>(stores, lookups)
-    const match = (r: ReceiveRow) => (r.wine_name && r.store_id ? byIdentity.get(identityKey(r)) : undefined)
+    const match = matchOf
 
     const status: GridColumn<ReceiveRow> = {
       key: 'match',
@@ -178,7 +206,7 @@ export function ReceivePage() {
       c.purchaseDate,
       c.remark,
     ]
-  }, [stores, lookups, items, byIdentity])
+  }, [stores, lookups, items, matchOf])
 
   const totals = useMemo(() => {
     const ok = filled.filter((r) => !Object.keys(errors.get(r._id) ?? {}).length)
@@ -259,24 +287,18 @@ export function ReceivePage() {
 
       <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
         <Field label="วันที่รับเข้า">
-          <Input type="date" value={receivedAt} max={todayIso()} onChange={(e) => setReceivedAt(e.target.value)} />
+          <DateInput value={receivedAt} max={todayIso()} onChange={setReceivedAt} />
         </Field>
         <Field label="คลังตั้งต้นของแถวใหม่">
-          <Select
-            value={defaultStore ?? ''}
-            onChange={(e) => {
-              const id = Number(e.target.value)
+          <Combobox
+            value={defaultStore}
+            options={stores.map((st) => ({ value: st.id, label: st.name, hint: st.code }))}
+            onChange={(id) => {
               setDefaultStore(id)
               // แถวที่ยังว่างอยู่ ใช้คลังใหม่ไปด้วย
               setRows((rs) => rs.map((r) => (isBlankRow(r) ? { ...r, store_id: id } : r)))
             }}
-          >
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
+          />
         </Field>
         <Field label="หมายเหตุ / เลขที่ใบส่งของ">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น INV-2026-0912 จาก Wine Connection" />
@@ -284,9 +306,7 @@ export function ReceivePage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => addRows(5)}>
-          <Plus className="size-4" /> เพิ่ม 5 แถว
-        </Button>
+        <AddRows onAdd={addRows} />
         {selectedIds.length > 0 && rows.length > 1 && (
           <Button
             size="sm"
@@ -328,6 +348,9 @@ export function ReceivePage() {
         createRow={() => newReceiveRow(defaultStore)}
         onSelectionChange={setSelectedIds}
         cellError={(r, key) => (showErrors && !isBlankRow(r) ? (errors.get(r._id)?.[key] ?? null) : null)}
+        rowStatus={(r) => (!isBlankRow(r) && r.wine_name?.trim() && !matchOf(r) ? 'added' : null)}
+        cellChanged={cellChanged}
+        statusLabels={{ added: 'ไวน์ใหม่', changed: 'ค่าที่จะอัปเดตไวน์เดิม' }}
       />
 
       <Dialog

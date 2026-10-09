@@ -33,9 +33,11 @@
   --color-readonly: #f8f5f3;
 
   --color-success-50: #eefaf3;
+  --color-success-100: #d5f2e0;
   --color-success-600: #1f8a4c;
   --color-success-700: #176b3b;
   --color-warning-50: #fff7e8;
+  --color-warning-100: #fde9c2;
   --color-warning-600: #c27a06;
   --color-warning-700: #965e04;
   --color-danger-50: #fdf0f0;
