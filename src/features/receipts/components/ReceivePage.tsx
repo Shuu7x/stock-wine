@@ -375,6 +375,9 @@ export function ReceivePage() {
           </>
         }
       >
+      {/* สร้างเนื้อหาเฉพาะตอนเปิด: แถวที่ยังกรอกไม่ครบจะไม่ทำให้หน้าพัง */}
+      {confirm && (
+        <>
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
@@ -407,6 +410,8 @@ export function ReceivePage() {
         <p className="mt-3 text-xs text-muted">
           รายการที่ตรงกับไวน์เดิม (คลัง + ชื่อ + ปี + rack) จะบวกยอดเข้าไวน์เดิม ที่เหลือสร้างเป็นรายการใหม่
         </p>
+        </>
+      )}
       </Dialog>
     </div>
   )

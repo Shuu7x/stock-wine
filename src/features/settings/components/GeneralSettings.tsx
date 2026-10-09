@@ -8,7 +8,9 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
 import { Input } from '@/components/ui/field'
+import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
+import { VAT_MODE_LABEL } from '@/lib/vat'
 import { storesOptions } from '@/features/stock/api/stock.api'
 import { APP_SETTINGS, DEFAULT_SETTINGS, type AppSettings } from '../app-settings'
 import { appSettingsOptions, useSaveAppSettings } from '../api/settings.api'
@@ -18,6 +20,8 @@ const schema = z.object({
   default_receive_store_id: APP_SETTINGS.default_receive_store_id.schema,
   low_stock_threshold: z.number({ error: 'ระบุตัวเลข' }).int('จำนวนเต็มเท่านั้น').min(0, 'ต้องไม่ติดลบ').max(9999),
   require_withdraw_note: APP_SETTINGS.require_withdraw_note.schema,
+  vat_rate: z.number({ error: 'ระบุตัวเลข' }).min(0, 'ต้องไม่ติดลบ').max(30, 'ไม่เกิน 30%'),
+  default_vat_mode: APP_SETTINGS.default_vat_mode.schema,
 }) satisfies z.ZodType<AppSettings>
 
 export function GeneralSettings() {
@@ -86,6 +90,43 @@ export function GeneralSettings() {
             name="require_withdraw_note"
             render={({ field }) => (
               <Switch checked={field.value} onChange={field.onChange} label="ต้องกรอกหมายเหตุ / ผู้เบิก" />
+            )}
+          />
+        </SettingRow>
+      </SettingsCard>
+
+      <SettingsCard title="การขาย">
+        <SettingRow htmlFor="vat_rate" label="อัตรา VAT" description="ใช้คำนวณใบขายใหม่ (ใบขายเดิมเก็บอัตราของตัวเองไว้แล้ว)">
+          <div className="flex items-center gap-2">
+            <Input
+              id="vat_rate"
+              type="number"
+              step="0.01"
+              min={0}
+              inputMode="decimal"
+              className="w-28 text-right tabular-nums"
+              {...form.register('vat_rate', { valueAsNumber: true })}
+            />
+            <span className="text-sm text-ink-2">%</span>
+          </div>
+          {form.formState.errors.vat_rate && (
+            <p className="mt-1 text-xs text-danger-600">{form.formState.errors.vat_rate.message}</p>
+          )}
+        </SettingRow>
+        <SettingRow label="ราคาขายตั้งต้น" description="ใบขายใหม่เริ่มด้วยแบบนี้ เปลี่ยนได้ทุกใบในหน้าขาย">
+          <Controller
+            control={form.control}
+            name="default_vat_mode"
+            render={({ field }) => (
+              <Segmented
+                className="!mx-0 !px-0"
+                value={field.value}
+                onChange={field.onChange}
+                items={[
+                  { value: 'included', label: VAT_MODE_LABEL.included },
+                  { value: 'excluded', label: VAT_MODE_LABEL.excluded },
+                ]}
+              />
             )}
           />
         </SettingRow>

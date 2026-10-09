@@ -1,12 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router'
 import {
+  ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
+  ClipboardCheck,
   GlassWater,
   History,
   PackagePlus,
+  QrCode,
   Settings,
+  ShoppingBag,
   Warehouse,
   Wine,
   type LucideIcon,
@@ -187,11 +191,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               })}
             </div>
           )}
+          <NavItem to="/qr" label="ป้าย QR" hint="พิมพ์ป้ายห้อยขวด" icon={QrCode} active={is('/qr')} collapsed={collapsed} />
         </Section>
 
         <Section title="ทำรายการ" collapsed={collapsed}>
           <NavItem to="/receive" label="รับเข้า" hint="รับไวน์เข้าคลัง" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
+          <NavItem to="/sale" label="ขาย" hint="ขายให้ลูกค้า มี VAT" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
           <NavItem to="/withdraw" label="เบิก" hint="เบิกออกไปดื่ม" icon={GlassWater} active={is('/withdraw')} collapsed={collapsed} />
+          <NavItem to="/transfer" label="โอนย้าย" hint="ย้ายคลัง / rack" icon={ArrowLeftRight} active={is('/transfer')} collapsed={collapsed} />
+          <NavItem to="/adjust" label="ปรับยอด" hint="นับสต็อก ชำรุด สูญหาย" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />
         </Section>
 
         <Section title="รายงาน" collapsed={collapsed}>

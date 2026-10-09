@@ -22,6 +22,13 @@ const ACTIONS: Record<StockAction, { label: string; tone: Tone }> = {
   withdraw: { label: 'เบิก', tone: 'brand' },
   void_receipt: { label: 'ยกเลิกรับเข้า', tone: 'neutral' },
   void_withdrawal: { label: 'ยกเลิกเบิก', tone: 'neutral' },
+  sale: { label: 'ขาย', tone: 'brand' },
+  void_sale: { label: 'ยกเลิกขาย', tone: 'neutral' },
+  adjust: { label: 'ปรับยอด', tone: 'warning' },
+  void_adjustment: { label: 'ยกเลิกปรับยอด', tone: 'neutral' },
+  transfer_out: { label: 'โอนออก', tone: 'info' },
+  transfer_in: { label: 'โอนเข้า', tone: 'info' },
+  void_transfer: { label: 'ยกเลิกโอน', tone: 'neutral' },
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -49,6 +56,10 @@ const FILTERS: Array<{ value: StockAction | ''; label: string }> = [
   { value: 'restore', label: 'กู้คืน' },
   { value: 'receive', label: 'รับเข้า' },
   { value: 'withdraw', label: 'เบิก' },
+  { value: 'sale', label: 'ขาย' },
+  { value: 'adjust', label: 'ปรับยอด' },
+  { value: 'transfer_out', label: 'โอนออก' },
+  { value: 'transfer_in', label: 'โอนเข้า' },
 ]
 
 function fmtField(stores: Store[], key: string, v: Json | undefined): string {
@@ -66,12 +77,17 @@ function actionOf(log: StockItemLog) {
   if (log.action === 'receive' && log.changes.balance && log.changes.balance.old == null) {
     return { label: 'รับเข้า (ใหม่)', tone: 'success' as Tone }
   }
+  if (log.action === 'transfer_in' && log.changes.balance && log.changes.balance.old == null) {
+    return { label: 'โอนเข้า (ใหม่)', tone: 'success' as Tone }
+  }
   return a
 }
 
 function LogEntry({ log, stores, showWine }: { log: StockItemLog; stores: Store[]; showWine: boolean }) {
   const a = actionOf(log)
-  const isNew = log.action === 'create' || (log.action === 'receive' && log.changes.balance?.old == null)
+  const isNew =
+    log.action === 'create' ||
+    ((log.action === 'receive' || log.action === 'transfer_in') && log.changes.balance?.old == null)
   const entries = Object.entries(log.changes).filter(([k]) => k !== 'deleted_at')
   return (
     <li className="flex flex-col gap-1.5 px-4 py-3 sm:flex-row sm:gap-4">

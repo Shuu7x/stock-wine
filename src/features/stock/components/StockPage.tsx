@@ -1,6 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, FileSpreadsheet, GlassWater, History, RotateCcw, Save, Search, Undo2 } from 'lucide-react'
+import {
+  Archive,
+  ArrowLeftRight,
+  ClipboardCheck,
+  ExternalLink,
+  FileSpreadsheet,
+  GlassWater,
+  History,
+  QrCode,
+  RotateCcw,
+  Save,
+  Search,
+  ShoppingBag,
+  Undo2,
+} from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -344,36 +358,59 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
             className="pl-9"
           />
         </label>
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-          {selectedWithStock.length > 0 && (
-            <Button
-              size="sm"
-              onClick={() => navigate({ to: '/withdraw', search: { items: selectedWithStock.join(',') } })}
-            >
-              <GlassWater className="size-4" /> เบิก {selectedWithStock.length} รายการ
-            </Button>
-          )}
+      </div>
+
+      {/* แถบทำรายการกับแถวที่เลือก */}
+      {selectedLive.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2">
+          <span className="mr-1 text-sm font-medium text-brand-900">
+            เลือก <b className="tabular-nums">{selectedLive.length}</b> รายการ
+          </span>
+          {selectedWithStock.length > 0 &&
+            (
+              [
+                { to: '/sale', label: 'ขาย', icon: ShoppingBag },
+                { to: '/withdraw', label: 'เบิก', icon: GlassWater },
+                { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
+              ] as const
+            ).map((a) => (
+              <Button
+                key={a.to}
+                size="sm"
+                onClick={() => navigate({ to: a.to, search: { items: selectedWithStock.join(',') } })}
+              >
+                <a.icon className="size-4" /> {a.label}
+              </Button>
+            ))}
+          <Button size="sm" onClick={() => navigate({ to: '/adjust', search: { items: selectedToDelete.join(',') } })}>
+            <ClipboardCheck className="size-4" /> ปรับยอด
+          </Button>
+          <Button size="sm" onClick={() => navigate({ to: '/qr', search: { items: selectedLive.join(',') } })}>
+            <QrCode className="size-4" /> ป้าย QR
+          </Button>
           {single && (
-            <Button size="sm" variant="ghost" onClick={() => setHistoryOf(single)}>
-              <History className="size-4" /> ประวัติ
-            </Button>
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setHistoryOf(single)}>
+                <History className="size-4" /> ประวัติ
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => navigate({ to: '/item/$id', params: { id: single.id } })}>
+                <ExternalLink className="size-4" /> เปิดหน้าไวน์
+              </Button>
+            </>
           )}
+          <span className="flex-1" />
           {selectedToDelete.length > 0 && (
             <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => stageDelete(selectedToDelete)}>
-              <Archive className="size-4" /> ลบ {selectedToDelete.length} รายการ
+              <Archive className="size-4" /> ลบ
             </Button>
           )}
           {selectedPending.length > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setPendingDeletes((p) => p.filter((id) => !selectedPending.includes(id)))}
-            >
-              <RotateCcw className="size-4" /> ยกเลิกการลบ {selectedPending.length} รายการ
+            <Button size="sm" variant="ghost" onClick={() => setPendingDeletes((p) => p.filter((id) => !selectedPending.includes(id)))}>
+              <RotateCcw className="size-4" /> ยกเลิกการลบ {selectedPending.length}
             </Button>
           )}
         </div>
-      </div>
+      )}
 
       {dirty && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-warning-600/30 bg-warning-50 px-4 py-2 text-sm">

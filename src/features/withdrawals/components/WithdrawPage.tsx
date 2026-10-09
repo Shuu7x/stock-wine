@@ -385,6 +385,9 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
           </>
         }
       >
+      {/* สร้างเนื้อหาเฉพาะตอนเปิด: แถวที่ยังกรอกไม่ครบจะไม่ทำให้หน้าพัง */}
+      {confirm && (
+        <>
         <table className="w-full text-sm">
           <thead className="text-left text-xs text-muted">
             <tr>
@@ -414,6 +417,8 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
             </tr>
           </tbody>
         </table>
+        </>
+      )}
       </Dialog>
     </div>
   )

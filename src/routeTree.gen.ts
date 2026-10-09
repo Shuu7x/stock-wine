@@ -13,14 +13,20 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedAdjustIndexRouteImport } from './routes/_authenticated/adjust/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
+import { Route as AuthenticatedICodeRouteImport } from './routes/_authenticated/i/$code'
+import { Route as AuthenticatedItemIdRouteImport } from './routes/_authenticated/item/$id'
+import { Route as AuthenticatedQrIndexRouteImport } from './routes/_authenticated/qr/index'
 import { Route as AuthenticatedReceiveIndexRouteImport } from './routes/_authenticated/receive/index'
+import { Route as AuthenticatedSaleIndexRouteImport } from './routes/_authenticated/sale/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings/general'
 import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
 import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
 import { Route as AuthenticatedStockIndexRouteImport } from './routes/_authenticated/stock/index'
+import { Route as AuthenticatedTransferIndexRouteImport } from './routes/_authenticated/transfer/index'
 import { Route as AuthenticatedWithdrawIndexRouteImport } from './routes/_authenticated/withdraw/index'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -42,18 +48,44 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdjustIndexRoute =
+  AuthenticatedAdjustIndexRouteImport.update({
+    id: '/adjust/',
+    path: '/adjust/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedHistoryIndexRoute =
   AuthenticatedHistoryIndexRouteImport.update({
     id: '/history/',
     path: '/history/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedICodeRoute = AuthenticatedICodeRouteImport.update({
+  id: '/i/$code',
+  path: '/i/$code',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedItemIdRoute = AuthenticatedItemIdRouteImport.update({
+  id: '/item/$id',
+  path: '/item/$id',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedQrIndexRoute = AuthenticatedQrIndexRouteImport.update({
+  id: '/qr/',
+  path: '/qr/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedReceiveIndexRoute =
   AuthenticatedReceiveIndexRouteImport.update({
     id: '/receive/',
     path: '/receive/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSaleIndexRoute = AuthenticatedSaleIndexRouteImport.update({
+  id: '/sale/',
+  path: '/sale/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
@@ -89,6 +121,12 @@ const AuthenticatedStockIndexRoute = AuthenticatedStockIndexRouteImport.update({
   path: '/stock/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedTransferIndexRoute =
+  AuthenticatedTransferIndexRouteImport.update({
+    id: '/transfer/',
+    path: '/transfer/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedWithdrawIndexRoute =
   AuthenticatedWithdrawIndexRouteImport.update({
     id: '/withdraw/',
@@ -100,27 +138,39 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/i/$code': typeof AuthenticatedICodeRoute
+  '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
+  '/qr/': typeof AuthenticatedQrIndexRoute
   '/receive/': typeof AuthenticatedReceiveIndexRoute
+  '/sale/': typeof AuthenticatedSaleIndexRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/stock/': typeof AuthenticatedStockIndexRoute
+  '/transfer/': typeof AuthenticatedTransferIndexRoute
   '/withdraw/': typeof AuthenticatedWithdrawIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthenticatedIndexRoute
+  '/i/$code': typeof AuthenticatedICodeRoute
+  '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/adjust': typeof AuthenticatedAdjustIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
+  '/qr': typeof AuthenticatedQrIndexRoute
   '/receive': typeof AuthenticatedReceiveIndexRoute
+  '/sale': typeof AuthenticatedSaleIndexRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/stock': typeof AuthenticatedStockIndexRoute
+  '/transfer': typeof AuthenticatedTransferIndexRoute
   '/withdraw': typeof AuthenticatedWithdrawIndexRoute
 }
 export interface FileRoutesById {
@@ -129,14 +179,20 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/i/$code': typeof AuthenticatedICodeRoute
+  '/_authenticated/item/$id': typeof AuthenticatedItemIdRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/_authenticated/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
+  '/_authenticated/qr/': typeof AuthenticatedQrIndexRoute
   '/_authenticated/receive/': typeof AuthenticatedReceiveIndexRoute
+  '/_authenticated/sale/': typeof AuthenticatedSaleIndexRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/stock/': typeof AuthenticatedStockIndexRoute
+  '/_authenticated/transfer/': typeof AuthenticatedTransferIndexRoute
   '/_authenticated/withdraw/': typeof AuthenticatedWithdrawIndexRoute
 }
 export interface FileRouteTypes {
@@ -145,27 +201,39 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/settings'
+    | '/i/$code'
+    | '/item/$id'
     | '/settings/account'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
+    | '/adjust/'
     | '/history/'
+    | '/qr/'
     | '/receive/'
+    | '/sale/'
     | '/settings/'
     | '/stock/'
+    | '/transfer/'
     | '/withdraw/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/'
+    | '/i/$code'
+    | '/item/$id'
     | '/settings/account'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
+    | '/adjust'
     | '/history'
+    | '/qr'
     | '/receive'
+    | '/sale'
     | '/settings'
     | '/stock'
+    | '/transfer'
     | '/withdraw'
   id:
     | '__root__'
@@ -173,14 +241,20 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/i/$code'
+    | '/_authenticated/item/$id'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/general'
     | '/_authenticated/settings/lookups'
     | '/_authenticated/settings/stores'
+    | '/_authenticated/adjust/'
     | '/_authenticated/history/'
+    | '/_authenticated/qr/'
     | '/_authenticated/receive/'
+    | '/_authenticated/sale/'
     | '/_authenticated/settings/'
     | '/_authenticated/stock/'
+    | '/_authenticated/transfer/'
     | '/_authenticated/withdraw/'
   fileRoutesById: FileRoutesById
 }
@@ -219,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/adjust/': {
+      id: '/_authenticated/adjust/'
+      path: '/adjust'
+      fullPath: '/adjust/'
+      preLoaderRoute: typeof AuthenticatedAdjustIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/history/': {
       id: '/_authenticated/history/'
       path: '/history'
@@ -226,11 +307,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHistoryIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/i/$code': {
+      id: '/_authenticated/i/$code'
+      path: '/i/$code'
+      fullPath: '/i/$code'
+      preLoaderRoute: typeof AuthenticatedICodeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/item/$id': {
+      id: '/_authenticated/item/$id'
+      path: '/item/$id'
+      fullPath: '/item/$id'
+      preLoaderRoute: typeof AuthenticatedItemIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/qr/': {
+      id: '/_authenticated/qr/'
+      path: '/qr'
+      fullPath: '/qr/'
+      preLoaderRoute: typeof AuthenticatedQrIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/receive/': {
       id: '/_authenticated/receive/'
       path: '/receive'
       fullPath: '/receive/'
       preLoaderRoute: typeof AuthenticatedReceiveIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sale/': {
+      id: '/_authenticated/sale/'
+      path: '/sale'
+      fullPath: '/sale/'
+      preLoaderRoute: typeof AuthenticatedSaleIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings/': {
@@ -275,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStockIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/transfer/': {
+      id: '/_authenticated/transfer/'
+      path: '/transfer'
+      fullPath: '/transfer/'
+      preLoaderRoute: typeof AuthenticatedTransferIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/withdraw/': {
       id: '/_authenticated/withdraw/'
       path: '/withdraw'
@@ -309,18 +425,30 @@ const AuthenticatedSettingsRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedICodeRoute: typeof AuthenticatedICodeRoute
+  AuthenticatedItemIdRoute: typeof AuthenticatedItemIdRoute
+  AuthenticatedAdjustIndexRoute: typeof AuthenticatedAdjustIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
+  AuthenticatedQrIndexRoute: typeof AuthenticatedQrIndexRoute
   AuthenticatedReceiveIndexRoute: typeof AuthenticatedReceiveIndexRoute
+  AuthenticatedSaleIndexRoute: typeof AuthenticatedSaleIndexRoute
   AuthenticatedStockIndexRoute: typeof AuthenticatedStockIndexRoute
+  AuthenticatedTransferIndexRoute: typeof AuthenticatedTransferIndexRoute
   AuthenticatedWithdrawIndexRoute: typeof AuthenticatedWithdrawIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedICodeRoute: AuthenticatedICodeRoute,
+  AuthenticatedItemIdRoute: AuthenticatedItemIdRoute,
+  AuthenticatedAdjustIndexRoute: AuthenticatedAdjustIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
+  AuthenticatedQrIndexRoute: AuthenticatedQrIndexRoute,
   AuthenticatedReceiveIndexRoute: AuthenticatedReceiveIndexRoute,
+  AuthenticatedSaleIndexRoute: AuthenticatedSaleIndexRoute,
   AuthenticatedStockIndexRoute: AuthenticatedStockIndexRoute,
+  AuthenticatedTransferIndexRoute: AuthenticatedTransferIndexRoute,
   AuthenticatedWithdrawIndexRoute: AuthenticatedWithdrawIndexRoute,
 }
 

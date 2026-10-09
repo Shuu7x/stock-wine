@@ -12,6 +12,10 @@ export const APP_SETTINGS = {
   low_stock_threshold: { schema: z.number().int().min(0).max(9999), default: 2 },
   /** ต้องกรอกหมายเหตุ/ผู้เบิกทุกครั้งที่บันทึกเบิก */
   require_withdraw_note: { schema: z.boolean(), default: false },
+  /** อัตรา VAT (%) ที่ใช้คำนวณใบขาย */
+  vat_rate: { schema: z.number().min(0).max(30), default: 7 },
+  /** ใบขายใหม่: ราคาที่กรอกรวม VAT แล้ว (included) หรือยังไม่รวม (excluded) */
+  default_vat_mode: { schema: z.enum(['included', 'excluded']), default: 'included' as const },
 } as const
 
 type Defs = typeof APP_SETTINGS

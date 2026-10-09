@@ -121,3 +121,35 @@ input[type='number']::-webkit-inner-spin-button {
     animation: none !important;
   }
 }
+
+/* ─── พิมพ์ป้าย QR: พิมพ์เฉพาะแผ่นป้าย ซ่อนหน้าแอปทั้งหมด ──────────────────────── */
+.print-root {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  html,
+  body {
+    background: #fff !important;
+    height: auto;
+  }
+  #root,
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+  .print-root {
+    display: block;
+  }
+  .print-root .qr-sheet {
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .print-root .qr-sheet:last-child {
+    break-after: auto;
+  }
+}

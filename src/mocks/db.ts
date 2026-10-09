@@ -13,7 +13,13 @@ type DB = {
   stock_item_logs: Tables<'stock_item_logs'>[]
   lookup_values: Tables<'lookup_values'>[]
   app_settings: Tables<'app_settings'>[]
-  seq: { receipt: number; withdrawal: number; log: number }
+  sales: Tables<'sales'>[]
+  sale_lines: Tables<'sale_lines'>[]
+  stock_adjustments: Tables<'stock_adjustments'>[]
+  stock_adjustment_lines: Tables<'stock_adjustment_lines'>[]
+  transfers: Tables<'transfers'>[]
+  transfer_lines: Tables<'transfer_lines'>[]
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -82,7 +88,20 @@ function seedSettings(): Tables<'app_settings'>[] {
     { key: 'default_receive_store_id', value: null, ...audit() },
     { key: 'low_stock_threshold', value: 2, ...audit() },
     { key: 'require_withdraw_note', value: false, ...audit() },
+    { key: 'vat_rate', value: 7, ...audit() },
+    { key: 'default_vat_mode', value: 'included', ...audit() },
   ]
+}
+
+function emptyOps() {
+  return {
+    sales: [] as Tables<'sales'>[],
+    sale_lines: [] as Tables<'sale_lines'>[],
+    stock_adjustments: [] as Tables<'stock_adjustments'>[],
+    stock_adjustment_lines: [] as Tables<'stock_adjustment_lines'>[],
+    transfers: [] as Tables<'transfers'>[],
+    transfer_lines: [] as Tables<'transfer_lines'>[],
+  }
 }
 
 function seed(): DB {
@@ -120,7 +139,8 @@ function seed(): DB {
     stock_item_logs: [],
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
-    seq: { receipt: 0, withdrawal: 0, log: 0 },
+    ...emptyOps(),
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0 },
   }
 }
 
@@ -135,13 +155,28 @@ function load(): DB {
       saved.lookup_values ??= seedLookups()
       saved.app_settings ??= seedSettings()
       for (const st of saved.stores) st.is_active ??= true
+      // ข้อมูลที่บันทึกไว้ก่อนมีขาย/ปรับยอด/โอนย้าย
+      Object.assign(saved, { ...emptyOps(), ...saved })
+      saved.seq.sale ??= 0
+      saved.seq.adjustment ??= 0
+      saved.seq.transfer ??= 0
+      for (const st of seedSettings()) {
+        if (!saved.app_settings.some((x) => x.key === st.key)) saved.app_settings.push(st)
+      }
       saved.seq.log ??= 0
       return saved
     }
   } catch {
     /* ใช้ seed */
   }
-  return seed()
+  // บันทึก seed ทันที: id ไวน์ต้องคงที่ข้ามการรีเฟรช (QR ที่พิมพ์ไว้อ้าง id นี้)
+  const fresh = seed()
+  try {
+    localStorage.setItem(KEY, JSON.stringify(fresh))
+  } catch {
+    /* โหมด private — ข้อมูลอยู่แค่ในหน่วยความจำ */
+  }
+  return fresh
 }
 
 export const db: DB = load()
@@ -170,7 +205,7 @@ export class PgError extends Error {
 
 export const auditNow = audit
 
-export function docNo(prefix: 'RC' | 'WD', n: number) {
+export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF', n: number) {
   const d = new Date()
   const yymm = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}`
   return `${prefix}${yymm}-${String(n).padStart(4, '0')}`
