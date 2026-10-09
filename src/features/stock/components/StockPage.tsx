@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
@@ -19,9 +20,11 @@ import {
   type StockItemPatch,
 } from '../api/stock.api'
 import { ItemHistoryDialog } from '@/features/history/components/LogList'
+import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { buildLookups, storeName, wineColumns, wineLabel } from '../columns'
 
-export type StoreTab = 'all' | 'SW1' | 'SW2' | 'BIG'
+/** 'all' หรือรหัสคลัง (stores.code) — คลังเพิ่ม/แก้ได้ในหน้าตั้งค่า */
+export type StoreTab = string
 
 const EDITABLE: Array<keyof StockItemPatch> = [
   'rack',
@@ -61,7 +64,10 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
   const all = useMemo(() => itemsQ.data ?? [], [itemsQ.data])
   const live = useMemo(() => all.filter((i) => !i.deleted_at), [all])
-  const lookups = useMemo(() => buildLookups(live), [live])
+  const lookupQ = useQuery(lookupValuesOptions())
+  const lookups = useMemo(() => buildLookups(live, lookupQ.data), [live, lookupQ.data])
+  const { low_stock_threshold: lowAt } = useAppSettings()
+  const isLow = useCallback((b: number) => lowAt > 0 && b > 0 && b <= lowAt, [lowAt])
   const currentStore = stores.find((s) => s.code === tab)
 
   const serverRows = useMemo(
@@ -118,7 +124,16 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       align: 'right',
       readOnly: true,
       render: (r) => (
-        <span className={r.balance === 0 ? 'text-muted' : 'font-semibold text-brand-800'}>{fmtInt(r.balance)}</span>
+        <span className="flex items-center gap-1.5">
+          {isLow(r.balance) && <Badge tone="warning">ใกล้หมด</Badge>}
+          <span
+            className={
+              r.balance === 0 ? 'text-muted' : isLow(r.balance) ? 'font-semibold text-warning-700' : 'font-semibold text-brand-800'
+            }
+          >
+            {fmtInt(r.balance)}
+          </span>
+        </span>
       ),
     }
     const value: GridColumn<StockItem> = {
@@ -153,18 +168,19 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       ...col,
       readOnly: col.readOnly === true ? true : ro,
     }))
-  }, [stores, lookups, tab, pendingSet])
+  }, [stores, lookups, tab, pendingSet, isLow])
 
   const stats = useMemo(() => {
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter((i) => i.balance > 0)
     const year = new Date().getFullYear()
     return {
       items: src.length,
+      low: src.filter((i) => isLow(i.balance)).length,
       bottles: src.reduce((s, i) => s + i.balance, 0),
       value: src.reduce((s, i) => s + i.balance * (i.price_per_bottle ?? 0), 0),
       ready: src.filter((i) => drinkStatus(i.maturity_from, i.maturity_to, year) === 'ready').length,
     }
-  }, [live, currentStore])
+  }, [live, currentStore, isLow])
 
   const tabCount = (id?: number) => fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
 
@@ -252,12 +268,18 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         onChange={onTabChange}
         items={[
           { value: 'all', label: 'All Stock Wines', count: tabCount() },
-          ...stores.map((s) => ({ value: s.code as StoreTab, label: s.name, count: tabCount(s.id) })),
+          ...stores
+            .filter((s) => s.is_active || s.code === tab)
+            .map((s) => ({ value: s.code, label: s.name, count: tabCount(s.id) })),
         ]}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="รายการที่มีของ" value={fmtInt(stats.items)} />
+        <Stat
+          label="รายการที่มีของ"
+          value={fmtInt(stats.items)}
+          hint={lowAt > 0 ? <span className={stats.low ? 'text-warning-700' : undefined}>ใกล้หมด (≤ {lowAt} ขวด) {fmtInt(stats.low)} รายการ</span> : undefined}
+        />
         <Stat label="จำนวนขวดคงเหลือ" value={fmtInt(stats.bottles)} />
         <Stat label="มูลค่ารวม (บาท)" value={fmtMoney(stats.value)} />
         <Stat label="อยู่ในช่วงดื่มได้" value={fmtInt(stats.ready)} hint="ตาม Maturity ปีนี้" />

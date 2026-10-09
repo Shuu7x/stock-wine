@@ -48,5 +48,15 @@ export const authHandlers = [
     if (!token) return HttpResponse.json({ msg: 'unauthorized' }, { status: 401 })
     return HttpResponse.json(user(atob(token)))
   }),
+  // เปลี่ยนรหัสผ่าน (mock ไม่ได้เก็บจริง login ยังใช้ "password")
+  http.put(auth('user'), async ({ request }) => {
+    const token = request.headers.get('authorization')?.replace('Bearer mock-access-', '')
+    if (!token) return HttpResponse.json({ msg: 'unauthorized' }, { status: 401 })
+    const body = (await request.json()) as { password?: string }
+    if (body.password && body.password.length < 8) {
+      return HttpResponse.json({ code: 422, error_code: 'weak_password', msg: 'Password should be at least 8 characters.' }, { status: 422 })
+    }
+    return HttpResponse.json(user(atob(token)))
+  }),
   http.post(auth('logout'), () => new HttpResponse(null, { status: 204 })),
 ]

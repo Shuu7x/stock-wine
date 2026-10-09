@@ -12,8 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedReceiveIndexRouteImport } from './routes/_authenticated/receive/index'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
+import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
+import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings/general'
+import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
+import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
 import { Route as AuthenticatedStockIndexRouteImport } from './routes/_authenticated/stock/index'
 import { Route as AuthenticatedWithdrawIndexRouteImport } from './routes/_authenticated/withdraw/index'
 
@@ -31,6 +37,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedHistoryIndexRoute =
   AuthenticatedHistoryIndexRouteImport.update({
     id: '/history/',
@@ -42,6 +53,36 @@ const AuthenticatedReceiveIndexRoute =
     id: '/receive/',
     path: '/receive/',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsAccountRoute =
+  AuthenticatedSettingsAccountRouteImport.update({
+    id: '/account',
+    path: '/account',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsGeneralRoute =
+  AuthenticatedSettingsGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsLookupsRoute =
+  AuthenticatedSettingsLookupsRouteImport.update({
+    id: '/lookups',
+    path: '/lookups',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsStoresRoute =
+  AuthenticatedSettingsStoresRouteImport.update({
+    id: '/stores',
+    path: '/stores',
+    getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedStockIndexRoute = AuthenticatedStockIndexRouteImport.update({
   id: '/stock/',
@@ -58,16 +99,27 @@ const AuthenticatedWithdrawIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/receive/': typeof AuthenticatedReceiveIndexRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/stock/': typeof AuthenticatedStockIndexRoute
   '/withdraw/': typeof AuthenticatedWithdrawIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthenticatedIndexRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/receive': typeof AuthenticatedReceiveIndexRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
   '/stock': typeof AuthenticatedStockIndexRoute
   '/withdraw': typeof AuthenticatedWithdrawIndexRoute
 }
@@ -75,25 +127,59 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/receive/': typeof AuthenticatedReceiveIndexRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/stock/': typeof AuthenticatedStockIndexRoute
   '/_authenticated/withdraw/': typeof AuthenticatedWithdrawIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/history/' | '/receive/' | '/stock/' | '/withdraw/'
+    | '/'
+    | '/login'
+    | '/settings'
+    | '/settings/account'
+    | '/settings/general'
+    | '/settings/lookups'
+    | '/settings/stores'
+    | '/history/'
+    | '/receive/'
+    | '/settings/'
+    | '/stock/'
+    | '/withdraw/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/history' | '/receive' | '/stock' | '/withdraw'
+  to:
+    | '/login'
+    | '/'
+    | '/settings/account'
+    | '/settings/general'
+    | '/settings/lookups'
+    | '/settings/stores'
+    | '/history'
+    | '/receive'
+    | '/settings'
+    | '/stock'
+    | '/withdraw'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/settings'
     | '/_authenticated/'
+    | '/_authenticated/settings/account'
+    | '/_authenticated/settings/general'
+    | '/_authenticated/settings/lookups'
+    | '/_authenticated/settings/stores'
     | '/_authenticated/history/'
     | '/_authenticated/receive/'
+    | '/_authenticated/settings/'
     | '/_authenticated/stock/'
     | '/_authenticated/withdraw/'
   fileRoutesById: FileRoutesById
@@ -126,6 +212,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/history/': {
       id: '/_authenticated/history/'
       path: '/history'
@@ -139,6 +232,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/receive/'
       preLoaderRoute: typeof AuthenticatedReceiveIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/account': {
+      id: '/_authenticated/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/general': {
+      id: '/_authenticated/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AuthenticatedSettingsGeneralRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/lookups': {
+      id: '/_authenticated/settings/lookups'
+      path: '/lookups'
+      fullPath: '/settings/lookups'
+      preLoaderRoute: typeof AuthenticatedSettingsLookupsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/stores': {
+      id: '/_authenticated/settings/stores'
+      path: '/stores'
+      fullPath: '/settings/stores'
+      preLoaderRoute: typeof AuthenticatedSettingsStoresRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/_authenticated/stock/': {
       id: '/_authenticated/stock/'
@@ -157,7 +285,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
+  AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
+  AuthenticatedSettingsLookupsRoute: typeof AuthenticatedSettingsLookupsRoute
+  AuthenticatedSettingsStoresRoute: typeof AuthenticatedSettingsStoresRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
+  AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
+  AuthenticatedSettingsLookupsRoute: AuthenticatedSettingsLookupsRoute,
+  AuthenticatedSettingsStoresRoute: AuthenticatedSettingsStoresRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedReceiveIndexRoute: typeof AuthenticatedReceiveIndexRoute
@@ -166,6 +316,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedReceiveIndexRoute: AuthenticatedReceiveIndexRoute,

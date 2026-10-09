@@ -12,6 +12,7 @@ import { Combobox } from '@/components/ui/combobox'
 import { Dialog } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
+import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
 import { buildLookups, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
@@ -66,7 +67,10 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
   const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data])
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items])
-  const lookups = useMemo(() => buildLookups(items), [items])
+  const lookupQ = useQuery(lookupValuesOptions())
+  const lookups = useMemo(() => buildLookups(items, lookupQ.data), [items, lookupQ.data])
+  const { require_withdraw_note: noteRequired } = useAppSettings()
+  const [noteError, setNoteError] = useState(false)
 
   const [draft] = useState(loadDraft)
   const [rows, setRows] = useState<WithdrawRow[]>(() => draft?.rows ?? Array.from({ length: 6 }, () => newRow()))
@@ -258,6 +262,10 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
 
   function trySave() {
     if (!filled.length) return toast.info('ยังไม่มีรายการเบิก')
+    if (noteRequired && !note.trim()) {
+      setNoteError(true)
+      return toast.error('ต้องกรอกหมายเหตุ / ผู้เบิก ก่อนบันทึก (ตั้งค่าไว้ในหน้าตั้งค่า)')
+    }
     if (errors.size) {
       setShowErrors(true)
       return toast.error(`มี ${errors.size} แถวที่ยังไม่ถูกต้อง ดูช่องที่มีมุมสีแดง`)
@@ -301,11 +309,14 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
             onChange={setScope}
             options={[
               { value: 0, label: 'ทุกคลัง (All Stock Wines)' },
-              ...stores.map((st) => ({ value: st.id, label: st.name, hint: st.code })),
+              ...stores.filter((st) => st.is_active).map((st) => ({ value: st.id, label: st.name, hint: st.code })),
             ]}
           />
         </Field>
-        <Field label="หมายเหตุ / ผู้เบิก / โอกาส">
+        <Field
+          label={noteRequired ? 'หมายเหตุ / ผู้เบิก / โอกาส *' : 'หมายเหตุ / ผู้เบิก / โอกาส'}
+          error={noteError && !note.trim() ? 'ต้องกรอกช่องนี้' : undefined}
+        >
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น งานเลี้ยงลูกค้า 12 ต.ค. — คุณสมชาย" />
         </Field>
       </div>

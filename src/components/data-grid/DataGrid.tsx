@@ -235,11 +235,20 @@ export function DataGrid<R>({
   useEffect(() => {
     if (rows !== lastEmitted.current) {
       // เพิ่มแถวจากภายนอก (ปุ่มเพิ่มแถว) แล้วแถวใหม่อยู่หน้าอื่น → พาไปหน้านั้น
-      if (pageSize) {
-        const firstNew = fullIdx.findIndex((i) => !knownIds.current.has(getRowId(rows[i])))
-        if (firstNew >= 0 && knownIds.current.size > 0 && (firstNew < start || firstNew >= start + pageSize)) {
+      // แล้วเลื่อนไปเลือกแถวใหม่แถวแรก ให้พิมพ์ต่อได้ทันที
+      const firstNew = fullIdx.findIndex((i) => !knownIds.current.has(getRowId(rows[i])))
+      if (firstNew >= 0 && knownIds.current.size > 0) {
+        let pageStart = start
+        if (pageSize && (firstNew < start || firstNew >= start + pageSize)) {
           goPage(Math.floor(firstNew / pageSize) + 1)
+          pageStart = Math.floor(firstNew / pageSize) * pageSize
         }
+        const p = { r: firstNew - pageStart, c: 0 }
+        setSel({ anchor: p, focus: p })
+        requestAnimationFrame(() => {
+          ensureVisible(p)
+          focusGrid()
+        })
       }
       // rows ถูกเปลี่ยนจากภายนอก (เช่นบันทึกแล้วรีเซ็ต) ประวัติเดิมใช้ไม่ได้แล้ว
       past.current = []
@@ -343,8 +352,9 @@ export function DataGrid<R>({
   function startEdit(r: number, c: number, text?: string, openList = false) {
     if (!canEdit(r, c)) return
     const col = columns[c]
-    // select เปิดรายการทันทีเมื่อเข้าแก้ (ยกเว้นเริ่มจากการพิมพ์ทับ ซึ่งจะกรองรายการให้เอง)
-    const showAll = openList || (col.type === 'select' && text === undefined)
+    // ช่องที่มีตัวเลือก (select / ตัวเลือกที่ใช้บ่อย) เปิดรายการทันทีเมื่อเข้าแก้
+    // ยกเว้นเริ่มจากการพิมพ์ทับ ซึ่งจะกรองรายการให้เอง
+    const showAll = openList || ((col.type === 'select' || !!col.options) && text === undefined)
     setEditing({ r, c, text: text ?? formatValue(col, rowAt(r)), openList: showAll })
     setMenu(null)
   }

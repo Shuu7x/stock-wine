@@ -13,6 +13,7 @@ import { Combobox } from '@/components/ui/combobox'
 import { DateInput } from '@/components/ui/date-input'
 import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
+import { appSettingsOptions, lookupValuesOptions } from '@/features/settings/api/settings.api'
 import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
 import { buildLookups, identityKey, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
@@ -82,7 +83,10 @@ export function ReceivePage() {
 
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
   const items = useMemo(() => itemsQ.data ?? [], [itemsQ.data])
-  const lookups = useMemo(() => buildLookups(items), [items])
+  const lookupQ = useQuery(lookupValuesOptions())
+  const lookups = useMemo(() => buildLookups(items, lookupQ.data), [items, lookupQ.data])
+  const settingsQ = useQuery(appSettingsOptions())
+  const activeStores = useMemo(() => stores.filter((s) => s.is_active), [stores])
   const byIdentity = useMemo(() => new Map(items.map((i) => [identityKey(i), i])), [items])
 
   const [draft] = useState(loadReceiveDraft)
@@ -97,11 +101,13 @@ export function ReceivePage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   useEffect(() => {
-    if (defaultStore != null || !stores.length) return
-    const id = stores[0].id
+    // รอค่าตั้งค่า แล้วใช้ "คลังตั้งต้น" ถ้ายังเปิดใช้งานอยู่ ไม่งั้นใช้คลังแรก
+    if (defaultStore != null || !activeStores.length || !settingsQ.isFetched) return
+    const preferred = settingsQ.data?.default_receive_store_id
+    const id = activeStores.find((s) => s.id === preferred)?.id ?? activeStores[0].id
     setDefaultStore(id)
     setRows((rs) => rs.map((r) => (r.store_id == null && isBlankRow(r) ? { ...r, store_id: id } : r)))
-  }, [stores, defaultStore])
+  }, [activeStores, defaultStore, settingsQ.isFetched, settingsQ.data])
 
   useEffect(() => {
     const filled = rows.some((r) => !isBlankRow(r)) || note
@@ -292,7 +298,7 @@ export function ReceivePage() {
         <Field label="คลังตั้งต้นของแถวใหม่">
           <Combobox
             value={defaultStore}
-            options={stores.map((st) => ({ value: st.id, label: st.name, hint: st.code }))}
+            options={activeStores.map((st) => ({ value: st.id, label: st.name, hint: st.code }))}
             onChange={(id) => {
               setDefaultStore(id)
               // แถวที่ยังว่างอยู่ ใช้คลังใหม่ไปด้วย

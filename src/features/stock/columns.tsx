@@ -1,6 +1,7 @@
 import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { drinkStatus, fmtMaturity, fmtMoney, parseMaturity } from '@/lib/format'
+import type { LookupValue } from '@/features/settings/api/settings.api'
 import type { StockItem, Store } from './api/stock.api'
 
 /** ฟิลด์ไวน์ที่ทั้งสต็อกและใบรับเข้าใช้ร่วมกัน (ชื่อตรงกับคอลัมน์ในตาราง) */
@@ -20,42 +21,33 @@ export type WineFields = {
   remark: string | null
 }
 
-const COMMON_COUNTRIES = [
-  'France',
-  'Italy',
-  'Spain',
-  'Portugal',
-  'Germany',
-  'Austria',
-  'USA',
-  'Australia',
-  'New Zealand',
-  'Chile',
-  'Argentina',
-  'South Africa',
-  'Japan',
-  'Thailand',
-]
+const byName = (a: string, b: string) => a.localeCompare(b, 'th', { numeric: true })
 
-const uniq = (xs: Array<string | null | undefined>) =>
-  [...new Set(xs.map((x) => x?.trim()).filter((x): x is string => !!x))].sort((a, b) =>
-    a.localeCompare(b, 'th', { numeric: true }),
-  )
+/** ค่าจากหน้าตั้งค่าก่อน (ตามลำดับที่ตั้ง) ตามด้วยค่าที่มีในสต็อกแต่ยังไม่อยู่ในรายการ · ค่าที่ปิดใช้งานไม่แสดง */
+function mergeOptions(configured: LookupValue[], fromStock: Array<string | null | undefined>) {
+  const active = configured.filter((l) => l.is_active).sort((a, b) => a.sort_order - b.sort_order || byName(a.value, b.value))
+  const hidden = new Set(configured.filter((l) => !l.is_active).map((l) => l.value.trim().toLowerCase()))
+  const out = active.map((l) => l.value.trim())
+  const seen = new Set(out.map((v) => v.toLowerCase()))
+  const extra = [...new Set(fromStock.map((x) => x?.trim()).filter((x): x is string => !!x))]
+    .filter((v) => !seen.has(v.toLowerCase()) && !hidden.has(v.toLowerCase()))
+    .sort(byName)
+  return [...out, ...extra]
+}
 
-/** ตัวเลือกที่ใช้บ่อย ดึงจากข้อมูลจริงในสต็อก */
-export function buildLookups(items: StockItem[]) {
+/** ตัวเลือกที่ใช้บ่อย = รายการในหน้าตั้งค่า + ค่าที่มีอยู่จริงในสต็อก */
+export function buildLookups(items: StockItem[], configured: LookupValue[] = []) {
+  const of = (c: LookupValue['category'], storeId?: number) =>
+    configured.filter((l) => l.category === c && (storeId == null || l.store_id === storeId))
+  const storeIds = new Set([...items.map((i) => i.store_id), ...of('rack').map((l) => l.store_id!)])
   const racksByStore = new Map<number, string[]>()
-  for (const it of items) {
-    if (!it.rack) continue
-    const list = racksByStore.get(it.store_id) ?? []
-    list.push(it.rack)
-    racksByStore.set(it.store_id, list)
+  for (const id of storeIds) {
+    racksByStore.set(id, mergeOptions(of('rack', id), items.filter((i) => i.store_id === id).map((i) => i.rack)))
   }
-  for (const [k, v] of racksByStore) racksByStore.set(k, uniq(v))
   return {
-    countries: uniq([...COMMON_COUNTRIES, ...items.map((i) => i.country)]),
-    suppliers: uniq(items.map((i) => i.supplier)),
-    allRacks: uniq(items.map((i) => i.rack)),
+    countries: mergeOptions(of('country'), items.map((i) => i.country)),
+    suppliers: mergeOptions(of('supplier'), items.map((i) => i.supplier)),
+    allRacks: mergeOptions(of('rack'), items.map((i) => i.rack)),
     racksByStore,
   }
 }
@@ -98,11 +90,13 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
       const s = t.trim().toLowerCase()
       if (!s) return null
       const hit = stores.find(
-        (x) => x.name.toLowerCase() === s || x.code.toLowerCase() === s || String(x.id) === s,
+        (x) =>
+          x.is_active && (x.name.toLowerCase() === s || x.code.toLowerCase() === s || String(x.id) === s),
       )
       return hit ? hit.id : undefined
     },
-    options: stores.map((s) => s.name),
+    // เลือกได้เฉพาะคลังที่เปิดใช้งาน (คลังที่ปิดยังแสดงชื่อในข้อมูลเดิมได้)
+    options: stores.filter((s) => s.is_active).map((s) => s.name),
   }
   const country: GridColumn<R> = {
     key: 'country',

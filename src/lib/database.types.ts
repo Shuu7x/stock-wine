@@ -10,7 +10,22 @@ type Audit = {
   updated_by: string | null
 }
 
-type StoreRow = Audit & { id: number; code: string; name: string; sort_order: number }
+type StoreRow = Audit & { id: number; code: string; name: string; sort_order: number; is_active: boolean }
+type StoreWrite = Partial<Pick<StoreRow, 'code' | 'name' | 'sort_order' | 'is_active'>>
+
+export type LookupCategory = 'country' | 'supplier' | 'rack'
+
+type LookupValueRow = Audit & {
+  id: string
+  category: LookupCategory
+  store_id: number | null
+  value: string
+  sort_order: number
+  is_active: boolean
+}
+type LookupValueWrite = Partial<Pick<LookupValueRow, 'id' | 'category' | 'store_id' | 'value' | 'sort_order' | 'is_active'>>
+
+type AppSettingRow = Audit & { key: string; value: Json }
 
 type StockItemRow = Audit & {
   id: string
@@ -148,7 +163,24 @@ type StockItemUpdate = Partial<
 export type Database = {
   public: {
     Tables: {
-      stores: ReadOnlyTable<StoreRow>
+      stores: {
+        Row: StoreRow
+        Insert: StoreWrite & Pick<StoreRow, 'code' | 'name'>
+        Update: StoreWrite
+        Relationships: []
+      }
+      lookup_values: {
+        Row: LookupValueRow
+        Insert: LookupValueWrite & Pick<LookupValueRow, 'category' | 'value'>
+        Update: LookupValueWrite
+        Relationships: []
+      }
+      app_settings: {
+        Row: AppSettingRow
+        Insert: { key: string; value: Json }
+        Update: { value?: Json }
+        Relationships: []
+      }
       stock_items: {
         Row: StockItemRow
         Insert: never

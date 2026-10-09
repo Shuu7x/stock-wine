@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { History, LogOut, PackagePlus, GlassWater, Warehouse, Wine, RotateCcw } from 'lucide-react'
+import { History, LogOut, PackagePlus, GlassWater, Settings, Warehouse, Wine, RotateCcw } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { signOut, useSessionEmail } from '@/features/auth/api/auth.api'
 import { env } from '@/lib/env'
@@ -56,6 +56,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {n.label}
             </Link>
           ))}
+          <Link
+            to="/settings"
+            className="mt-auto mb-2 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-brand-200 transition hover:bg-brand-800 hover:text-white"
+            activeProps={{ className: '!bg-brand-700 !text-white shadow-sm' }}
+          >
+            <Settings className="size-[18px]" />
+            ตั้งค่า
+          </Link>
         </nav>
         <div className="border-t border-brand-800 p-3 text-xs">
           {env.VITE_ENABLE_MOCK && (
@@ -82,7 +90,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="flex shrink-0 items-center gap-3 bg-brand-900 px-4 py-3 text-white lg:hidden">
         <Wine className="size-5 text-gold-100" />
         <span className="font-display text-lg font-bold">Wine Cellar</span>
-        <button type="button" onClick={logout} className="ml-auto rounded-lg p-1.5 text-brand-200 hover:bg-brand-800" aria-label="ออกจากระบบ">
+        <Link
+          to="/settings"
+          className="ml-auto rounded-lg p-1.5 text-brand-200 hover:bg-brand-800"
+          activeProps={{ className: '!bg-brand-700 !text-white' }}
+          aria-label="ตั้งค่า"
+        >
+          <Settings className="size-5" />
+        </Link>
+        <button type="button" onClick={logout} className="rounded-lg p-1.5 text-brand-200 hover:bg-brand-800" aria-label="ออกจากระบบ">
           <LogOut className="size-5" />
         </button>
       </header>

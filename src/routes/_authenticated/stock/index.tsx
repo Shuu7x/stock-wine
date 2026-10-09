@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { StockPage } from '@/features/stock/components/StockPage'
 
 export const Route = createFileRoute('/_authenticated/stock/')({
-  validateSearch: z.object({ store: z.enum(['all', 'SW1', 'SW2', 'BIG']).default('all').catch('all') }),
+  // store = 'all' หรือรหัสคลัง (คลังเพิ่มได้ในหน้าตั้งค่า)
+  validateSearch: z.object({ store: z.string().max(12).default('all').catch('all') }),
   component: StockRoute,
 })
 

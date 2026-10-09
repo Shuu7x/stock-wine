@@ -21,6 +21,7 @@ npm run dev
 | `/receive` | ใบรับเข้าหลายรายการ พิมพ์ชื่อเพื่อค้นไวน์เดิม ไม่เจอ = เพิ่มใหม่ · บันทึกแล้วแต่ละแถวเข้าคลังของตัวเอง |
 | `/withdraw` | ใบเบิกหลายรายการ เลือกไวน์จากสต็อก กันเบิกเกินคงเหลือ |
 | `/history` | เอกสารรับเข้า/เบิกทั้งหมด · ยกเลิกเอกสาร = ปรับยอดกลับ แต่เอกสารยังอยู่ · แท็บ "บันทึกการแก้ไข" = ทุกการเปลี่ยนแปลง (ใคร เมื่อไร ค่าเดิม → ค่าใหม่) |
+| `/settings` | ทั่วไป (คลังตั้งต้นรับเข้า · แจ้งเตือนใกล้หมด · บังคับหมายเหตุตอนเบิก) · คลังสินค้า (เพิ่ม/แก้/ปิด) · ตัวเลือกที่ใช้บ่อย (ประเทศ/ผู้ขาย/ชั้นวาง) · บัญชีของฉัน |
 
 ### ตารางแบบ Excel (`src/components/data-grid`)
 
@@ -42,6 +43,12 @@ npm run dev
 2. สร้างผู้ใช้ใน Supabase Auth
 3. ตั้ง `.env.local`: `VITE_ENABLE_MOCK=false`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (publishable/anon key เท่านั้น)
 4. `npm run db:types` เพื่อ generate `src/lib/database.types.ts` ทับไฟล์ที่เขียนมือไว้
+
+## เพิ่มการตั้งค่าใหม่
+
+- **ค่าระบบใหม่** (เปิด/ปิดฟีเจอร์ ตัวเลข เกณฑ์ต่างๆ): เพิ่ม key ใน `src/features/settings/app-settings.ts` (zod schema + default) แล้วเพิ่มช่องในหน้า "ทั่วไป" — ไม่ต้องแก้ DB เพราะ `app_settings` เป็น key/value
+- **หัวข้อเมนูใหม่**: เพิ่มรายการใน `src/features/settings/registry.ts` และสร้าง route `src/routes/_authenticated/settings/<ชื่อ>.tsx` (รายการที่ไม่มี `to` จะแสดงเป็น "เร็วๆ นี้")
+- **ตัวเลือกประเภทใหม่** (เช่น พันธุ์องุ่น): เพิ่มค่าใน check constraint ของ `lookup_values.category` และใน `CATEGORIES` ของหน้าตัวเลือก
 
 ## กติกาข้อมูล
 

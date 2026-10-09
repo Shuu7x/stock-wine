@@ -11,6 +11,8 @@ type DB = {
   withdrawals: Tables<'withdrawals'>[]
   withdrawal_lines: Tables<'withdrawal_lines'>[]
   stock_item_logs: Tables<'stock_item_logs'>[]
+  lookup_values: Tables<'lookup_values'>[]
+  app_settings: Tables<'app_settings'>[]
   seq: { receipt: number; withdrawal: number; log: number }
 }
 
@@ -58,6 +60,31 @@ const SEED: Array<
   [3, 'R05', 'Portugal', "Taylor's Vintage Port", 2017, 6, 98, 97, [2035, 2070], 4200, 'Bacchus', '2024-02-14'],
 ]
 
+const COUNTRIES = [
+  'France', 'Italy', 'Spain', 'Portugal', 'Germany', 'Austria', 'USA', 'Australia',
+  'New Zealand', 'Chile', 'Argentina', 'South Africa', 'Japan', 'Thailand',
+]
+
+function seedLookups(): Tables<'lookup_values'>[] {
+  return COUNTRIES.map((value, i) => ({
+    id: crypto.randomUUID(),
+    category: 'country',
+    store_id: null,
+    value,
+    sort_order: i + 1,
+    is_active: true,
+    ...audit(),
+  }))
+}
+
+function seedSettings(): Tables<'app_settings'>[] {
+  return [
+    { key: 'default_receive_store_id', value: null, ...audit() },
+    { key: 'low_stock_threshold', value: 2, ...audit() },
+    { key: 'require_withdraw_note', value: false, ...audit() },
+  ]
+}
+
 function seed(): DB {
   const stock_items: Tables<'stock_items'>[] = SEED.map((s) => ({
     id: crypto.randomUUID(),
@@ -81,9 +108,9 @@ function seed(): DB {
   }))
   return {
     stores: [
-      { id: 1, code: 'SW1', name: 'Showroom Wines 1', sort_order: 1, ...audit() },
-      { id: 2, code: 'SW2', name: 'Showroom Wines 2', sort_order: 2, ...audit() },
-      { id: 3, code: 'BIG', name: 'Big Room Wines', sort_order: 3, ...audit() },
+      { id: 1, code: 'SW1', name: 'Showroom Wines 1', sort_order: 1, is_active: true, ...audit() },
+      { id: 2, code: 'SW2', name: 'Showroom Wines 2', sort_order: 2, is_active: true, ...audit() },
+      { id: 3, code: 'BIG', name: 'Big Room Wines', sort_order: 3, is_active: true, ...audit() },
     ],
     stock_items,
     receipts: [],
@@ -91,6 +118,8 @@ function seed(): DB {
     withdrawals: [],
     withdrawal_lines: [],
     stock_item_logs: [],
+    lookup_values: seedLookups(),
+    app_settings: seedSettings(),
     seq: { receipt: 0, withdrawal: 0, log: 0 },
   }
 }
@@ -102,6 +131,10 @@ function load(): DB {
       const saved = JSON.parse(raw) as DB
       // ข้อมูลที่บันทึกไว้ก่อนมีตาราง log
       saved.stock_item_logs ??= []
+      // ข้อมูลที่บันทึกไว้ก่อนมีหน้าตั้งค่า
+      saved.lookup_values ??= seedLookups()
+      saved.app_settings ??= seedSettings()
+      for (const st of saved.stores) st.is_active ??= true
       saved.seq.log ??= 0
       return saved
     }
