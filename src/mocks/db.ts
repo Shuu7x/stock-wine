@@ -110,9 +110,9 @@ function emptyOps() {
   }
 }
 
-/** คะแนนเดิม RP / WS → ข้อความ "100RP, 98WS" */
+/** คะแนนเดิม RP / WS → ข้อความค่าเดียว "100RP" (มี RP ใช้ RP ก่อน) */
 function ratingText(rp: number | null | undefined, ws: number | null | undefined) {
-  return [rp != null && `${rp}RP`, ws != null && `${ws}WS`].filter(Boolean).join(', ') || null
+  return rp != null ? `${rp}RP` : ws != null ? `${ws}WS` : null
 }
 
 function seed(): DB {
@@ -187,6 +187,8 @@ function load(): DB {
           delete x.rating_rp
           delete x.rating_ws
         }
+        // เคยรวมหลายค่า "100RP, 98WS" → เหลือค่าแรก
+        if (typeof x.rating === 'string' && x.rating.includes(',')) x.rating = x.rating.split(',')[0].trim()
       }
       return saved
     }

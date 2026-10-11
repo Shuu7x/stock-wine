@@ -34,7 +34,7 @@ type StockItemRow = Audit & {
   country: string | null
   wine_name: string
   vintage: number | null
-  /** คะแนน เช่น "100RP, 98WS" */
+  /** คะแนน (ค่าเดียว) เช่น "100RP" */
   rating: string | null
   maturity_from: number | null
   maturity_to: number | null
@@ -85,7 +85,7 @@ type ReceiptLineRow = Audit & {
   country: string | null
   wine_name: string
   vintage: number | null
-  /** คะแนน เช่น "100RP, 98WS" */
+  /** คะแนน (ค่าเดียว) เช่น "100RP" */
   rating: string | null
   maturity_from: number | null
   maturity_to: number | null

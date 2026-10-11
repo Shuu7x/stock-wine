@@ -135,9 +135,9 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
   const rating: GridColumn<R> = {
     key: 'rating',
     title: 'Rate',
-    subtitle: 'เช่น 100RP, 98WS',
+    subtitle: 'ค่าเดียว เช่น 100RP',
     width: 150,
-    placeholder: '100RP, 98WS',
+    placeholder: '100RP',
     parse: parseRating,
   }
   const maturity: GridColumn<R> = {
