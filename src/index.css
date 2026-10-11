@@ -123,23 +123,6 @@ input[type='number']::-webkit-inner-spin-button {
   background-color: var(--color-brand-500);
 }
 
-/* ─── หน้า login (คลื่น/ขวดวาดบน canvas ใน LoginBackground) ───────────────────── */
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .motion-scene * {
-    animation: none !important;
-  }
-}
-
 /* ─── พิมพ์ป้าย QR: พิมพ์เฉพาะแผ่นป้าย ซ่อนหน้าแอปทั้งหมด ──────────────────────── */
 .print-root {
   display: none;

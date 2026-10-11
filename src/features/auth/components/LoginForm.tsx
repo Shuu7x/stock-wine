@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/cn'
 import { Field, Input } from '@/components/ui/field'
 import { PasswordInput } from '@/components/ui/password-input'
 import { env } from '@/lib/env'
 import { signIn } from '../api/auth.api'
-import { LoginBackground } from './LoginBackground'
+import { playReveal } from '../reveal-transition'
+import { WineRipple } from './WineRipple'
 
 const schema = z.object({
   email: z.email('อีเมลไม่ถูกต้อง'),
@@ -19,10 +19,10 @@ type Values = z.infer<typeof schema>
 
 export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [error, setError] = useState<string | null>(null)
-  // รหัสผิด: การ์ดสั่น + คลื่นกระเพื่อม · สำเร็จ: ไวน์ท่วมจอแล้วค่อยเข้าระบบ
+  // รหัสผิด: การ์ดสั่น + ผิวไวน์สั่นไหว · สำเร็จ: เข้าหน้าหลักทันที วงคลื่นจากปุ่มเผยหน้าหลักออกมา
   const [shake, setShake] = useState(0)
-  const [entering, setEntering] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  const sceneRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!shake || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     formRef.current?.animate(
@@ -45,24 +45,25 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         setShake((n) => n + 1)
         return
       }
-      setEntering(true)
-      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      await new Promise((r) => setTimeout(r, reduced ? 0 : 1050))
+      const btn = formRef.current?.querySelector('button[type=submit]')?.getBoundingClientRect()
+      playReveal({
+        canvas: sceneRef.current?.querySelector('canvas') ?? null,
+        card: formRef.current,
+        x: btn ? btn.left + btn.width / 2 : innerWidth / 2,
+        y: btn ? btn.top + btn.height / 2 : innerHeight / 2,
+      })
       onSuccess()
     },
     () => setShake((n) => n + 1),
   )
 
   return (
-    <div className="relative flex min-h-full items-center justify-center overflow-hidden bg-night-900 p-4">
-      <LoginBackground agitate={shake} flood={entering} />
+    <div ref={sceneRef} className="relative flex min-h-full items-center justify-center overflow-hidden bg-night-900 p-4">
+      <WineRipple tremble={shake} />
       <form
         ref={formRef}
         onSubmit={submit}
-        className={cn(
-          'relative z-10 w-full max-w-sm rounded-2xl border border-white/40 bg-surface/90 p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md transition duration-500 ease-in sm:p-8',
-          entering && 'pointer-events-none translate-y-6 scale-95 opacity-0',
-        )}
+        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/40 bg-surface/90 p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md sm:p-8"
       >
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-brand-700 text-gold-100 shadow-lg">
