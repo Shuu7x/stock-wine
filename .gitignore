@@ -5,3 +5,7 @@ dist
 .DS_Store
 supabase/.temp
 supabase/.branches
+
+# ไฟล์ที่เครื่องมือสร้างเอง (แคช TypeScript · ไฟล์ชั่วคราวของ TanStack Router)
+*.tsbuildinfo
+.tanstack/
