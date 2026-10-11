@@ -95,10 +95,10 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
       onPick: (r, it) => ({ ...r, qty: r.qty ?? it.balance, to_store_id: r.to_store_id ?? defaultTo }),
     })
     const list: GridColumn<TfRow>[] = [
-      p.lift(p.c.store, { title: 'จากคลัง', subtitle: 'ต้นทาง' }),
-      p.lift(p.c.rack, { title: 'จาก Rack' }),
       p.wine,
       p.lift(p.c.vintage),
+      p.lift(p.c.store, { title: 'จากคลัง', subtitle: 'ต้นทาง' }),
+      p.lift(p.c.rack, { title: 'จาก Rack' }),
       p.balance('ต้นทาง → หลังโอน', (r, it) => it.balance - (r.qty ?? 0)),
       {
         key: 'qty',

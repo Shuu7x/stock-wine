@@ -235,16 +235,17 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
       width: 220,
     }
     return [
-      lift(c.country),
-      lift(c.store),
-      lift(c.rack),
+      // ข้อมูลไวน์ก่อน แล้วจึงคลัง / ชั้นวาง
       wine,
       lift(c.vintage),
+      lift(c.country),
+      lift(c.rating),
+      lift(c.maturity),
+      lift(c.store),
+      lift(c.rack),
       balance,
       qty,
       date,
-      lift(c.rating),
-      lift(c.maturity),
       lift(c.price),
       lift(c.supplier),
       lift(c.purchaseDate),

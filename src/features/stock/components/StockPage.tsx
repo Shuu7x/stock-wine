@@ -162,17 +162,18 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       get: (r) => (r.price_per_bottle == null ? null : r.balance * r.price_per_bottle),
       format: (v) => fmtMoney(v as number | null),
     }
+    // ข้อมูลไวน์ก่อน แล้วจึงคลัง / ชั้นวาง
     const list: GridColumn<StockItem>[] = [
-      c.country,
-      // ย้ายคลังต้องทำผ่านเบิก/รับเข้า เพื่อให้มีเอกสารรองรับ
-      ...(tab === 'all' ? [{ ...c.store, readOnly: true }] : []),
-      c.rack,
       c.wine,
       c.vintage,
-      balance,
+      c.country,
       c.rating,
       c.maturity,
       c.price,
+      // ย้ายคลังต้องทำผ่านเบิก/รับเข้า เพื่อให้มีเอกสารรองรับ
+      ...(tab === 'all' ? [{ ...c.store, readOnly: true }] : []),
+      c.rack,
+      balance,
       value,
       c.supplier,
       c.purchaseDate,
@@ -256,19 +257,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         เลยช่วง: { fill: 'warning-100', font: 'warning-700' },
       } as const
       const cols = (withStore: boolean): XlsxColumn<StockItem>[] => [
-        { header: 'Country', width: 14, value: (r) => r.country },
-        ...(withStore ? [{ header: 'Store', width: 20, value: (r: StockItem) => storeName(stores, r.store_id) }] : []),
-        { header: 'Wine racks', width: 11, value: (r) => r.rack, align: 'center' },
         { header: 'Name of wine', width: 40, value: (r) => r.wine_name },
         { header: 'Year', width: 8, value: (r) => r.vintage ?? 'NV', align: 'center' },
-        { header: 'Balance', width: 10, value: (r) => r.balance, numFmt: '#,##0', align: 'right', total: 'sum' },
-        {
-          header: 'สถานะคงเหลือ',
-          width: 13,
-          value: (r) => balanceLabel(r.balance),
-          align: 'center',
-          tone: (v) => BAL_TONE[v as keyof typeof BAL_TONE],
-        },
+        { header: 'Country', width: 14, value: (r) => r.country },
         { header: 'Rate', width: 18, value: (r) => r.rating, align: 'center' },
         { header: 'Maturity', width: 12, value: (r) => fmtMaturity(r.maturity_from, r.maturity_to) || null, align: 'center' },
         {
@@ -279,6 +270,16 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           tone: (v) => DRINK_TONE[v as keyof typeof DRINK_TONE],
         },
         { header: 'Price/Btl.', width: 13, value: (r) => r.price_per_bottle, numFmt: '#,##0.00', align: 'right' },
+        ...(withStore ? [{ header: 'Store', width: 20, value: (r: StockItem) => storeName(stores, r.store_id) }] : []),
+        { header: 'Wine racks', width: 11, value: (r) => r.rack, align: 'center' },
+        { header: 'Balance', width: 10, value: (r) => r.balance, numFmt: '#,##0', align: 'right', total: 'sum' },
+        {
+          header: 'สถานะคงเหลือ',
+          width: 13,
+          value: (r) => balanceLabel(r.balance),
+          align: 'center',
+          tone: (v) => BAL_TONE[v as keyof typeof BAL_TONE],
+        },
         {
           header: 'มูลค่า',
           width: 15,

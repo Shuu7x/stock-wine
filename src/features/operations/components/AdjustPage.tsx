@@ -83,10 +83,10 @@ export function AdjustPage({ prefillIds }: { prefillIds: string[] }) {
   const columns = useMemo(() => {
     const p = makePicker<AdjRow>({ stores, lookups, byId, pool: () => items })
     const list: GridColumn<AdjRow>[] = [
-      p.lift(p.c.store),
-      p.lift(p.c.rack),
       p.wine,
       p.lift(p.c.vintage),
+      p.lift(p.c.store),
+      p.lift(p.c.rack),
       {
         key: 'system',
         title: 'ในระบบ',

@@ -196,17 +196,18 @@ export function ReceivePage() {
     }
     return [
       status,
-      c.country,
-      // กว้างกว่าค่าปกติ: ช่องนี้มีปุ่ม ▾ เลือกคลัง ชื่อคลังจึงไม่ถูกตัด
-      { ...c.store, width: 200 },
-      c.rack,
+      // ข้อมูลไวน์ก่อน แล้วจึงคลัง / ชั้นวาง · จำนวนรับ
       wine,
       c.vintage,
-      qty,
-      balance,
+      c.country,
       c.rating,
       c.maturity,
       c.price,
+      // กว้างกว่าค่าปกติ: ช่องนี้มีปุ่ม ▾ เลือกคลัง ชื่อคลังจึงไม่ถูกตัด
+      { ...c.store, width: 200 },
+      c.rack,
+      qty,
+      balance,
       c.supplier,
       c.purchaseDate,
       c.remark,
@@ -331,7 +332,7 @@ export function ReceivePage() {
           <Eraser className="size-4" /> ล้างทั้งหมด
         </Button>
         <span className="hidden text-xs text-muted lg:inline">
-          วางจาก Excel ได้: คลิกเซลล์ Country แถวแรก แล้ว Ctrl+V (เรียงคอลัมน์ตามตาราง)
+          วางจาก Excel ได้: คลิกเซลล์ Name of wine แถวแรก แล้ว Ctrl+V (เรียงคอลัมน์ตามตาราง)
         </span>
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-ink-2">

@@ -145,10 +145,10 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       ...extra,
     })
     const list: GridColumn<SaleRow>[] = [
-      p.lift(p.c.store),
-      p.lift(p.c.rack),
       p.wine,
       p.lift(p.c.vintage),
+      p.lift(p.c.store),
+      p.lift(p.c.rack),
       p.balance('คงเหลือ → หลังขาย', (r, it) => it.balance - (r.qty ?? 0)),
       {
         key: 'qty',
