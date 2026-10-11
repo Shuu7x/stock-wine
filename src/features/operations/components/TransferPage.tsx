@@ -209,7 +209,7 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
           <>
             ย้ายไวน์ข้ามคลังหรือเปลี่ยน rack ยอดต้นทางลด ปลายทางเพิ่มในใบเดียว ·{' '}
             <Link to="/history" search={{ tab: 'transfers' }} className="text-brand-700 underline">
-              ดูประวัติการโอนย้าย
+              ดูความเคลื่อนไหวการโอนย้าย
             </Link>
           </>
         }

@@ -255,7 +255,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
           <>
             ขายได้หลายรายการในใบเดียว ติ๊ก VAT ได้ทีละรายการ ·{' '}
             <Link to="/history" search={{ tab: 'sales' }} className="text-brand-700 underline">
-              ดูประวัติการขาย
+              ดูความเคลื่อนไหวการขาย
             </Link>
           </>
         }
@@ -430,7 +430,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         title={`บันทึกขาย ${saved?.doc_no ?? ''} แล้ว`}
         description={
           saved
-            ? `${saved.customer ? `${saved.customer} · ` : ''}ยอดรวม ${fmtMoney(saved.total)} บาท · พิมพ์บิลย้อนหลังได้ที่หน้าประวัติ`
+            ? `${saved.customer ? `${saved.customer} · ` : ''}ยอดรวม ${fmtMoney(saved.total)} บาท · พิมพ์บิลย้อนหลังได้ที่หน้าความเคลื่อนไหว`
             : undefined
         }
         footer={

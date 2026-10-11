@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   Printer,
+  FileSpreadsheet,
   FileX2,
   GlassWater,
   History,
@@ -44,10 +45,12 @@ import { cn } from '@/lib/cn'
 import type { DocFilter } from '@/lib/doc-filter'
 import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney, todayIso } from '@/lib/format'
 import { VAT_MODE_LABEL } from '@/lib/vat'
-import { LogList } from './LogList'
+import { DocLinesTable, exportDocs, MovementTable } from './MovementTables'
 import { Loading } from '@/components/ui/loading'
 
-export const HISTORY_TABS = ['receipts', 'sales', 'withdrawals', 'transfers', 'adjustments', 'logs'] as const
+export const HISTORY_TABS = ['logs', 'receipts', 'sales', 'withdrawals', 'transfers', 'adjustments'] as const
+export const HISTORY_VIEWS = ['docs', 'lines'] as const
+export type HistoryView = (typeof HISTORY_VIEWS)[number]
 export type HistoryTab = (typeof HISTORY_TABS)[number]
 type DocTab = Exclude<HistoryTab, 'logs'>
 
@@ -57,7 +60,7 @@ const TAB: Record<HistoryTab, { label: string; icon: LucideIcon }> = {
   withdrawals: { label: 'เบิก', icon: GlassWater },
   transfers: { label: 'โอนย้าย', icon: ArrowLeftRight },
   adjustments: { label: 'ปรับยอด', icon: ClipboardCheck },
-  logs: { label: 'บันทึกการแก้ไข', icon: History },
+  logs: { label: 'ทั้งหมด', icon: History },
 }
 
 const VOID_HINT: Record<DocTab, string> = {
@@ -114,14 +117,17 @@ const bottles = (n: number) => (
 
 export function HistoryPage({
   tab,
+  view,
   page,
   pageSize,
   onChange,
 }: {
   tab: HistoryTab
+  /** แท็บเอกสาร: ตามเอกสาร (เดิม) หรือ รายรายการ */
+  view: HistoryView
   page: number
   pageSize: number
-  onChange: (next: { tab?: HistoryTab; page?: number; pageSize?: number }) => void
+  onChange: (next: { tab?: HistoryTab; view?: HistoryView; page?: number; pageSize?: number }) => void
 }) {
   const stores = useQuery(storesOptions()).data ?? []
   const [filter, setFilter] = useState<DocFilter>({})
@@ -145,6 +151,7 @@ export function HistoryPage({
   const printBill = usePrintSaleBill()
   const [voiding, setVoiding] = useState<DocView | null>(null)
   const [reason, setReason] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   function docs(): DocView[] {
     const base = <T extends { created_by_email: string | null; created_at: string }>(d: T): Array<[string, ReactNode]> => [
@@ -315,7 +322,7 @@ export function HistoryPage({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <PageHeader title="ประวัติ" description="เอกสารทุกประเภทและบันทึกการเปลี่ยนแปลงของข้อมูลไวน์ · ยกเลิกเอกสารได้ ระบบปรับยอดกลับและเก็บเอกสารไว้" />
+      <PageHeader title="ความเคลื่อนไหว" description="ทุกความเคลื่อนไหวของสต็อก และเอกสาร รับเข้า · ขาย · เบิก · โอนย้าย · ปรับยอด · ยกเลิกเอกสารได้ ระบบปรับยอดกลับและเก็บเอกสารไว้ · ส่งออก Excel ได้" />
 
       {/* แท็บ */}
       <div className="no-scrollbar -mx-4 shrink-0 overflow-x-auto overflow-y-hidden border-b border-line px-4 sm:mx-0 sm:px-0" role="tablist">
@@ -336,7 +343,7 @@ export function HistoryPage({
                 className={cn(
                   'relative flex items-center gap-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition',
                   active ? 'text-brand-800' : 'text-ink-2 hover:text-ink',
-                  t === 'logs' && 'ml-2 border-l border-line pl-4',
+                  t === 'receipts' && 'ml-2 border-l border-line pl-4',
                 )}
               >
                 <T.icon className={cn('size-4', active ? 'text-brand-700' : 'text-muted')} />
@@ -348,7 +355,24 @@ export function HistoryPage({
         </div>
       </div>
 
-      {tab === 'logs' && <LogList stores={stores} fill />}
+      {tab === 'logs' && (
+        <>
+          <div className="flex shrink-0 flex-wrap items-end gap-3">
+            <Field label="ตั้งแต่วันที่" className="w-40">
+              <DateInput value={filter.from ?? ''} max={filter.to ?? todayIso()} onChange={(v) => setF({ ...filter, from: v })} />
+            </Field>
+            <Field label="ถึงวันที่" className="w-40">
+              <DateInput value={filter.to ?? ''} max={todayIso()} onChange={(v) => setF({ ...filter, to: v })} />
+            </Field>
+            {(filter.from || filter.to) && (
+              <Button variant="ghost" onClick={() => setF({})}>
+                <X className="size-4" /> ล้างช่วงวันที่
+              </Button>
+            )}
+          </div>
+          <MovementTable stores={stores} filter={{ from: filter.from, to: filter.to }} />
+        </>
+      )}
 
       {isDocTab && (
         <>
@@ -373,15 +397,48 @@ export function HistoryPage({
                 ]}
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ink-2">มุมมอง</span>
+              <Segmented
+                className="!mx-0 !px-0"
+                value={view}
+                onChange={(v) => onChange({ view: v, page: 1 })}
+                items={[
+                  { value: 'docs', label: 'ตามเอกสาร' },
+                  { value: 'lines', label: 'รายรายการ' },
+                ]}
+              />
+            </div>
             {filtered && (
               <Button variant="ghost" onClick={() => setF({})}>
                 <X className="size-4" /> ล้างตัวกรอง
               </Button>
             )}
-            <span className="ml-auto pb-2 text-sm text-muted">{fmtInt(total)} เอกสาร</span>
+            {view === 'docs' && (
+              <div className="ml-auto flex items-center gap-3 pb-0.5">
+                <span className="text-sm text-muted">{fmtInt(total)} เอกสาร</span>
+                <Button
+                  loading={exporting}
+                  disabled={!total}
+                  onClick={async () => {
+                    setExporting(true)
+                    try {
+                      await exportDocs(tab, filter)
+                    } finally {
+                      setExporting(false)
+                    }
+                  }}
+                >
+                  <FileSpreadsheet className="size-4" /> ส่งออก Excel
+                </Button>
+              </div>
+            )}
           </div>
 
+          {view === 'lines' && <DocLinesTable tab={tab} filter={filter} stores={stores} />}
+
           {/* รายการเอกสาร */}
+          {view === 'docs' && (
           <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">
             <div
               className={cn(
@@ -471,6 +528,7 @@ export function HistoryPage({
               />
             )}
           </div>
+          )}
         </>
       )}
 

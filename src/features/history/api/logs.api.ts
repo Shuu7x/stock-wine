@@ -37,3 +37,18 @@ export const logsListOptions = (s: LogsSearch) =>
     queryFn: () => fetchLogs(s),
     placeholderData: keepPreviousData,
   })
+
+/** ความเคลื่อนไหวล่าสุดทั้งหมด (แท็บ "ทั้งหมด") — ช่วงวันที่กรองฝั่ง server · ที่เหลือกรองในตาราง */
+export const logsTableOptions = (f: { from?: string; to?: string }, limit = 3000) =>
+  queryOptions({
+    queryKey: [...logKeys.all, 'table', f, limit] as const,
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      let q = supabase.from('stock_item_logs').select('*')
+      if (f.from) q = q.gte('created_at', new Date(`${f.from}T00:00:00`).toISOString())
+      if (f.to) q = q.lte('created_at', new Date(`${f.to}T23:59:59.999`).toISOString())
+      const { data, error } = await q.order('created_at', { ascending: false }).order('id', { ascending: false }).limit(limit)
+      if (error) throw error
+      return data
+    },
+  })

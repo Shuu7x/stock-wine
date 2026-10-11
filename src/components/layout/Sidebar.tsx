@@ -128,7 +128,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         </Group>
 
         <Group title="เครื่องมือ" collapsed={collapsed}>
-          <NavItem to="/history" label="ประวัติ" icon={History} active={is('/history')} collapsed={collapsed} />
+          <NavItem to="/history" label="ความเคลื่อนไหว" icon={History} active={is('/history')} collapsed={collapsed} />
           <NavItem to="/qr" label="ป้าย QR" icon={QrCode} active={is('/qr')} collapsed={collapsed} />
         </Group>
 

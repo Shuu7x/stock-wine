@@ -31,7 +31,7 @@ const MOBILE_MORE = [
   { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
   { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck },
   { to: '/qr', label: 'ป้าย QR', icon: QrCode },
-  { to: '/history', label: 'ประวัติ', icon: History },
+  { to: '/history', label: 'ความเคลื่อนไหว', icon: History },
   { to: '/settings', label: 'ตั้งค่า', icon: Settings },
 ] as const
 

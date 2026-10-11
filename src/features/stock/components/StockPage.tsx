@@ -224,7 +224,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     setEdits({})
     setPendingDeletes([])
     setConfirmSave(false)
-    toast.success(`บันทึกแล้ว (${msg} รายการ)`, { description: 'ดูรายละเอียดได้ที่ ประวัติ › บันทึกการแก้ไข' })
+    toast.success(`บันทึกแล้ว (${msg} รายการ)`, { description: 'ดูรายละเอียดได้ที่ ความเคลื่อนไหว › ทั้งหมด' })
   }
 
   function discardAll() {

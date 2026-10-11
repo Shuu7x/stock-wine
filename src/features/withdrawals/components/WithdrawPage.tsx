@@ -302,7 +302,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
           <>
             เบิกออกไปดื่ม เลือกไวน์จากสต็อกได้หลายรายการ ·{' '}
             <Link to="/history" search={{ tab: 'withdrawals' }} className="text-brand-700 underline">
-              ดูประวัติการเบิก
+              ดูความเคลื่อนไหวการเบิก
             </Link>
           </>
         }

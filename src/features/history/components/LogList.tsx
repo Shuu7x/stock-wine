@@ -32,7 +32,7 @@ export const ACTIONS: Record<StockAction, { label: string; tone: Tone }> = {
   void_transfer: { label: 'ยกเลิกโอน', tone: 'neutral' },
 }
 
-const FIELD_LABELS: Record<string, string> = {
+export const FIELD_LABELS: Record<string, string> = {
   store_id: 'Store',
   rack: 'Wine racks',
   country: 'Country',
@@ -64,7 +64,7 @@ const FILTERS: Array<{ value: StockAction | ''; label: string }> = [
   { value: 'transfer_in', label: 'โอนเข้า' },
 ]
 
-function fmtField(stores: Store[], key: string, v: Json | undefined): string {
+export function fmtField(stores: Store[], key: string, v: Json | undefined): string {
   if (v == null || v === '') return '–'
   if (key === 'store_id') return storeName(stores, Number(v))
   if (key === 'purchase_date') return fmtDate(String(v))
@@ -73,7 +73,7 @@ function fmtField(stores: Store[], key: string, v: Json | undefined): string {
   return String(v)
 }
 
-function actionOf(log: StockItemLog) {
+export function actionOf(log: StockItemLog) {
   const a = ACTIONS[log.action]
   // รับเข้าไวน์ที่ยังไม่มี = สร้างรายการใหม่ไปด้วย
   if (log.action === 'receive' && log.changes.balance && log.changes.balance.old == null) {
