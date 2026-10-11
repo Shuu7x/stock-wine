@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Printer } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
@@ -30,8 +30,6 @@ type SaleRow = PickerRow & { qty: number | null; unit_price: number | null; has_
 type Draft = { rows: SaleRow[]; soldAt: string; customer: string; note: string; vatMode: VatMode | null }
 
 const DRAFT_KEY = 'stock-wine:sale-draft:v1'
-const HAS_VAT = 'มี VAT'
-const NO_VAT = 'ไม่มี VAT'
 
 /** hasVat: ค่าเริ่มของคอลัมน์ VAT ตามโหมดราคา (รวม VAT = มี VAT · ไม่รวม VAT = ไม่มี VAT) */
 const newRow = (stockItemId: string | null = null, hasVat = true): SaleRow => ({
@@ -73,6 +71,14 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   // "ไม่รวม VAT" = ขายไม่คิด VAT: แถวเริ่มเป็น "ไม่มี VAT" (แก้รายแถวได้)
   const rowVat = vatMode === 'included'
   const makeRow = useCallback((id?: string) => newRow(id ?? null, rowVat), [rowVat])
+  const priced = useRef(new Set<string>())
+  useEffect(() => {
+    const need = rows.filter((r) => r.stock_item_id && r.unit_price == null && !priced.current.has(r._id) && byId.get(r.stock_item_id)?.price_per_bottle != null)
+    if (!need.length) return
+    for (const r of need) priced.current.add(r._id)
+    const ids = new Set(need.map((r) => r._id))
+    setRows((rs) => rs.map((r) => (ids.has(r._id) && r.unit_price == null ? { ...r, unit_price: byId.get(r.stock_item_id!)!.price_per_bottle } : r)))
+  }, [rows, byId])
 
   // โหมดตั้งต้นมาจากการตั้งค่า (โหลดทีหลัง) → แถวที่ยังว่างใช้ค่าตามโหมด
   useEffect(() => {
@@ -131,7 +137,8 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       lookups,
       byId,
       pool: () => items.filter((i) => i.balance > 0 && (!scope || i.store_id === scope)),
-      onPick: (r) => ({ ...r, qty: r.qty ?? 1 }),
+      // เลือกไวน์: จำนวนเริ่ม 1 · ราคาขายตั้งต้น = ราคาไวน์ในสต็อก (แก้ได้)
+      onPick: (r, it) => ({ ...r, qty: r.qty ?? 1, unit_price: it.price_per_bottle ?? r.unit_price }),
     })
     const ro = (key: string, title: string, get: (r: SaleRow) => number | null, extra?: Partial<GridColumn<SaleRow>>): GridColumn<SaleRow> => ({
       key,
@@ -173,16 +180,6 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         align: 'right',
         parse: money,
         format: (v) => fmtMoney(v as number | null),
-      },
-      {
-        key: 'has_vat',
-        title: 'VAT',
-        subtitle: `${rate}%`,
-        width: 110,
-        type: 'select',
-        options: [HAS_VAT, NO_VAT],
-        get: (r) => (r.has_vat ? HAS_VAT : NO_VAT),
-        set: (r, v) => ({ ...r, has_vat: v !== NO_VAT }),
       },
       ro('before', 'ก่อน VAT', (r) => calc(r)?.before ?? null),
       ro('vat', 'VAT', (r) => calc(r)?.vat ?? null, { width: 96 }),
@@ -342,7 +339,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
           },
-          fields: ['qty','unit_price','has_vat','remark'],
+          fields: ['qty', 'unit_price', 'balance', 'remark'],
           aside: (r) => {
             const c = calc(r)
             return c ? <span className="font-semibold tabular-nums text-brand-800">฿{fmtMoney(c.total)}</span> : null
