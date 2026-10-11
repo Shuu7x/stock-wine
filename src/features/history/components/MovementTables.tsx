@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { FileSpreadsheet, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { ExportButton } from '@/components/ui/export-button'
 import { Input } from '@/components/ui/field'
 import { Loading } from '@/components/ui/loading'
 import { adjustmentsListOptions, salesListOptions, transfersListOptions } from '@/features/operations/api/operations.api'
@@ -89,9 +89,7 @@ function TableBar({ q, setQ, count, onExport, exporting, noun }: { q: string; se
       <span className="text-sm text-muted">
         {fmtInt(count)} {noun}
       </span>
-      <Button className="ml-auto" onClick={onExport} loading={exporting} disabled={!count}>
-        <FileSpreadsheet className="size-4" /> ส่งออก Excel
-      </Button>
+      <ExportButton className="ml-auto" onClick={onExport} loading={exporting} disabled={!count} />
     </div>
   )
 }
@@ -397,9 +395,7 @@ export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<st
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted">แยกทีละขวด {fmtInt(lines.length)} ขวด · คลิกหัวคอลัมน์เพื่อกรอง/เรียง เช่น เรียงตาม Store / Wine racks</span>
-        <Button size="sm" className="ml-auto" onClick={exportFile} loading={exporting}>
-          <FileSpreadsheet className="size-4" /> ส่งออก Excel
-        </Button>
+        <ExportButton size="sm" className="ml-auto" onClick={exportFile} loading={exporting} />
       </div>
       <DataGrid
         key={tab}

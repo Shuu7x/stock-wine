@@ -6,7 +6,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   Printer,
-  FileSpreadsheet,
   FileText,
   FileX2,
   GlassWater,
@@ -20,6 +19,7 @@ import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ExportButton } from '@/components/ui/export-button'
 import { DateInput } from '@/components/ui/date-input'
 import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
@@ -434,7 +434,7 @@ export function HistoryPage({
             </div>
             <div className="ml-auto flex items-center gap-3 pb-0.5">
                 <span className="text-sm text-muted">{fmtInt(total)} เอกสาร</span>
-                <Button
+                <ExportButton
                   loading={exporting}
                   disabled={!total}
                   onClick={async () => {
@@ -445,9 +445,7 @@ export function HistoryPage({
                       setExporting(false)
                     }
                   }}
-                >
-                  <FileSpreadsheet className="size-4" /> ส่งออก Excel
-                </Button>
+                />
               </div>
           </div>
 

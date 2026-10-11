@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'excel'
 type Size = 'sm' | 'md'
 
 const variants: Record<Variant, string> = {
@@ -9,6 +9,8 @@ const variants: Record<Variant, string> = {
   secondary: 'border border-line-strong bg-surface text-ink hover:bg-surface-2 disabled:text-muted',
   ghost: 'text-ink-2 hover:bg-surface-3 disabled:text-muted',
   danger: 'bg-danger-600 text-white hover:bg-danger-700 disabled:opacity-50',
+  /** ส่งออก Excel (ใช้ผ่าน ExportButton) */
+  excel: 'border border-success-600/40 bg-surface text-success-700 hover:bg-success-50 hover:border-success-600/60 disabled:border-line disabled:text-muted',
 }
 const sizes: Record<Size, string> = {
   sm: 'h-8 px-2.5 text-sm gap-1.5',

@@ -4,7 +4,6 @@ import {
   Archive,
   ArrowLeftRight,
   ClipboardCheck,
-  FileSpreadsheet,
   GlassWater,
   QrCode,
   RotateCcw,
@@ -19,6 +18,7 @@ import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ExportButton } from '@/components/ui/export-button'
 import { Dialog } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
 import { PageHeader, Stat } from '@/components/ui/page'
@@ -324,9 +324,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         description="ดูและแก้ข้อมูลไวน์ได้ในตาราง · ยอดคงเหลือเปลี่ยนได้ผ่านการรับเข้าและเบิกเท่านั้น"
         actions={
           <>
-            <Button size="sm" variant="ghost" onClick={exportExcel} loading={exporting}>
-              {!exporting && <FileSpreadsheet className="size-4" />} ส่งออก Excel
-            </Button>
+            <ExportButton size="sm" onClick={exportExcel} loading={exporting} />
           </>
         }
       />
