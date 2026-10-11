@@ -4,7 +4,8 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 
 /**
  * คำนวณ VAT ของหนึ่งบรรทัด — ตรงกับ public.post_sale (ปัดทีละบรรทัด 2 ตำแหน่ง)
- * included: ราคาที่กรอกรวม VAT แล้ว ถอด VAT ออก · excluded: บวก VAT เพิ่ม
+ * included: ราคาที่กรอกรวม VAT แล้ว ถอด VAT ออก · excluded: บวก VAT เพิ่ม (เฉพาะแถวที่ติ๊ก "มี VAT")
+ * หน้าขาย: โหมด excluded ("ไม่รวม VAT") ตั้งทุกแถวเป็น "ไม่มี VAT" ตั้งต้น = ขายไม่คิด VAT
  */
 export function lineVat(qty: number, unitPrice: number, hasVat: boolean, mode: VatMode, rate: number) {
   const gross = r2(qty * unitPrice)
@@ -26,5 +27,5 @@ export function sumVat(lines: Array<{ before: number; vat: number; total: number
 
 export const VAT_MODE_LABEL: Record<VatMode, string> = {
   included: 'ราคารวม VAT แล้ว',
-  excluded: 'ราคายังไม่รวม VAT',
+  excluded: 'ไม่รวม VAT (ไม่คิด VAT)',
 }

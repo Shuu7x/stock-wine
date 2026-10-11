@@ -116,7 +116,10 @@ export function GeneralSettings() {
             <p className="mt-1 text-xs text-danger-600">{form.formState.errors.vat_rate.message}</p>
           )}
         </SettingRow>
-        <SettingRow label="ราคาขายตั้งต้น" description="ใบขายใหม่เริ่มด้วยแบบนี้ เปลี่ยนได้ทุกใบในหน้าขาย">
+        <SettingRow
+          label="ราคาขายตั้งต้น"
+          description="ใบขายใหม่เริ่มด้วยแบบนี้ · ไม่รวม VAT = ทุกรายการเริ่มเป็น “ไม่มี VAT” (แก้รายแถวได้) · เปลี่ยนได้ทุกใบในหน้าขาย"
+        >
           <Controller
             control={form.control}
             name="default_vat_mode"

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Printer } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
@@ -33,13 +33,14 @@ const DRAFT_KEY = 'stock-wine:sale-draft:v1'
 const HAS_VAT = 'มี VAT'
 const NO_VAT = 'ไม่มี VAT'
 
-const newRow = (stockItemId: string | null = null): SaleRow => ({
+/** hasVat: ค่าเริ่มของคอลัมน์ VAT ตามโหมดราคา (รวม VAT = มี VAT · ไม่รวม VAT = ไม่มี VAT) */
+const newRow = (stockItemId: string | null = null, hasVat = true): SaleRow => ({
   _id: crypto.randomUUID(),
   stock_item_id: stockItemId,
   wine_text: null,
   qty: stockItemId ? 1 : null,
   unit_price: null,
-  has_vat: true,
+  has_vat: hasVat,
   remark: null,
 })
 const isBlank = (r: SaleRow) => !r.stock_item_id && !r.wine_text?.trim() && r.qty == null && r.unit_price == null && !r.remark
@@ -69,6 +70,21 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   const [vatModeChoice, setVatMode] = useState<VatMode | null>(draft?.vatMode ?? null)
   const vatMode = vatModeChoice ?? settings.default_vat_mode
   const rate = settings.vat_rate
+  // "ไม่รวม VAT" = ขายไม่คิด VAT: แถวเริ่มเป็น "ไม่มี VAT" (แก้รายแถวได้)
+  const rowVat = vatMode === 'included'
+  const makeRow = useCallback((id?: string) => newRow(id ?? null, rowVat), [rowVat])
+
+  // โหมดตั้งต้นมาจากการตั้งค่า (โหลดทีหลัง) → แถวที่ยังว่างใช้ค่าตามโหมด
+  useEffect(() => {
+    setRows((rs) => (rs.some((r) => isBlank(r) && r.has_vat !== rowVat) ? rs.map((r) => (isBlank(r) ? { ...r, has_vat: rowVat } : r)) : rs))
+  }, [rowVat])
+
+  /** ผู้ใช้เปลี่ยนโหมดราคา → ทุกแถวเปลี่ยน VAT ตาม */
+  function changeVatMode(v: VatMode) {
+    setVatMode(v)
+    const has = v === 'included'
+    setRows((rs) => rs.map((r) => (r.has_vat === has ? r : { ...r, has_vat: has })))
+  }
   const [scope, setScope] = useState(0)
   const [showErrors, setShowErrors] = useState(false)
   const [confirm, setConfirm] = useState(false)
@@ -78,7 +94,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   const issue = useIssueBills()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  usePrefillRows({ ids: prefillIds, to: '/sale', setRows, makeRow: newRow, isBlank })
+  usePrefillRows({ ids: prefillIds, to: '/sale', setRows, makeRow, isBlank })
 
   const filled = useMemo(() => rows.filter((r) => !isBlank(r)), [rows])
   const hasContent = filled.length > 0 || !!customer || !!note
@@ -199,7 +215,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   }, [filled, calc])
 
   function reset() {
-    setRows(Array.from({ length: 6 }, () => newRow()))
+    setRows(Array.from({ length: 6 }, () => newRow(null, settings.default_vat_mode === 'included')))
     setCustomer('')
     setNote('')
     setVatMode(null)
@@ -273,7 +289,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
           <Segmented
             className="!mx-0 !px-0"
             value={vatMode}
-            onChange={setVatMode}
+            onChange={changeVatMode}
             items={[
               { value: 'included', label: 'รวม VAT' },
               { value: 'excluded', label: 'ไม่รวม VAT' },
@@ -283,13 +299,13 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       </div>
 
       <DocToolbar
-        onAddRows={(n) => setRows((rs) => [...rs, ...Array.from({ length: n }, () => newRow())])}
+        onAddRows={(n) => setRows((rs) => [...rs, ...Array.from({ length: n }, () => makeRow())])}
         selectedCount={rows.length > 1 ? selectedIds.length : 0}
         onDeleteSelected={() => {
           const drop = new Set(selectedIds)
           setRows((rs) => {
             const left = rs.filter((r) => !drop.has(r._id))
-            return left.length ? left : [newRow()]
+            return left.length ? left : [makeRow()]
           })
         }}
         onClear={reset}
@@ -317,7 +333,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         columns={columns}
         getRowId={(r) => r._id}
         onRowsChange={setRows}
-        createRow={() => newRow()}
+        createRow={() => makeRow()}
         onSelectionChange={setSelectedIds}
         pageSizeKey="sale"
         cellError={(r, key) => (showErrors && !isBlank(r) ? (errors.get(r._id)?.[key] ?? null) : null)}
