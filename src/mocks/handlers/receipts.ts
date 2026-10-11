@@ -10,8 +10,7 @@ type LineInput = {
   country: string | null
   wine_name: string
   vintage: number | null
-  rating_rp: number | null
-  rating_ws: number | null
+  rating: string | null
   maturity_from: number | null
   maturity_to: number | null
   qty: number
@@ -60,8 +59,7 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
         country: blank(l.country),
         wine_name: l.wine_name.trim(),
         vintage: l.vintage,
-        rating_rp: l.rating_rp,
-        rating_ws: l.rating_ws,
+        rating: blank(l.rating),
         maturity_from: l.maturity_from,
         maturity_to: l.maturity_to,
         price_per_bottle: l.price_per_bottle,
@@ -79,8 +77,7 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
       const before = structuredClone(item)
       item.balance += l.qty
       item.country = blank(l.country) ?? item.country
-      item.rating_rp = l.rating_rp ?? item.rating_rp
-      item.rating_ws = l.rating_ws ?? item.rating_ws
+      item.rating = blank(l.rating) ?? item.rating
       item.maturity_from = l.maturity_from ?? item.maturity_from
       item.maturity_to = l.maturity_to ?? item.maturity_to
       item.price_per_bottle = l.price_per_bottle ?? item.price_per_bottle
@@ -101,8 +98,7 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
       country: blank(l.country),
       wine_name: l.wine_name.trim(),
       vintage: l.vintage,
-      rating_rp: l.rating_rp,
-      rating_ws: l.rating_ws,
+      rating: blank(l.rating),
       maturity_from: l.maturity_from,
       maturity_to: l.maturity_to,
       qty: l.qty,

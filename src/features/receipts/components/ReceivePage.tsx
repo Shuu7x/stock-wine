@@ -29,7 +29,7 @@ import {
 
 const START_ROWS = 10
 
-const UPDATABLE = ['country', 'rating_rp', 'rating_ws', 'price_per_bottle', 'supplier', 'purchase_date', 'remark'] as const
+const UPDATABLE = ['country', 'rating', 'price_per_bottle', 'supplier', 'purchase_date', 'remark'] as const
 
 function wineSuggest(items: StockItem[], stores: Store[]) {
   return (q: string, row: ReceiveRow): Suggestion<ReceiveRow>[] => {
@@ -55,8 +55,7 @@ function wineSuggest(items: StockItem[], stores: Store[]) {
         country: i.country,
         wine_name: i.wine_name,
         vintage: i.vintage,
-        rating_rp: i.rating_rp,
-        rating_ws: i.rating_ws,
+        rating: i.rating,
         maturity_from: i.maturity_from,
         maturity_to: i.maturity_to,
         price_per_bottle: r.price_per_bottle ?? i.price_per_bottle,
@@ -205,8 +204,7 @@ export function ReceivePage() {
       c.vintage,
       qty,
       balance,
-      c.rp,
-      c.ws,
+      c.rating,
       c.maturity,
       c.price,
       c.supplier,
@@ -260,8 +258,7 @@ export function ReceivePage() {
       country: r.country,
       wine_name: r.wine_name!.trim(),
       vintage: r.vintage,
-      rating_rp: r.rating_rp,
-      rating_ws: r.rating_ws,
+      rating: r.rating,
       maturity_from: r.maturity_from,
       maturity_to: r.maturity_to,
       qty: r.qty!,

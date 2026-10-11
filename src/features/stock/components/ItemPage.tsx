@@ -87,7 +87,7 @@ export function ItemPage({ id }: { id: string }) {
         <div className="flex flex-col gap-5 p-5 sm:flex-row">
           <dl className="grid flex-1 grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
             <Info label="RP / WS">
-              {it.rating_rp ?? '–'} / {it.rating_ws ?? '–'}
+              {it.rating || '–'}
             </Info>
             <Info label="Maturity">
               <MaturityBadge from={it.maturity_from} to={it.maturity_to} />

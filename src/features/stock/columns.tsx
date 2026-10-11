@@ -2,6 +2,7 @@ import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { drinkStatus, fmtMaturity, fmtMoney, parseMaturity } from '@/lib/format'
 import type { LookupValue } from '@/features/settings/api/settings.api'
+import { parseRating } from '@/lib/rating'
 import type { StockItem, Store } from './api/stock.api'
 
 /** ฟิลด์ไวน์ที่ทั้งสต็อกและใบรับเข้าใช้ร่วมกัน (ชื่อตรงกับคอลัมน์ในตาราง) */
@@ -11,8 +12,7 @@ export type WineFields = {
   country: string | null
   wine_name: string | null
   vintage: number | null
-  rating_rp: number | null
-  rating_ws: number | null
+  rating: string | null
   maturity_from: number | null
   maturity_to: number | null
   price_per_bottle: number | null
@@ -55,13 +55,6 @@ export type Lookups = ReturnType<typeof buildLookups>
 
 export function storeName(stores: Store[], id: number | null | undefined) {
   return stores.find((s) => s.id === id)?.name ?? ''
-}
-
-const parseInt0to100 = (t: string) => {
-  const s = t.trim()
-  if (!s) return null
-  const n = Number(s.replace(/\s*(pts?|points?|คะแนน)$/i, ''))
-  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : undefined
 }
 
 const DRINK_LABEL = { ready: 'ดื่มได้', young: 'ยังไม่ถึง', past: 'เลยช่วง', unknown: '' } as const
@@ -139,23 +132,13 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
       return Number.isInteger(n) && n >= 1800 && n <= 2200 ? n : undefined
     },
   }
-  const rp: GridColumn<R> = {
-    key: 'rating_rp',
-    title: 'RP',
-    subtitle: 'Robert Parker',
-    width: 72,
-    type: 'number',
-    align: 'center',
-    parse: parseInt0to100,
-  }
-  const ws: GridColumn<R> = {
-    key: 'rating_ws',
-    title: 'WS',
-    subtitle: 'Wine Spectator',
-    width: 72,
-    type: 'number',
-    align: 'center',
-    parse: parseInt0to100,
+  const rating: GridColumn<R> = {
+    key: 'rating',
+    title: 'Rate',
+    subtitle: 'เช่น 100RP, 98WS',
+    width: 150,
+    placeholder: '100RP, 98WS',
+    parse: parseRating,
   }
   const maturity: GridColumn<R> = {
     key: 'maturity',
@@ -213,7 +196,7 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     subtitle: 'หมายเหตุ',
     width: 200,
   }
-  return { store, country, rack, wine, vintage, rp, ws, maturity, price, supplier, purchaseDate, remark }
+  return { store, country, rack, wine, vintage, rating, maturity, price, supplier, purchaseDate, remark }
 }
 
 export function wineLabel(w: { wine_name: string | null; vintage: number | null }) {

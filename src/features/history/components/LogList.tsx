@@ -38,6 +38,7 @@ const FIELD_LABELS: Record<string, string> = {
   country: 'Country',
   wine_name: 'ชื่อไวน์',
   vintage: 'Year',
+  rating: 'Rate',
   rating_rp: 'RP',
   rating_ws: 'WS',
   maturity_from: 'ดื่มได้ตั้งแต่',

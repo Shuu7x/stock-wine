@@ -45,8 +45,7 @@ const EDITABLE: Array<keyof StockItemPatch> = [
   'country',
   'wine_name',
   'vintage',
-  'rating_rp',
-  'rating_ws',
+  'rating',
   'maturity_from',
   'maturity_to',
   'price_per_bottle',
@@ -171,8 +170,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       c.wine,
       c.vintage,
       balance,
-      c.rp,
-      c.ws,
+      c.rating,
       c.maturity,
       c.price,
       value,
@@ -271,8 +269,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           align: 'center',
           tone: (v) => BAL_TONE[v as keyof typeof BAL_TONE],
         },
-        { header: 'RP', width: 7, value: (r) => r.rating_rp, align: 'center' },
-        { header: 'WS', width: 7, value: (r) => r.rating_ws, align: 'center' },
+        { header: 'Rate', width: 18, value: (r) => r.rating, align: 'center' },
         { header: 'Maturity', width: 12, value: (r) => fmtMaturity(r.maturity_from, r.maturity_to) || null, align: 'center' },
         {
           header: 'สถานะการดื่ม',
@@ -443,7 +440,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           noun: 'ไวน์',
           title: (r) => `${r.wine_name} ${r.vintage ?? 'NV'}`,
           subtitle: (r) => [storeName(stores, r.store_id), `Rack ${r.rack ?? '-'}`, r.country].filter(Boolean).join(' · '),
-          fields: ['maturity', 'price_per_bottle', 'rating_rp', 'supplier'],
+          fields: ['maturity', 'price_per_bottle', 'rating', 'supplier'],
           aside: (r) => (
             <div className="leading-tight">
               <div className={cn('text-xl font-bold tabular-nums', r.balance <= 0 ? 'text-muted' : isLow(r.balance) ? 'text-warning-700' : 'text-brand-800')}>{fmtInt(r.balance)}</div>

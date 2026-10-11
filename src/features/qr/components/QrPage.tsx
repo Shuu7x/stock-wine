@@ -91,12 +91,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
   const u = s.w / 48;
   const mm = (n: number) => `${(n * u).toFixed(2)}mm`;
   const maturity = fmtMaturity(it.maturity_from, it.maturity_to);
-  const rating = [
-    it.rating_rp != null && `${it.rating_rp} RP`,
-    it.rating_ws != null && `${it.rating_ws} WS`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const rating = it.rating ?? "";
   const accent = mono ? "#111" : "var(--color-brand-700)";
   const showPrice = f.price && it.price_per_bottle != null;
   const showRack = f.place && !!it.rack;

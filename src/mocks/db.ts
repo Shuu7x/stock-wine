@@ -108,6 +108,11 @@ function emptyOps() {
   }
 }
 
+/** คะแนนเดิม RP / WS → ข้อความ "100RP, 98WS" */
+function ratingText(rp: number | null | undefined, ws: number | null | undefined) {
+  return [rp != null && `${rp}RP`, ws != null && `${ws}WS`].filter(Boolean).join(', ') || null
+}
+
 function seed(): DB {
   const stock_items: Tables<'stock_items'>[] = SEED.map((s) => ({
     id: crypto.randomUUID(),
@@ -117,8 +122,7 @@ function seed(): DB {
     wine_name: s[3],
     vintage: s[4],
     balance: s[5],
-    rating_rp: s[6],
-    rating_ws: s[7],
+    rating: ratingText(s[6], s[7]),
     maturity_from: s[8]?.[0] ?? null,
     maturity_to: s[8]?.[1] ?? null,
     price_per_bottle: s[9],
@@ -170,6 +174,14 @@ function load(): DB {
         if (!saved.app_settings.some((x) => x.key === st.key)) saved.app_settings.push(st)
       }
       saved.seq.log ??= 0
+      // ข้อมูลที่บันทึกไว้ก่อนรวม RP/WS เป็น rating
+      for (const x of [...saved.stock_items, ...saved.receipt_lines] as Array<Record<string, unknown>>) {
+        if (!('rating' in x)) {
+          x.rating = ratingText(x.rating_rp as number | null, x.rating_ws as number | null)
+          delete x.rating_rp
+          delete x.rating_ws
+        }
+      }
       return saved
     }
   } catch {
@@ -220,7 +232,7 @@ export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF' | 'BL', n: number
 // ─── เลียนแบบ trigger public.log_stock_item_change ───────────────────────────
 type StockItem = Tables<'stock_items'>
 const TRACKED = [
-  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'rating_rp', 'rating_ws', 'maturity_from',
+  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'rating', 'maturity_from',
   'maturity_to', 'price_per_bottle', 'supplier', 'purchase_date', 'remark', 'balance', 'deleted_at',
 ] as const
 

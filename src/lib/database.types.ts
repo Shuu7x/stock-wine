@@ -34,8 +34,8 @@ type StockItemRow = Audit & {
   country: string | null
   wine_name: string
   vintage: number | null
-  rating_rp: number | null
-  rating_ws: number | null
+  /** คะแนน เช่น "100RP, 98WS" */
+  rating: string | null
   maturity_from: number | null
   maturity_to: number | null
   price_per_bottle: number | null
@@ -72,8 +72,8 @@ type ReceiptLineRow = Audit & {
   country: string | null
   wine_name: string
   vintage: number | null
-  rating_rp: number | null
-  rating_ws: number | null
+  /** คะแนน เช่น "100RP, 98WS" */
+  rating: string | null
   maturity_from: number | null
   maturity_to: number | null
   qty: number
@@ -270,8 +270,7 @@ type StockItemUpdate = Partial<
     | 'country'
     | 'wine_name'
     | 'vintage'
-    | 'rating_rp'
-    | 'rating_ws'
+    | 'rating'
     | 'maturity_from'
     | 'maturity_to'
     | 'price_per_bottle'
