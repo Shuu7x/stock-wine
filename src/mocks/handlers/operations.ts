@@ -105,9 +105,13 @@ function voidSale(email: string, id: string, reason: string | null) {
   const doc = db.sales.find((d) => d.id === id)
   if (!doc) throw new PgError('ไม่พบเอกสาร')
   if (doc.status === 'void') throw new PgError('เอกสารนี้ถูกยกเลิกแล้ว')
+  // บิลของใบขายนี้ยกเลิกตาม (เลียนแบบ migration 20261016)
   if (doc.bill_id) {
     const bill = db.bills.find((b) => b.id === doc.bill_id)
-    throw new PgError(`ใบขายนี้ออกบิล ${bill?.bill_no ?? ''} แล้ว ต้องยกเลิกบิลก่อน`)
+    if (bill && bill.status === 'posted') {
+      Object.assign(bill, voidFields(`ยกเลิกพร้อมใบขาย ${doc.doc_no}${reason?.trim() ? ` — ${reason.trim()}` : ''}`))
+    }
+    for (const s of db.sales) if (s.bill_id === doc.bill_id) s.bill_id = null
   }
   const items = structuredClone(db.stock_items)
   const logs: Log[] = []

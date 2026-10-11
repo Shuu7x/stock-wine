@@ -22,7 +22,7 @@ import { DateInput } from '@/components/ui/date-input'
 import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import { Field, Input } from '@/components/ui/field'
-import { useIssueBills } from '@/features/billing/api/billing.api'
+import { usePrintSaleBill } from '@/features/billing/api/billing.api'
 import { ReceiptFiles } from '@/features/receipts/components/ReceiptFiles'
 import { BillDialog } from '@/features/billing/components/BillDialog'
 import { PageHeader } from '@/components/ui/page'
@@ -142,7 +142,7 @@ export function HistoryPage({
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [billIds, setBillIds] = useState<string[] | null>(null)
-  const issue = useIssueBills()
+  const printBill = usePrintSaleBill()
   const [voiding, setVoiding] = useState<DocView | null>(null)
   const [reason, setReason] = useState('')
 
@@ -211,7 +211,6 @@ export function HistoryPage({
               ['ลูกค้า', d.customer ?? '–'],
               ['วันที่ขาย', fmtDate(d.sold_at)],
               ['ราคาที่กรอก', `${VAT_MODE_LABEL[d.vat_mode]} (VAT ${d.vat_rate}%)`],
-              ['บิล', d.bill_id ? 'ออกบิลแล้ว' : d.status === 'void' ? '–' : 'ยังไม่ออกบิล'],
               ...base(d),
             ],
             cols: [
@@ -449,8 +448,6 @@ export function HistoryPage({
                     <span className="hidden md:block">
                       {d.status === 'void' ? (
                         <Badge tone="danger">ยกเลิก</Badge>
-                      ) : d.billId === null ? (
-                        <Badge tone="warning">รอออกบิล</Badge>
                       ) : (
                         <Badge tone="success">บันทึกแล้ว</Badge>
                       )}
@@ -508,23 +505,12 @@ export function HistoryPage({
                 </Button>
               )}
               <span className="ml-auto" />
-              {tab === 'sales' && open.billId && (
-                <Button onClick={() => setBillIds([open.billId!])}>
-                  <Printer className="size-4" /> พิมพ์บิล
-                </Button>
-              )}
-              {tab === 'sales' && open.billId === null && open.status === 'posted' && (
+              {tab === 'sales' && (open.billId || open.status === 'posted') && (
                 <Button
-                  loading={issue.isPending}
-                  onClick={async () => {
-                    const bills = await issue.mutateAsync({
-                      issuedAt: todayIso(),
-                      groups: [{ sale_ids: [open.id], customer: open.party }],
-                    })
-                    setBillIds(bills.map((b) => b.id))
-                  }}
+                  loading={printBill.isPending}
+                  onClick={async () => setBillIds([await printBill.billFor({ id: open.id, bill_id: open.billId, customer: open.party })])}
                 >
-                  <Printer className="size-4" /> ออกบิล
+                  <Printer className="size-4" /> พิมพ์บิล
                 </Button>
               )}
               <Button onClick={() => setOpenId(null)}>ปิด</Button>

@@ -22,7 +22,7 @@ import type { VatMode } from '@/lib/database.types'
 import { fmtDate, fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { useInitialDraft, usePersistDraft } from '@/lib/use-local-draft'
 import { lineVat, sumVat, VAT_MODE_LABEL } from '@/lib/vat'
-import { useIssueBills } from '@/features/billing/api/billing.api'
+import { usePrintSaleBill } from '@/features/billing/api/billing.api'
 import { BillDialog } from '@/features/billing/components/BillDialog'
 import { customersOptions, usePostSale, type Sale } from '../api/operations.api'
 
@@ -97,7 +97,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   // ใบขายที่เพิ่งบันทึก (ถามพิมพ์บิล) · ใบที่กำลังดูบิล
   const [saved, setSaved] = useState<Sale | null>(null)
   const [billIds, setBillIds] = useState<string[] | null>(null)
-  const issue = useIssueBills()
+  const printBill = usePrintSaleBill()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   usePrefillRows({ ids: prefillIds, to: '/sale', setRows, makeRow, isBlank })
@@ -430,25 +430,22 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         title={`บันทึกขาย ${saved?.doc_no ?? ''} แล้ว`}
         description={
           saved
-            ? `${saved.customer ? `${saved.customer} · ` : ''}ยอดรวม ${fmtMoney(saved.total)} บาท · ออกบิลทีหลังได้ที่เมนู “ออกบิล” (รวมหลายใบขายเป็นบิลเดียวได้)`
+            ? `${saved.customer ? `${saved.customer} · ` : ''}ยอดรวม ${fmtMoney(saved.total)} บาท · พิมพ์บิลย้อนหลังได้ที่หน้าประวัติ`
             : undefined
         }
         footer={
           <>
-            <Button onClick={() => setSaved(null)}>ไว้ออกบิลทีหลัง</Button>
+            <Button onClick={() => setSaved(null)}>ขายรายการต่อไป</Button>
             <Button
               variant="primary"
-              loading={issue.isPending}
+              loading={printBill.isPending}
               onClick={async () => {
-                const bills = await issue.mutateAsync({
-                  issuedAt: todayIso(),
-                  groups: [{ sale_ids: [saved!.id], customer: saved!.customer }],
-                })
+                const billId = await printBill.billFor(saved!)
                 setSaved(null)
-                setBillIds(bills.map((b) => b.id))
+                setBillIds([billId])
               }}
             >
-              <Printer className="size-4" /> ออกบิลเลย
+              <Printer className="size-4" /> พิมพ์บิล
             </Button>
           </>
         }

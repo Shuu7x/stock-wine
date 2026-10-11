@@ -1,16 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
-import { Ban, Printer } from 'lucide-react'
+import { Printer } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Field, Input } from '@/components/ui/field'
 import { Segmented } from '@/components/ui/segmented'
 import { useAppSettings } from '@/features/settings/api/settings.api'
 import { storesOptions } from '@/features/stock/api/stock.api'
 import { fmtMoney } from '@/lib/format'
-import { billDocsOptions, useVoidBill } from '../api/billing.api'
+import { billDocsOptions } from '../api/billing.api'
 import { Bill, receiptHeightMm, type BillPaper } from './Bill'
 import { Loading } from '@/components/ui/loading'
 
@@ -25,9 +23,6 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
   const docs = docsQ.data ?? []
   const [paper, setPaper] = useState<BillPaper | null>(null)
   const current = paper ?? settings.bill_paper
-  const [voiding, setVoiding] = useState(false)
-  const [reason, setReason] = useState('')
-  const voidBill = useVoidBill()
 
   useEffect(() => {
     if (!billIds) setPaper(null)
@@ -56,13 +51,6 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
   const single = docs.length === 1 ? docs[0] : null
   const total = docs.reduce((s, d) => s + d.total, 0)
 
-  async function confirmVoid() {
-    if (!single) return
-    await voidBill.mutateAsync({ id: single.id, reason })
-    toast.success(`ยกเลิกบิล ${single.doc_no} แล้ว ใบขายกลับไปรอออกบิล`)
-    setVoiding(false)
-    setReason('')
-  }
 
   return (
     <>
@@ -87,11 +75,6 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
                 { value: '80mm', label: 'ใบเสร็จม้วน 80 มม.' },
               ]}
             />
-            {single?.status === 'posted' && (
-              <Button variant="ghost" className="text-danger-700" onClick={() => setVoiding(true)}>
-                <Ban className="size-4" /> ยกเลิกบิล
-              </Button>
-            )}
             <Button onClick={onClose}>ปิด</Button>
             <Button variant="primary" disabled={!docs.length} onClick={() => window.print()}>
               <Printer className="size-4" /> พิมพ์{docs.length > 1 ? ` ${docs.length} ใบ` : 'บิล'}
@@ -123,24 +106,6 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
           )}
       </Dialog>
 
-      <Dialog
-        open={voiding}
-        onClose={() => setVoiding(false)}
-        title={`ยกเลิกบิล ${single?.doc_no ?? ''}?`}
-        description="ใบขายในบิลนี้จะกลับไปอยู่ในรายการรอออกบิล (ยอดสต็อกไม่เปลี่ยน) · บิลยังเก็บไว้ในประวัติ"
-        footer={
-          <>
-            <Button onClick={() => setVoiding(false)}>ไม่ยกเลิก</Button>
-            <Button variant="danger" loading={voidBill.isPending} onClick={confirmVoid}>
-              ยืนยันยกเลิกบิล
-            </Button>
-          </>
-        }
-      >
-        <Field label="เหตุผล">
-          <Input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="เช่น ออกบิลผิดลูกค้า / ต้องการรวมบิลใหม่" />
-        </Field>
-      </Dialog>
     </>
   )
 }
