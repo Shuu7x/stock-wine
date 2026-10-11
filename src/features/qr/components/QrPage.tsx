@@ -12,174 +12,114 @@ import { PageHeader } from '@/components/ui/page'
 import { QrCode, itemUrl } from '@/components/ui/qr-code'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
-import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
+import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
 import { storeName } from '@/features/stock/columns'
 import { cn } from '@/lib/cn'
 import { fmtMaturity, fmtMoney } from '@/lib/format'
 import { loadDraft, saveDraft } from '@/lib/use-local-draft'
 
-/** ขนาดป้ายห้อยคอขวด (มม.) */
+/**
+ * ขนาดป้ายข้อมูล (มม.) — ตัดแปะบนป้ายสวมคอขวดที่มีรูอยู่แล้ว ใต้ส่วนรู
+ */
 const SIZES = {
-  s: { label: 'เล็ก 35×60', w: 35, h: 60 },
-  m: { label: 'กลาง 50×80', w: 50, h: 80 },
-  l: { label: 'ใหญ่ 60×100', w: 60, h: 100 },
+  s: { label: 'เล็ก 38×44', w: 38, h: 44 },
+  m: { label: 'มาตรฐาน 48×55', w: 48, h: 55 },
+  l: { label: 'ใหญ่ 62×70', w: 62, h: 70 },
 } as const
 type SizeKey = keyof typeof SIZES
 
-// กระดาษ A4 ขอบ 8 มม.
-const PAGE = { w: 210, h: 297, margin: 8 }
+// กระดาษ A4 ขอบ 6 มม. · เว้นระหว่างป้าย 2 มม. ให้ตัดมุมโค้งได้
+const PAGE = { w: 210, h: 297, margin: 6, gap: 2 }
 
-type Fields = { country: boolean; place: boolean; rating: boolean; maturity: boolean; price: boolean; hole: boolean }
-/** color = หัวป้ายสีไวน์ · mono = ขาวดำ ประหยัดหมึก */
+type Fields = { country: boolean; place: boolean; rating: boolean; maturity: boolean; price: boolean }
+/** color = ชื่อสีไวน์ ราคาสีแดง · mono = ขาวดำ ประหยัดหมึก */
 type TagStyle = 'color' | 'mono'
 type Options = { size: SizeKey; style: TagStyle; fields: Fields }
-const OPTIONS_KEY = 'stock-wine:qr-options:v1'
+const OPTIONS_KEY = 'stock-wine:qr-options:v3'
 const DEFAULT_OPTIONS: Options = {
   size: 'm',
   style: 'color',
-  fields: { country: true, place: true, rating: true, maturity: true, price: false, hole: true },
+  fields: { country: true, place: true, rating: true, maturity: true, price: true },
 }
 
-/** ขอบล่างของหัวป้ายเป็นคลื่นไวน์ */
-function WaveEdge({ color }: { color: string }) {
-  return (
-    <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="block w-full" style={{ height: '2.2mm' }} aria-hidden>
-      <path d="M0 0H100V3C88 8 75 8 62 4.5S38 0 25 3.5 8 8 0 4Z" fill={color} />
-    </svg>
-  )
+function sheetLayout(size: SizeKey) {
+  const s = SIZES[size]
+  const fit = (avail: number, n: number) => Math.max(1, Math.floor((avail + PAGE.gap) / (n + PAGE.gap)))
+  const cols = fit(PAGE.w - PAGE.margin * 2, s.w)
+  const rows = fit(PAGE.h - PAGE.margin * 2, s.h)
+  return { cols, rows, per: cols * rows }
 }
 
-function Tag({ it, stores, opt }: { it: StockItem; stores: Store[]; opt: Options }) {
+function Tag({ it, opt }: { it: StockItem; opt: Options }) {
   const s = SIZES[opt.size]
   const f = opt.fields
   const mono = opt.style === 'mono'
-  // หน่วยขนาดตามความกว้างป้าย: ป้ายกลาง (50 มม.) = 1
-  const u = s.w / 50
+  // หน่วยขนาดตามความกว้างป้าย: ป้ายมาตรฐาน (48 มม.) = 1
+  const u = s.w / 48
   const mm = (n: number) => `${(n * u).toFixed(2)}mm`
   const maturity = fmtMaturity(it.maturity_from, it.maturity_to)
-  const hasRating = it.rating_rp != null || it.rating_ws != null
-
+  const rating = [it.rating_rp != null && `${it.rating_rp} RP`, it.rating_ws != null && `${it.rating_ws} WS`].filter(Boolean).join(' · ')
   const ink = mono ? '#111' : 'var(--color-brand-900)'
-  const gold = mono ? '#111' : 'var(--color-gold-500)'
-  const headBg = mono ? '#fff' : 'linear-gradient(160deg, var(--color-brand-700), var(--color-brand-900) 70%)'
-  const headText = mono ? '#111' : '#fff'
+  const showPrice = f.price && it.price_per_bottle != null
+  const showRack = f.place && !!it.rack
 
   return (
-    // กรอบเส้นประ = แนวตัด
     <div className="relative overflow-hidden bg-white" style={{ width: `${s.w}mm`, height: `${s.h}mm` }}>
-      <div className="flex h-full flex-col" style={{ fontFamily: 'var(--font-sans)', color: ink }}>
-        {/* หัวป้าย */}
-        <div className="shrink-0">
-          <div
-            className="flex flex-col items-center text-center"
-            style={{
-              background: headBg,
-              color: headText,
-              // ขอบบนอย่างน้อย 2.2 มม. ให้วงเจาะรูไม่ชิดแนวตัดบนป้ายเล็ก
-              padding: `${Math.max(2.4 * u, 2.2).toFixed(2)}mm ${mm(2.4)} ${mm(1.4)}`,
-              borderBottom: mono ? '0.35mm solid #111' : undefined,
-            }}
-          >
-            {f.hole && (
-              <div
-                className="shrink-0 rounded-full bg-white"
-                style={{
-                  width: mm(4.6),
-                  height: mm(4.6),
-                  marginBottom: mm(1.2),
-                  boxShadow: mono ? 'inset 0 0 0 0.3mm #111' : `0 0 0 0.45mm var(--color-gold-500)`,
-                }}
-              />
-            )}
-            <div
-              className="font-semibold tracking-[0.25em] uppercase"
-              style={{ fontSize: mm(1.5), color: mono ? '#555' : 'var(--color-gold-100)', marginBottom: mm(0.6) }}
-            >
-              Wine Cellar
-            </div>
-            <div
-              className="line-clamp-2 w-full leading-[1.12] font-bold"
-              style={{ fontFamily: 'var(--font-display)', fontSize: mm(3.5) }}
-            >
-              {it.wine_name}
-            </div>
-            <div
-              className="font-bold"
-              style={{ fontFamily: 'var(--font-display)', fontSize: mm(5), lineHeight: 1.1, color: mono ? '#111' : 'var(--color-gold-500)' }}
-            >
-              {it.vintage ?? 'NV'}
-            </div>
+      <div
+        className="flex h-full flex-col"
+        style={{ padding: `${mm(3)} ${mm(3)} ${mm(2.6)}`, color: '#111', fontFamily: 'var(--font-doc)' }}
+      >
+        {/* ชื่อไวน์ · ประเทศ */}
+        <div className="line-clamp-2 text-center leading-[1.15] font-bold" style={{ fontSize: mm(3.8), color: ink }}>
+          {it.wine_name}
+        </div>
+        {f.country && it.country && (
+          <div className="truncate text-center" style={{ fontSize: mm(2.3), color: '#555', marginTop: mm(0.5) }}>
+            {it.country}
           </div>
-          {!mono && <WaveEdge color="var(--color-brand-900)" />}
+        )}
+        <div style={{ borderTop: `0.2mm solid ${mono ? '#999' : 'var(--color-brand-200)'}`, margin: `${mm(1.6)} ${mm(4)} ${mm(1.4)}` }} />
+
+        {/* Vintage / Rating / Maturity */}
+        <div className="leading-[1.4] font-bold" style={{ fontSize: mm(2.6) }}>
+          <div className="truncate">Vintage {it.vintage ?? 'NV'}</div>
+          {f.rating && <div className="truncate">Rating {rating || 'N/A'}</div>}
+          {f.maturity && <div className="truncate">Maturity {maturity || 'N/A'}</div>}
         </div>
 
-        {/* QR */}
-        <div className="flex min-h-0 flex-1 items-center justify-center" style={{ padding: `${mm(1.2)} ${mm(3)}` }}>
-          <div
-            className="aspect-square h-full max-w-full bg-white"
-            style={{ padding: mm(1), border: `0.3mm solid ${gold}`, borderRadius: mm(1.4) }}
-          >
+        {/* Rack · ราคา | QR */}
+        <div className="mt-auto flex items-end justify-between" style={{ gap: mm(1.5), paddingTop: mm(1.2) }}>
+          <div className="min-w-0 leading-[1.25]">
+            {showRack && (
+              <div className="font-bold" style={{ fontSize: mm(3) }}>
+                {it.rack}
+              </div>
+            )}
+            {showPrice && (
+              <div className="font-bold whitespace-nowrap" style={{ fontSize: mm(3), color: mono ? '#111' : 'var(--color-danger-600)' }}>
+                @{fmtMoney(it.price_per_bottle!)}฿
+              </div>
+            )}
+            <div className="font-mono" style={{ fontSize: mm(1.4), color: '#888', letterSpacing: '0.05em', marginTop: mm(0.4) }}>
+              {it.id.slice(0, 8).toUpperCase()}
+            </div>
+          </div>
+          <div className="shrink-0" style={{ width: mm(15), height: mm(15) }}>
             <QrCode value={itemUrl(it.id)} margin={0} className="block size-full" />
           </div>
         </div>
-
-        {/* ข้อมูล */}
-        <div className="shrink-0 text-center leading-[1.35]" style={{ fontSize: mm(2.1), padding: `0 ${mm(2.4)}` }}>
-          {(f.country && it.country) || f.place ? (
-            <div className="truncate font-medium">
-              {[f.country && it.country, f.place && `${storeName(stores, it.store_id)} · ${it.rack ?? '-'}`].filter(Boolean).join('  |  ')}
-            </div>
-          ) : null}
-          {(f.rating && hasRating) || (f.maturity && maturity) ? (
-            <div className="flex items-center justify-center" style={{ gap: mm(1.2), marginTop: mm(0.6) }}>
-              {f.rating && hasRating && (
-                <span
-                  className="rounded-full font-semibold whitespace-nowrap"
-                  style={{
-                    padding: `0 ${mm(1.2)}`,
-                    background: mono ? 'transparent' : 'var(--color-gold-100)',
-                    border: mono ? '0.2mm solid #111' : undefined,
-                    color: mono ? '#111' : 'var(--color-gold-700)',
-                  }}
-                >
-                  RP {it.rating_rp ?? '–'} · WS {it.rating_ws ?? '–'}
-                </span>
-              )}
-              {f.maturity && maturity && <span className="whitespace-nowrap">ดื่ม {maturity}</span>}
-            </div>
-          ) : null}
-        </div>
-
-        {/* ท้ายป้าย */}
-        <div
-          className="flex shrink-0 items-center justify-between"
-          style={{
-            margin: `${mm(1)} ${mm(2.4)} ${mm(1.8)}`,
-            paddingTop: mm(0.8),
-            borderTop: `0.2mm dotted ${mono ? '#999' : 'var(--color-brand-200)'}`,
-          }}
-        >
-          <span className="font-mono" style={{ fontSize: mm(1.6), color: mono ? '#555' : 'var(--color-muted)' }}>
-            {it.id.slice(0, 8).toUpperCase()}
-          </span>
-          {f.price && it.price_per_bottle != null && (
-            <span className="font-bold" style={{ fontSize: mm(2.3), color: ink }}>
-              ฿{fmtMoney(it.price_per_bottle)}
-            </span>
-          )}
-        </div>
       </div>
-      {/* แนวตัด (วาดทับขอบ) */}
-      <div className="pointer-events-none absolute inset-0 border border-dashed border-[#b5b5b5]" />
+      {/* แนวตัด */}
+      <svg className="pointer-events-none absolute inset-0" width={`${s.w}mm`} height={`${s.h}mm`} viewBox={`0 0 ${s.w} ${s.h}`} aria-hidden>
+        <rect x={0.15} y={0.15} width={s.w - 0.3} height={s.h - 0.3} rx={2.5} fill="none" stroke="#b5b5b5" strokeWidth={0.25} strokeDasharray="1.2 0.9" />
+      </svg>
     </div>
   )
 }
 
-function Sheets({ tags, stores, opt }: { tags: StockItem[]; stores: Store[]; opt: Options }) {
+function Sheets({ tags, opt }: { tags: StockItem[]; opt: Options }) {
   const s = SIZES[opt.size]
-  const cols = Math.floor((PAGE.w - PAGE.margin * 2) / s.w)
-  const rows = Math.floor((PAGE.h - PAGE.margin * 2) / s.h)
-  const per = cols * rows
+  const { cols, per } = sheetLayout(opt.size)
   const pages = Array.from({ length: Math.ceil(tags.length / per) }, (_, i) => tags.slice(i * per, (i + 1) * per))
   return (
     <>
@@ -189,9 +129,12 @@ function Sheets({ tags, stores, opt }: { tags: StockItem[]; stores: Store[]; opt
           className="qr-sheet bg-white"
           style={{ width: `${PAGE.w}mm`, height: `${PAGE.h}mm`, padding: `${PAGE.margin}mm` } as CSSProperties}
         >
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, ${s.w}mm)`, gridAutoRows: `${s.h}mm` }}>
+          <div
+            className="grid justify-center"
+            style={{ gridTemplateColumns: `repeat(${cols}, ${s.w}mm)`, gridAutoRows: `${s.h}mm`, gap: `${PAGE.gap}mm` }}
+          >
             {p.map((it, j) => (
-              <Tag key={`${it.id}-${j}`} it={it} stores={stores} opt={opt} />
+              <Tag key={`${it.id}-${j}`} it={it} opt={opt} />
             ))}
           </div>
         </div>
@@ -256,8 +199,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
     () => Object.entries(copies).flatMap(([id, n]) => (byId.get(id) ? Array.from({ length: n }, () => byId.get(id)!) : [])),
     [copies, byId],
   )
-  const s = SIZES[opt.size]
-  const perPage = Math.floor((PAGE.w - PAGE.margin * 2) / s.w) * Math.floor((PAGE.h - PAGE.margin * 2) / s.h)
+  const perPage = sheetLayout(opt.size).per
   const pageCount = Math.ceil(tags.length / perPage)
   const allVisibleSelected = visible.length > 0 && visible.every((i) => copies[i.id])
 
@@ -291,7 +233,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
     <div className="flex h-full min-h-0 flex-col gap-4">
       <PageHeader
         title="ป้าย QR ห้อยขวด"
-        description="เลือกไวน์และจำนวนป้าย แล้วพิมพ์บนกระดาษ A4 ตัดตามเส้นประ · สแกนแล้วเปิดหน้าไวน์ในระบบ"
+        description="พิมพ์ A4 ตัดตามเส้นประ แปะบนป้ายสวมคอขวด · สแกน QR เปิดหน้าไวน์ในระบบ"
         actions={
           <Button variant="primary" onClick={print} disabled={!tags.length}>
             <Printer className="size-4" /> พิมพ์ {tags.length} ป้าย ({pageCount} แผ่น)
@@ -434,7 +376,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
             {tags.length ? (
               // ย่อแผ่น A4 ให้พอดีความกว้างกล่อง (ไม่กระทบขนาดตอนพิมพ์)
               <div className="mx-auto flex w-fit flex-col gap-4 [&_.qr-sheet]:shadow-lg" style={{ zoom: previewZoom }}>
-                <Sheets tags={tags} stores={stores} opt={opt} />
+                <Sheets tags={tags} opt={opt} />
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-center text-sm text-muted">
@@ -450,7 +392,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
       {tags.length > 0 &&
         createPortal(
           <div className="print-root">
-            <Sheets tags={tags} stores={stores} opt={opt} />
+            <Sheets tags={tags} opt={opt} />
           </div>,
           document.body,
         )}
@@ -460,11 +402,10 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
 
 const FIELD_LABELS: Array<[keyof Fields, string]> = [
   ['country', 'ประเทศ'],
-  ['place', 'คลัง · Rack'],
+  ['place', 'Rack'],
   ['rating', 'คะแนน RP/WS'],
   ['maturity', 'ช่วงดื่ม'],
   ['price', 'ราคา'],
-  ['hole', 'วงเจาะรูห้อย'],
 ]
 
 /** ปุ่ม "ข้อมูลบนป้าย" เปิดรายการสวิตช์ */
