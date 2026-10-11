@@ -40,6 +40,24 @@ import { CardList } from './CardList'
 const BASE_ROW_H = 34
 const BASE_HEAD_H = 44
 const BASE_ROWHEAD_W = 52
+/** มีช่องติ๊กเลือกแถว: คอลัมน์หน้าแถวกว้างขึ้น */
+const BASE_ROWHEAD_W_CHECK = 78
+
+let measureCtx: CanvasRenderingContext2D | null = null
+function textWidth(text: string, font: string) {
+  measureCtx ??= document.createElement('canvas').getContext('2d')
+  if (!measureCtx) return text.length * 7
+  measureCtx.font = font
+  return measureCtx.measureText(text).width
+}
+/** ความกว้างขั้นต่ำ (ที่ตัวหนังสือ 100%) ให้ชื่อหัวคอลัมน์และบรรทัดรองไม่ถูกตัด */
+function headerMinWidth<R>(col: GridColumn<R>) {
+  const fam = getComputedStyle(document.body).fontFamily
+  const title = textWidth(col.title, `600 12px ${fam}`)
+  const sub = col.subtitle ? textWidth(col.subtitle, `400 10px ${fam}`) : 0
+  // pl-2 + pr-1 + ช่องว่าง + ปุ่มตัวกรอง
+  return Math.ceil(Math.max(title, sub) + 8 + 4 + 6 + (col.filterable !== false ? 26 : 0))
+}
 const OVERSCAN = 6
 
 type Range = { top: number; bottom: number; left: number; right: number }
@@ -115,7 +133,8 @@ function DataGridTable<R>({
   const fontScale = useFontScale() / 100
   const ROW_H = Math.round(BASE_ROW_H * fontScale)
   const HEAD_H = Math.round(BASE_HEAD_H * fontScale)
-  const ROWHEAD_W = Math.round(BASE_ROWHEAD_W * fontScale)
+  const selectable = !!onSelectionChange
+  const ROWHEAD_W = Math.round((selectable ? BASE_ROWHEAD_W_CHECK : BASE_ROWHEAD_W) * fontScale)
   const editable = !!onRowsChange
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRefs = useRef<Array<HTMLDivElement | null>>([])
@@ -125,7 +144,17 @@ function DataGridTable<R>({
     setWidths((w) => (w.length === columns.length ? w : columns.map((c) => c.width ?? 120)))
   }, [columns])
   // widths เก็บเป็นขนาดที่ตัวหนังสือ 100% · ความกว้างที่แสดงจริงคูณตามขนาดที่ตั้งไว้
-  const colW = useMemo(() => widths.map((w) => Math.round(w * fontScale)), [widths, fontScale])
+  const [fontsReady, setFontsReady] = useState(false)
+  useEffect(() => {
+    let alive = true
+    document.fonts?.ready.then(() => alive && setFontsReady(true))
+    return () => {
+      alive = false
+    }
+  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const minW = useMemo(() => columns.map(headerMinWidth), [columns, fontsReady])
+  const colW = useMemo(() => widths.map((w, i) => Math.round(Math.max(w, minW[i] ?? 0) * fontScale)), [widths, minW, fontScale])
   const offsets = useMemo(() => {
     const o: number[] = []
     let x = 0
@@ -250,15 +279,36 @@ function DataGridTable<R>({
     else if (sel.anchor.r >= nRows || sel.focus.r >= nRows) setSel({ anchor: clamp(sel.anchor), focus: clamp(sel.focus) })
   }, [nRows, nCols, sel])
 
+  // แถวที่ติ๊กเลือก (ใช้กับปุ่ม ลบ / เบิก / ป้าย QR ฯลฯ) — ไม่เกี่ยวกับการเลือกเซลล์
+  const [checked, setChecked] = useState<Set<string>>(() => new Set())
   useEffect(() => {
-    if (!onSelectionChange) return
-    if (!sel) return onSelectionChange([])
-    const { top, bottom } = normRange(sel)
-    const ids: string[] = []
-    for (let r = top; r <= bottom && r < nRows; r++) ids.push(getRowId(rowAt(r)))
-    onSelectionChange(ids)
+    onSelectionChange?.([...checked])
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, viewIdx])
+  }, [checked])
+  useEffect(() => {
+    const ids = new Set(rows.map(getRowId))
+    setChecked((p) => ([...p].every((id) => ids.has(id)) ? p : new Set([...p].filter((id) => ids.has(id)))))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows])
+  const viewIds = useMemo(() => fullIdx.map((i) => getRowId(rows[i])), [fullIdx, rows, getRowId])
+  const allChecked = viewIds.length > 0 && viewIds.every((id) => checked.has(id))
+  const someChecked = !allChecked && viewIds.some((id) => checked.has(id))
+  const toggleRow = (id: string) =>
+    setChecked((p) => {
+      const n = new Set(p)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const toggleAll = () =>
+    setChecked((p) => {
+      const n = new Set(p)
+      for (const id of viewIds) {
+        if (allChecked) n.delete(id)
+        else n.add(id)
+      }
+      return n
+    })
 
   // ── undo / redo ─────────────────────────────────────────────────────────
   const past = useRef<R[][]>([])
@@ -749,9 +799,9 @@ function DataGridTable<R>({
     e.preventDefault()
     e.stopPropagation()
     const x0 = e.clientX
-    const w0 = widths[c]
+    const w0 = Math.max(widths[c], minW[c] ?? 0)
     const move = (ev: PointerEvent) =>
-      setWidths((ws) => ws.map((w, i) => (i === c ? Math.max(48, w0 + (ev.clientX - x0) / fontScale) : w)))
+      setWidths((ws) => ws.map((w, i) => (i === c ? Math.max(minW[c] ?? 48, w0 + (ev.clientX - x0) / fontScale) : w)))
     const up = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
@@ -825,6 +875,8 @@ function DataGridTable<R>({
     const rowErr = cellError && columns.some((c) => cellError(row, c.key))
     const status = rowStatus?.(row)
     const rowChanged = !status && cellChanged && columns.some((c) => cellChanged(row, c.key))
+    const rowId = getRowId(row)
+    const isChecked = checked.has(rowId)
     bodyRows.push(
       <div
         key={getRowId(row)}
@@ -835,10 +887,21 @@ function DataGridTable<R>({
           onPointerDown={(e) => onRowHeadPointerDown(e, r)}
           className={cn(
             'sticky left-0 z-[15] flex shrink-0 cursor-pointer items-center justify-center border-r border-b border-line text-xs tabular-nums select-none',
-            inRows ? 'bg-brand-100 font-semibold text-brand-900' : 'bg-surface-2 text-muted',
+            inRows || isChecked ? 'bg-brand-100 font-semibold text-brand-900' : 'bg-surface-2 text-muted',
+            selectable && 'justify-start gap-2 pl-3',
           )}
           style={{ width: ROWHEAD_W }}
         >
+          {selectable && (
+            <input
+              type="checkbox"
+              className="size-4 shrink-0 cursor-pointer accent-brand-700"
+              checked={isChecked}
+              aria-label={`เลือกแถว ${start + r + 1}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onChange={() => toggleRow(rowId)}
+            />
+          )}
           {(status || rowChanged) && (
             <span
               className={cn(
@@ -870,6 +933,7 @@ function DataGridTable<R>({
                 status === 'deleted' && 'bg-danger-50 text-danger-700 line-through decoration-danger-600/60',
                 changed && 'bg-warning-100',
                 err && 'bg-danger-50',
+                isChecked && !status && !changed && !err && 'bg-brand-50',
                 chevron && 'pr-6',
               )}
               style={{ width: colW[c] }}
@@ -939,7 +1003,24 @@ function DataGridTable<R>({
               }}
               title="เลือกทั้งหมด"
             >
-              #
+              {selectable ? (
+                <span className="flex w-full items-center gap-2 pl-3">
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0 cursor-pointer accent-brand-700"
+                    checked={allChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someChecked
+                    }}
+                    aria-label="เลือกทุกแถว"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onChange={toggleAll}
+                  />
+                  #
+                </span>
+              ) : (
+                '#'
+              )}
             </div>
             {columns.map((col, c) => {
               const filtered = !!filters[col.key]
