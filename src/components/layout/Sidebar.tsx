@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   GlassWater,
   History,
+  LayoutDashboard,
   PackagePlus,
   QrCode,
   Receipt,
@@ -130,7 +131,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     >
       {/* โลโก้ (ย่อแล้วเหลือไอคอน) */}
       <div className={cn('flex h-16 shrink-0 items-center', collapsed ? 'justify-center' : 'px-5')}>
-        <Link to="/stock" aria-label="Wine Cellar — กลับหน้าสต็อก" title={collapsed ? 'Wine Cellar' : undefined} className="flex min-w-0 items-center gap-2.5">
+        <Link to="/dashboard" aria-label="Wine Cellar — กลับหน้าภาพรวม" title={collapsed ? 'Wine Cellar' : undefined} className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-700 text-gold-100">
             <Wine className="size-[18px]" />
           </span>
@@ -153,6 +154,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       {/* ย่ออยู่: ไม่ตั้ง overflow ไม่งั้นชื่อเมนูที่ลอยออกไปทางขวาจะถูกตัด */}
       <nav className={cn('flex flex-1 flex-col', collapsed ? 'px-3' : 'overflow-y-auto px-3')} aria-label="เมนูหลัก">
         <Group collapsed={collapsed}>
+          <NavItem to="/dashboard" label="ภาพรวม" icon={LayoutDashboard} active={is('/dashboard')} collapsed={collapsed} />
           <div className="relative">
             <NavItem to="/stock" label="สต็อกไวน์" icon={Warehouse} active={onStock} collapsed={collapsed} />
             {!collapsed && (

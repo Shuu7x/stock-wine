@@ -13,6 +13,7 @@ import {
   Warehouse,
   Wine,
   X,
+  LayoutDashboard,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
@@ -28,6 +29,7 @@ const MOBILE_NAV = [
 ] as const
 
 const MOBILE_MORE = [
+  { to: '/dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
   { to: '/billing', label: 'ออกบิล', icon: Receipt },
   { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
   { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck },
@@ -84,7 +86,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* แถบบน (มือถือ/แท็บเล็ต) */}
       <header className="flex h-14 shrink-0 items-center gap-2 bg-brand-900 px-4 text-white lg:hidden">
-        <Link to="/stock" className="flex items-center gap-2">
+        <Link to="/dashboard" className="flex items-center gap-2">
           <Wine className="size-5 text-gold-100" />
           <span className="font-display text-lg font-bold">Wine Cellar</span>
         </Link>

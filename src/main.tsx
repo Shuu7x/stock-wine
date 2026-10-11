@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { env } from '@/lib/env'
 import { installHandledErrorFilter, queryClient } from '@/lib/query-client'
+import { supabase } from '@/lib/supabase'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
@@ -22,6 +23,14 @@ async function enableMocking() {
 }
 
 installHandledErrorFilter()
+
+// session หมดอายุ / ออกจากระบบจากแท็บอื่น: ทิ้งข้อมูลของผู้ใช้เดิม แล้วให้หน้าที่เปิดอยู่กลับไปล็อกอิน
+supabase.auth.onAuthStateChange((event) => {
+  if (event !== 'SIGNED_OUT') return
+  // ออกจากหน้าแอปก่อน แล้วค่อยล้าง (กันหน้าที่เปิดอยู่ดึงข้อมูลซ้ำตอนไม่มีสิทธิ์)
+  const leave = location.pathname.startsWith('/login') ? Promise.resolve() : router.navigate({ to: '/login' })
+  leave.then(() => queryClient.clear())
+})
 
 enableMocking().then(() => {
   createRoot(document.getElementById('root')!).render(

@@ -50,8 +50,9 @@ export function UserMenu({ placement, compact = false }: { placement: 'sidebar' 
 
   async function logout() {
     await signOut()
+    // ออกจากหน้าแอปก่อน แล้วค่อยล้างแคช — ไม่งั้นหน้าที่ยังเปิดอยู่จะดึงข้อมูลซ้ำตอนไม่มีสิทธิ์ (ได้ค่าว่างค้างไว้)
+    await navigate({ to: '/login' })
     queryClient.clear()
-    navigate({ to: '/login' })
   }
 
   async function resetMock() {

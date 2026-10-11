@@ -13,7 +13,7 @@ import { logsListOptions, type StockItemLog } from '../api/logs.api'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'brand' | 'neutral'
 
-const ACTIONS: Record<StockAction, { label: string; tone: Tone }> = {
+export const ACTIONS: Record<StockAction, { label: string; tone: Tone }> = {
   create: { label: 'เพิ่มใหม่', tone: 'success' },
   update: { label: 'แก้ไข', tone: 'warning' },
   delete: { label: 'ลบ', tone: 'danger' },
