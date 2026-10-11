@@ -80,14 +80,14 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
   const [confirm, setConfirm] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  // มาจากหน้าสต็อก (เลือกแถวแล้วกด "เบิก") — เติมแถวแล้วล้าง query ทิ้ง
+  // มาจากหน้าสต็อก (เลือกแถวแล้วกด "เบิก") — แสดงเฉพาะไวน์ที่เลือก (ไม่มีแถวว่างตั้งต้น) แล้วล้าง query ทิ้ง
   useEffect(() => {
     if (!prefillIds.length) return
     setRows((rs) => {
       const have = new Set(rs.map((r) => r.stock_item_id))
       const add = prefillIds.filter((id) => !have.has(id)).map((id) => newRow(id, 1))
       const kept = rs.filter((r) => !isBlank(r))
-      return [...kept, ...add, ...Array.from({ length: 3 }, () => newRow())]
+      return [...kept, ...add]
     })
     navigate({ to: '/withdraw', search: {}, replace: true })
   }, [prefillIds, navigate])

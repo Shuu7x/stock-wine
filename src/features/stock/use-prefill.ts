@@ -4,7 +4,7 @@ import type { PickerRow } from './item-picker'
 
 /**
  * มาจากหน้าสต็อก/หน้าไวน์ (เลือกแถวแล้วกด ขาย/โอน/ปรับยอด) — เติมแถวของไวน์ที่เลือก แล้วล้าง query ทิ้ง
- * แถวที่มีไวน์นั้นอยู่แล้วไม่เพิ่มซ้ำ · แถวว่างเดิมถูกแทนที่
+ * แถวที่มีไวน์นั้นอยู่แล้วไม่เพิ่มซ้ำ · แถวว่างตั้งต้นเอาออก แสดงเฉพาะรายการที่เลือกมา
  */
 export function usePrefillRows<R extends PickerRow>({
   ids,
@@ -12,7 +12,7 @@ export function usePrefillRows<R extends PickerRow>({
   setRows,
   makeRow,
   isBlank,
-  pad = 3,
+  pad = 0,
 }: {
   ids: string[]
   to: '/sale' | '/transfer' | '/adjust' | '/withdraw'
