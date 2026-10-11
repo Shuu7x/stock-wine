@@ -148,7 +148,8 @@ function DataGridTable<R>({
   const headerRefs = useRef<Array<HTMLDivElement | null>>([])
 
   // ── ตรึงคอลัมน์ ─ ค่าตั้งต้นจาก col.frozen · ผู้ใช้ปรับได้ จำแยกตามตาราง (pageSizeKey)
-  const frozenStoreKey = pageSizeKey ? `stock-wine:grid-frozen:${pageSizeKey}` : null
+  // คอลัมน์ที่ตรึงเรียงซ้าย → ขวาตามลำดับที่กดตรึง
+  const frozenStoreKey = pageSizeKey ? `stock-wine:grid-frozen:v2:${pageSizeKey}` : null
   const [frozenPicked, setFrozenPicked] = useState<string[] | null>(() => {
     try {
       const v = frozenStoreKey && localStorage.getItem(frozenStoreKey)
@@ -159,8 +160,10 @@ function DataGridTable<R>({
   })
   const frozenKeys = (frozenPicked ?? columnsProp.filter((c) => c.frozen).map((c) => c.key)).join('|')
   const columns = useMemo(() => {
-    const f = new Set(frozenKeys.split('|'))
-    return [...columnsProp.filter((c) => f.has(c.key)), ...columnsProp.filter((c) => !f.has(c.key))]
+    const order = frozenKeys ? frozenKeys.split('|') : []
+    const byKey = new Map(columnsProp.map((c) => [c.key, c]))
+    const pinned = order.flatMap((k) => (byKey.has(k) ? [byKey.get(k)!] : []))
+    return [...pinned, ...columnsProp.filter((c) => !order.includes(c.key))]
   }, [columnsProp, frozenKeys])
   const nFrozen = useMemo(() => {
     const f = new Set(frozenKeys.split('|'))

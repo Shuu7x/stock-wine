@@ -38,7 +38,7 @@ function toGrid<R>(defs: Def<R>[]): GridColumn<R>[] {
     key: d.key,
     title: d.title,
     width: d.width,
-    frozen: d.key === 'wine' || d.key === 'vintage',
+    frozen: d.key === 'wine',
     readOnly: true,
     type: d.kind === 'money' || d.kind === 'int' ? 'number' : undefined,
     align: d.kind === 'money' || d.kind === 'int' ? 'right' : d.kind === 'date' ? 'center' : undefined,

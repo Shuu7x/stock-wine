@@ -131,7 +131,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     const balance: GridColumn<StockItem> = {
       key: 'balance',
       title: 'Balance',
-      frozen: true,
       subtitle: 'คงเหลือ (ขวด)',
       width: 96,
       type: 'number',
