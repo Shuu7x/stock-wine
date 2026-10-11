@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  useSyncExternalStore,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
@@ -18,7 +19,7 @@ import { cn } from '@/lib/cn'
 import { fmtMoney } from '@/lib/format'
 import { CellEditor, type EditorCommit, type MoveAfter } from './CellEditor'
 import { FilterMenu } from './FilterMenu'
-import type { CellPos, CellValue, FilterState, GridColumn, Selection, SortState } from './types'
+import type { CardConfig, CellPos, CellValue, FilterState, GridColumn, Selection, SortState } from './types'
 import {
   BLANK_LABEL,
   fillSeries,
@@ -33,6 +34,7 @@ import {
   toTsv,
 } from './utils'
 import { useFontScale } from '@/lib/font-scale'
+import { CardList } from './CardList'
 
 // ขนาดพื้นฐาน (px) ที่ขนาดตัวหนังสือ 100% — ในคอมโพเนนต์คูณตามขนาดที่ตั้งไว้
 const BASE_ROW_H = 34
@@ -73,9 +75,24 @@ export type DataGridProps<R> = {
   /** key สำหรับจำขนาดหน้าที่ผู้ใช้เลือก */
   pageSizeKey?: string
   className?: string
+  /** หน้าตาบนมือถือ (จอแคบกว่า 768px แสดงเป็นการ์ดแทนตาราง) */
+  card?: CardConfig<R>
 }
 
-export function DataGrid<R>({
+const MOBILE_QUERY = '(max-width: 767px)'
+const subscribeMobile = (cb: () => void) => {
+  const mq = window.matchMedia(MOBILE_QUERY)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
+
+/** ตารางข้อมูล: จอกว้าง = ตารางแบบ Excel · มือถือ = รายการการ์ด + แผ่นแก้ไข */
+export function DataGrid<R>(props: DataGridProps<R>) {
+  const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(MOBILE_QUERY).matches, () => false)
+  return mobile ? <CardList {...props} /> : <DataGridTable {...props} />
+}
+
+function DataGridTable<R>({
   rows,
   columns,
   getRowId,

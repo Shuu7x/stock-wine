@@ -292,6 +292,7 @@ export function LookupsSettings() {
         className="h-[min(560px,70dvh)]"
         rows={shown}
         columns={columns}
+        card={{ noun: 'ตัวเลือก', fields: ['sort_order', 'is_active', 'usage', 'store_id'] }}
         getRowId={(r) => r._id}
         onRowsChange={onRowsChange}
         createRow={() => newRow()}

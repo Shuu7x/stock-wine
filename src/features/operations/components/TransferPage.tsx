@@ -263,6 +263,19 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
         className="min-h-[380px] flex-1"
         rows={rows}
         columns={columns}
+        card={{
+          noun: 'รายการโอน',
+          isBlank,
+          title: (r) => {
+            const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
+            return it ? wineLabel(it) : r.wine_text ? <span className="text-danger-700">{r.wine_text}</span> : <span className="text-muted">ยังไม่ได้เลือกไวน์</span>
+          },
+          subtitle: (r) => {
+            const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
+            return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
+          },
+          fields: ['qty','to_store_id','to_rack','remark'],
+        }}
         getRowId={(r) => r._id}
         onRowsChange={setRows}
         createRow={() => newRow()}

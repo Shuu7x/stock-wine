@@ -10,7 +10,8 @@ export function AddRows({ onAdd, defaultCount = 5 }: { onAdd: (n: number) => voi
   const valid = Number(count) >= 1
 
   return (
-    <div className="inline-flex h-8 items-stretch overflow-hidden rounded-lg border border-line-strong bg-surface text-sm focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/20">
+    // มือถือใช้ปุ่ม "เพิ่มรายการ" ของมุมมองการ์ดแทน
+    <div className="inline-flex h-8 items-stretch max-md:hidden overflow-hidden rounded-lg border border-line-strong bg-surface text-sm focus-within:border-brand-600 focus-within:ring-2 focus-within:ring-brand-600/20">
       <button
         type="button"
         disabled={!valid}

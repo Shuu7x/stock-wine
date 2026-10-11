@@ -45,6 +45,24 @@ export type GridColumn<R> = {
   filterValue?: (row: R) => string
 }
 
+/** มุมมองการ์ดบนมือถือ (DataGrid สลับเองเมื่อจอแคบ) */
+export type CardConfig<R> = {
+  /** ชื่อหลักของการ์ด */
+  title?: (row: R) => ReactNode
+  /** บรรทัดรองใต้ชื่อ */
+  subtitle?: (row: R) => ReactNode
+  /** คอลัมน์ที่แสดงบนการ์ด (key) — ค่าว่างไม่แสดง */
+  fields?: string[]
+  /** มุมขวาของการ์ด เช่น ยอดคงเหลือ / ยอดเงิน */
+  aside?: (row: R) => ReactNode
+  /** ปุ่ม/ลิงก์เพิ่มเติมบนแผ่นแก้ไข */
+  actions?: (row: R) => ReactNode
+  /** เรียกรายการ เช่น "ไวน์" "รายการขาย" */
+  noun?: string
+  /** แถวว่าง (ซ่อนในมุมมองการ์ด) — ไม่ส่ง = เดาจากคอลัมน์ */
+  isBlank?: (row: R) => boolean
+}
+
 export type CellPos = { r: number; c: number }
 
 export type Selection = { anchor: CellPos; focus: CellPos }

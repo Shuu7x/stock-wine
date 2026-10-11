@@ -38,6 +38,7 @@ import { ItemHistoryDialog } from '@/features/history/components/LogList'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
 import { Loading } from '@/components/ui/loading'
+import { cn } from '@/lib/cn'
 
 /** 'all' หรือรหัสคลัง (stores.code) — คลังเพิ่ม/แก้ได้ในหน้าตั้งค่า */
 export type StoreTab = string
@@ -453,6 +454,23 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         className="min-h-[420px] flex-1"
         rows={rows}
         columns={columns}
+        card={{
+          noun: 'ไวน์',
+          title: (r) => `${r.wine_name} ${r.vintage ?? 'NV'}`,
+          subtitle: (r) => [storeName(stores, r.store_id), `Rack ${r.rack ?? '-'}`, r.country].filter(Boolean).join(' · '),
+          fields: ['maturity', 'price_per_bottle', 'rating_rp', 'supplier'],
+          aside: (r) => (
+            <div className="leading-tight">
+              <div className={cn('text-xl font-bold tabular-nums', r.balance <= 0 ? 'text-muted' : isLow(r.balance) ? 'text-warning-700' : 'text-brand-800')}>{fmtInt(r.balance)}</div>
+              <div className="text-[11px] text-muted">{r.balance <= 0 ? 'หมด' : isLow(r.balance) ? 'ใกล้หมด' : 'ขวด'}</div>
+            </div>
+          ),
+          actions: (r) => (
+            <Button className="w-full" onClick={() => navigate({ to: '/item/$id', params: { id: r.id } })}>
+              เปิดหน้าไวน์ · ประวัติ เบิก ขาย ป้าย QR
+            </Button>
+          ),
+        }}
         getRowId={(r) => r.id}
         onRowsChange={onRowsChange}
         onDeleteRows={stageDelete}

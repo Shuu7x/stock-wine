@@ -175,6 +175,13 @@ input[type='number']::-webkit-inner-spin-button {
   box-shadow: 0 0 0 4px rgb(140 44 75 / 0.25);
 }
 
+/* แผ่นเลื่อนขึ้นจากด้านล่าง (มือถือ) */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
 /* ─── โหลด: แก้วไวน์ · shimmer · แถบบนจอ ─────────────────────────────────────── */
 @keyframes wine-level {
   0%,
