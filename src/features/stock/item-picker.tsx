@@ -83,6 +83,7 @@ export function makePicker<R extends PickerRow>(opts: {
   const wine: GridColumn<R> = {
     key: 'wine',
     title: 'Name of wine',
+    frozen: true,
     subtitle: 'ค้นหาจากสต็อก',
     width: 300,
     placeholder: 'พิมพ์ชื่อไวน์…',

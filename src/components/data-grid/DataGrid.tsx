@@ -1,4 +1,4 @@
-import { ChevronDown, Filter, ArrowDown, ArrowUp } from 'lucide-react'
+import { ChevronDown, Filter, ArrowDown, ArrowUp, Pin } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -117,7 +117,7 @@ export function DataGrid<R>(props: DataGridProps<R>) {
 
 function DataGridTable<R>({
   rows,
-  columns,
+  columns: columnsProp,
   getRowId,
   onRowsChange,
   createRow,
@@ -145,10 +145,40 @@ function DataGridTable<R>({
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRefs = useRef<Array<HTMLDivElement | null>>([])
 
-  const [widths, setWidths] = useState(() => columns.map((c) => c.width ?? 120))
-  useEffect(() => {
-    setWidths((w) => (w.length === columns.length ? w : columns.map((c) => c.width ?? 120)))
-  }, [columns])
+  // ── ตรึงคอลัมน์ ─ ค่าตั้งต้นจาก col.frozen · ผู้ใช้ปรับได้ จำแยกตามตาราง (pageSizeKey)
+  const frozenStoreKey = pageSizeKey ? `stock-wine:grid-frozen:${pageSizeKey}` : null
+  const [frozenPicked, setFrozenPicked] = useState<string[] | null>(() => {
+    try {
+      const v = frozenStoreKey && localStorage.getItem(frozenStoreKey)
+      return v ? (JSON.parse(v) as string[]) : null
+    } catch {
+      return null
+    }
+  })
+  const frozenKeys = (frozenPicked ?? columnsProp.filter((c) => c.frozen).map((c) => c.key)).join('|')
+  const columns = useMemo(() => {
+    const f = new Set(frozenKeys.split('|'))
+    return [...columnsProp.filter((c) => f.has(c.key)), ...columnsProp.filter((c) => !f.has(c.key))]
+  }, [columnsProp, frozenKeys])
+  const nFrozen = useMemo(() => {
+    const f = new Set(frozenKeys.split('|'))
+    return columns.filter((c) => f.has(c.key)).length
+  }, [columns, frozenKeys])
+  function toggleFrozen(key: string) {
+    const cur = frozenKeys ? frozenKeys.split('|') : []
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
+    setFrozenPicked(next)
+    setSel(null)
+    try {
+      if (frozenStoreKey) localStorage.setItem(frozenStoreKey, JSON.stringify(next))
+    } catch {
+      /* ไม่จำก็ได้ */
+    }
+  }
+
+  // ความกว้างจำตาม key (ลำดับคอลัมน์เปลี่ยนได้เมื่อตรึง)
+  const [widthMap, setWidthMap] = useState<Record<string, number>>({})
+  const widths = useMemo(() => columns.map((c) => widthMap[c.key] ?? c.width ?? 120), [columns, widthMap])
   // widths เก็บเป็นขนาดที่ตัวหนังสือ 100% · ความกว้างที่แสดงจริงคูณตามขนาดที่ตั้งไว้
   const [fontsReady, setFontsReady] = useState(false)
   useEffect(() => {
@@ -172,6 +202,9 @@ function DataGridTable<R>({
     return o
   }, [colW])
   const totalW = ROWHEAD_W + offsets[offsets.length - 1]
+  const frozenW = offsets[nFrozen]
+  /** สไตล์คอลัมน์ที่ตรึง: ติดซ้ายถัดจากเลขแถว */
+  const stickyLeft = (c: number) => (c < nFrozen ? { position: 'sticky' as const, left: ROWHEAD_W + offsets[c] } : undefined)
 
   const [sel, setSel] = useState<Selection | null>(null)
   const [editing, setEditing] = useState<{ r: number; c: number; text: string; openList: boolean } | null>(null)
@@ -180,7 +213,7 @@ function DataGridTable<R>({
   const [filterMenu, setFilterMenu] = useState<number | null>(null)
   const [fillTarget, setFillTarget] = useState<Range | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [viewport, setViewport] = useState({ top: 0, h: 600 })
+  const [viewport, setViewport] = useState({ top: 0, h: 600, left: 0 })
 
   // ── มุมมอง (กรอง/เรียง) ────────────────────────────────────────────────
   // แถวที่แก้หลังกรอง/เรียงแล้วจะไม่กระโดดหาย (เหมือน Excel ที่ต้องกด apply ใหม่)
@@ -366,7 +399,7 @@ function DataGridTable<R>({
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const update = () => setViewport({ top: el.scrollTop, h: el.clientHeight })
+    const update = () => setViewport({ top: el.scrollTop, h: el.clientHeight, left: el.scrollLeft })
     update()
     const ro = new ResizeObserver(update)
     ro.observe(el)
@@ -386,7 +419,8 @@ function DataGridTable<R>({
     const y = p.r * ROW_H
     if (y < el.scrollTop) el.scrollTop = y
     else if (y + ROW_H + HEAD_H > el.scrollTop + el.clientHeight) el.scrollTop = y + ROW_H + HEAD_H - el.clientHeight
-    const x = offsets[p.c]
+    if (p.c < nFrozen) return // คอลัมน์ที่ตรึงเห็นตลอด
+    const x = offsets[p.c] - frozenW
     const xr = offsets[p.c + 1] + ROWHEAD_W
     if (x < el.scrollLeft) el.scrollLeft = x
     else if (xr > el.scrollLeft + el.clientWidth) el.scrollLeft = xr - el.clientWidth
@@ -404,7 +438,9 @@ function DataGridTable<R>({
     const el = scrollRef.current!
     const rect = el.getBoundingClientRect()
     const y = clientY - rect.top + el.scrollTop - HEAD_H
-    const x = clientX - rect.left + el.scrollLeft - ROWHEAD_W
+    const vx = clientX - rect.left - ROWHEAD_W
+    // อยู่ในโซนตรึง = ไม่บวกระยะเลื่อนแนวนอน
+    const x = vx < frozenW ? vx : vx + el.scrollLeft
     const r = Math.max(0, Math.min(nRows - 1, Math.floor(y / ROW_H)))
     let c = 0
     while (c < nCols - 1 && x >= offsets[c + 1]) c++
@@ -417,7 +453,7 @@ function DataGridTable<R>({
     if (clientY > rect.bottom - 28) el.scrollTop += 24
     else if (clientY < rect.top + HEAD_H + 12) el.scrollTop -= 24
     if (clientX > rect.right - 28) el.scrollLeft += 24
-    else if (clientX < rect.left + ROWHEAD_W + 12) el.scrollLeft -= 24
+    else if (clientX < rect.left + ROWHEAD_W + frozenW + 12) el.scrollLeft -= 24
   }
 
   // ── แก้ไขค่า ─────────────────────────────────────────────────────────────
@@ -793,8 +829,8 @@ function DataGridTable<R>({
     e.stopPropagation()
     const x0 = e.clientX
     const w0 = Math.max(widths[c], minW[c] ?? 0)
-    const move = (ev: PointerEvent) =>
-      setWidths((ws) => ws.map((w, i) => (i === c ? Math.max(minW[c] ?? 48, w0 + (ev.clientX - x0) / fontScale) : w)))
+    const key = columns[c].key
+    const move = (ev: PointerEvent) => setWidthMap((m) => ({ ...m, [key]: Math.max(minW[c] ?? 48, w0 + (ev.clientX - x0) / fontScale) }))
     const up = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
@@ -853,12 +889,17 @@ function DataGridTable<R>({
 
   // ── render ──────────────────────────────────────────────────────────────
   const range = sel ? normRange(sel) : null
+  // คอลัมน์ที่ตรึงอยู่กับที่ขณะเลื่อนแนวนอน → กรอบที่ทับคอลัมน์ตรึงต้องเลื่อนตาม
+  const xs = (c: number) => offsets[c] + (c < nFrozen ? viewport.left : 0)
+  const xe = (c: number) => offsets[c + 1] + (c < nFrozen ? viewport.left : 0)
   const rect = (g: Range) => ({
-    left: ROWHEAD_W + offsets[g.left],
+    left: ROWHEAD_W + xs(g.left),
     top: HEAD_H + g.top * ROW_H,
-    width: offsets[g.right + 1] - offsets[g.left],
+    width: Math.max(0, xe(g.right) - xs(g.left)),
     height: (g.bottom - g.top + 1) * ROW_H,
   })
+  /** กรอบที่แตะคอลัมน์ตรึงต้องอยู่เหนือคอลัมน์ตรึง · ที่เหลืออยู่ใต้ (เลื่อนลอดได้) */
+  const overlayZ = (g: Range) => (g.left < nFrozen ? 'z-[14]' : 'z-10')
   const viewRows = useMemo(() => fullIdx.map((i) => rows[i]), [fullIdx, rows])
   const headerTagsOf = (col: GridColumn<R>) => {
     const tags = col.headerTags!(viewRows)
@@ -967,8 +1008,12 @@ function DataGridTable<R>({
                 err && 'bg-danger-50',
                 isChecked && !status && !changed && !err && 'bg-brand-50',
                 chevron && 'pr-6',
+                c < nFrozen && 'z-[12]',
+                // คอลัมน์ตรึงต้องมีพื้นทึบ (ไม่ให้เห็นคอลัมน์ที่เลื่อนลอดใต้)
+                c < nFrozen && !(ro && editable) && !status && !changed && !err && !isChecked && 'bg-surface',
+                c === nFrozen - 1 && 'shadow-[3px_0_4px_-2px_rgb(0_0_0/0.12)]',
               )}
-              style={{ width: colW[c] }}
+              style={{ width: colW[c], ...stickyLeft(c) }}
             >
               {err && (
                 <span className="absolute top-0 left-0 size-0 border-t-[7px] border-r-[7px] border-t-danger-600 border-r-transparent" />
@@ -1069,9 +1114,14 @@ function DataGridTable<R>({
                   className={cn(
                     'group relative flex shrink-0 items-center gap-1 border-r border-b border-line-strong pr-1 pl-2',
                     inCols ? 'bg-brand-100 text-brand-900' : 'bg-surface-3 text-ink',
+                    c < nFrozen && 'z-[22]',
+                    c === nFrozen - 1 && 'shadow-[3px_0_4px_-2px_rgb(0_0_0/0.12)]',
                   )}
-                  style={{ width: colW[c] }}
+                  style={{ width: colW[c], ...(stickyLeft(c) ?? { position: 'relative' }) }}
                 >
+                  {c < nFrozen && (
+                    <Pin className="absolute top-1 right-1 size-2.5 rotate-45 text-brand-600 group-hover:hidden" aria-label="ตรึงไว้" />
+                  )}
                   <button
                     type="button"
                     tabIndex={-1}
@@ -1125,7 +1175,7 @@ function DataGridTable<R>({
           {/* กรอบช่วงที่เลือก + มุมลากคัดลอก */}
           {range && nRows > 0 && (
             <div
-              className="pointer-events-none absolute z-10 border-2 border-brand-600 bg-brand-600/[0.07]"
+              className={cn('pointer-events-none absolute border-2 border-brand-600 bg-brand-600/[0.07]', overlayZ(range))}
               style={rect(range)}
             >
               {editable && !editing && (
@@ -1138,7 +1188,7 @@ function DataGridTable<R>({
             </div>
           )}
           {fillTarget && (
-            <div className="pointer-events-none absolute z-10 border-2 border-dashed border-brand-700" style={rect(fillTarget)} />
+            <div className={cn('pointer-events-none absolute border-2 border-dashed border-brand-700', overlayZ(fillTarget))} style={rect(fillTarget)} />
           )}
 
           {editing && editing.r < nRows && (
@@ -1233,6 +1283,11 @@ function DataGridTable<R>({
           selected={filters[columns[filterMenu].key] ?? null}
           sort={sort}
           colKey={columns[filterMenu].key}
+          frozen={filterMenu < nFrozen}
+          onToggleFrozen={() => {
+            toggleFrozen(columns[filterMenu].key)
+            setFilterMenu(null)
+          }}
           colTitle={(k) => columns.find((c) => c.key === k)?.title ?? k}
           onSort={(dir) => setSort((v) => toggleSort(v, columns[filterMenu].key, dir))}
           onApply={(picked) =>

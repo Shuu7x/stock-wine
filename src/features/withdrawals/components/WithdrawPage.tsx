@@ -154,6 +154,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
     const wine: GridColumn<WithdrawRow> = {
       key: 'wine',
       title: 'Name of wine',
+      frozen: true,
       subtitle: 'ค้นหาจากสต็อก',
       width: 300,
       placeholder: 'พิมพ์ชื่อไวน์…',

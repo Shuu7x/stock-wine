@@ -18,6 +18,8 @@ export type GridColumn<R> = {
   title: string
   /** บรรทัดเล็กใต้หัวคอลัมน์ */
   subtitle?: string
+  /** ตรึงไว้ทางซ้ายเป็นค่าตั้งต้น (ผู้ใช้เปลี่ยนได้จากเมนูหัวคอลัมน์) */
+  frozen?: boolean
   /** แทน subtitle ด้วยป้ายที่คำนวณจากแถวที่แสดงอยู่ (หลังกรอง) · คืน null = ใช้ subtitle ตามเดิม */
   headerTags?: (rows: R[]) => ReactNode
   width?: number

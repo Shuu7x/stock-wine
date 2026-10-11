@@ -1,4 +1,4 @@
-import { ArrowDownAZ, ArrowUpAZ, Search } from 'lucide-react'
+import { ArrowDownAZ, ArrowUpAZ, Pin, PinOff, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { Floating } from './floating'
@@ -14,6 +14,8 @@ export function FilterMenu({
   colKey,
   colTitle,
   onSort,
+  frozen,
+  onToggleFrozen,
   onApply,
   onClose,
 }: {
@@ -28,6 +30,9 @@ export function FilterMenu({
   colKey: string
   colTitle: (key: string) => string
   onSort: (dir: SortDir | null) => void
+  /** คอลัมน์นี้ตรึงอยู่ไหม · ไม่ส่ง onToggleFrozen = ไม่มีเมนูตรึง */
+  frozen?: boolean
+  onToggleFrozen?: () => void
   onApply: (selected: string[] | null) => void
   onClose: () => void
 }) {
@@ -80,11 +85,8 @@ export function FilterMenu({
   const level = sort.findIndex((s) => s.key === colKey)
   const dir = level >= 0 ? sort[level].dir : null
   const others = sort.filter((s) => s.key !== colKey)
-  const sortBtn = (d: SortDir) =>
-    cn(
-      'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2',
-      dir === d && 'bg-brand-50 font-medium text-brand-800',
-    )
+  const sortBtnBase = 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2'
+  const sortBtn = (d: SortDir) => cn(sortBtnBase, dir === d && 'bg-brand-50 font-medium text-brand-800')
 
   return (
     <Floating
@@ -106,6 +108,12 @@ export function FilterMenu({
             ? `การเรียงลำดับที่ ${level + 1} จาก ${sort.length}`
             : `จะเรียงเป็นลำดับที่ ${sort.length + 1} ต่อจาก ${others.map((s) => colTitle(s.key)).join(', ')}`}
         </p>
+      )}
+      {onToggleFrozen && (
+        <button type="button" className={sortBtnBase} onClick={onToggleFrozen}>
+          {frozen ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+          {frozen ? 'เลิกตรึงคอลัมน์' : 'ตรึงคอลัมน์ไว้ทางซ้าย'}
+        </button>
       )}
       <div className="my-2 border-t border-line" />
       <label className="relative mb-2 block">

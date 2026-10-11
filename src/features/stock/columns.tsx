@@ -115,12 +115,14 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
   const wine: GridColumn<R> = {
     key: 'wine_name',
     title: 'Name of wine',
+    frozen: true,
     subtitle: 'ชื่อไวน์',
     width: 300,
   }
   const vintage: GridColumn<R> = {
     key: 'vintage',
     title: 'Year',
+    frozen: true,
     subtitle: 'ปี (ว่าง = NV)',
     width: 76,
     type: 'number',
