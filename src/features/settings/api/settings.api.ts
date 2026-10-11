@@ -75,14 +75,17 @@ export function useSaveLookupValues() {
 export type { LookupCategory }
 
 // ─── คลัง ────────────────────────────────────────────────────────────────────
-export function useSaveStore() {
+/** บันทึกคลังหลายรายการจากตาราง (แก้ไขก่อน แล้วค่อยเพิ่มใหม่) */
+export function useSaveStores() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, values }: { id?: number; values: StoreWrite & { code: string; name: string } }) => {
-      const { error } = id
-        ? await supabase.from('stores').update(values).eq('id', id)
-        : await supabase.from('stores').insert(values)
-      if (error) throw error
+    mutationFn: async (list: Array<{ id?: number; values: StoreWrite & { code: string; name: string } }>) => {
+      for (const { id, values } of list) {
+        const { error } = id
+          ? await supabase.from('stores').update(values).eq('id', id)
+          : await supabase.from('stores').insert(values)
+        if (error) throw error
+      }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: stockKeys.all }),
   })
