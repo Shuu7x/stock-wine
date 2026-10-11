@@ -335,11 +335,49 @@ function lineDefs(tab: DocTab): Def<Line>[] {
 
 const TAB_LABEL: Record<DocTab, string> = { receipts: 'รับเข้า', sales: 'ขาย', withdrawals: 'เบิก', transfers: 'โอนย้าย', adjustments: 'ปรับยอด' }
 
-/** รายละเอียดเอกสาร มุมมอง "ตาราง": ทุกบรรทัดของเอกสารใบเดียว กรอง/เรียง/ส่งออกได้ */
+/** ยอดเงินที่ต้องหารต่อขวด (ขวดสุดท้ายรับเศษสตางค์ ให้รวมแล้วเท่ายอดเดิม) */
+const SPLIT_MONEY: Record<DocTab, string[]> = {
+  receipts: ['value'],
+  sales: ['before', 'vat', 'total'],
+  withdrawals: [],
+  transfers: [],
+  adjustments: [],
+}
+
+/** แตกบรรทัดเป็นรายขวด: รับ 5 ขวด = 5 แถว แต่ละแถวบอกที่เก็บของขวดนั้น */
+function perBottle(tab: DocTab, lines: Line[]): Line[] {
+  return lines.flatMap((l) => {
+    const raw = Number(tab === 'adjustments' ? l.diff : l.qty) || 0
+    const n = Math.abs(raw)
+    if (n <= 1) return [{ ...l, unit: n ? '1/1' : '–' }]
+    return Array.from({ length: n }, (_, i) => {
+      const row: Line = { ...l, _id: `${l._id}:${i}`, unit: `${i + 1}/${n}` }
+      if (tab === 'adjustments') row.diff = Math.sign(raw)
+      else row.qty = 1
+      for (const k of SPLIT_MONEY[tab]) {
+        const v = l[k]
+        if (typeof v !== 'number') continue
+        const each = Math.round((v / n) * 100) / 100
+        row[k] = i === n - 1 ? Math.round((v - each * (n - 1)) * 100) / 100 : each
+      }
+      return row
+    })
+  })
+}
+
+/** รายละเอียดเอกสาร มุมมอง "รายขวด": แยกทีละขวด เห็นที่เก็บของแต่ละขวด กรอง/เรียง/ส่งออกได้ */
 export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<string, any>; stores: Store[] }) {
-  const lines = useMemo(() => docLines(tab, [doc], stores), [tab, doc, stores])
-  // หัวเอกสาร (วันที่ เลขที่ สถานะ ลูกค้า) เหมือนกันทุกบรรทัด — ไม่ต้องซ้ำในตาราง
-  const defs = useMemo(() => lineDefs(tab).filter((d) => !['date', 'doc_no', 'status', 'customer', 'note'].includes(d.key)), [tab])
+  const lines = useMemo(() => perBottle(tab, docLines(tab, [doc], stores)), [tab, doc, stores])
+  // หัวเอกสาร (วันที่ เลขที่ สถานะ ลูกค้า) เหมือนกันทุกบรรทัด — ไม่ต้องซ้ำในตาราง · ยอดก่อน/หลังปรับยอดเป็นของทั้งบรรทัด
+  const defs = useMemo<Def<Line>[]>(
+    () => [
+      { key: 'unit', title: 'ขวดที่', width: 70, value: v('unit') },
+      ...lineDefs(tab).filter(
+        (d) => !['date', 'doc_no', 'status', 'customer', 'note'].includes(d.key) && !(tab === 'adjustments' && (d.key === 'before' || d.key === 'after')),
+      ),
+    ],
+    [tab],
+  )
   const columns = useMemo(() => toGrid(defs), [defs])
   const [exporting, setExporting] = useState(false)
 
@@ -347,7 +385,7 @@ export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<st
     setExporting(true)
     try {
       await exportXlsx({
-        fileName: `${doc.doc_no}.xlsx`,
+        fileName: `${doc.doc_no}-รายขวด.xlsx`,
         sheets: [{ name: doc.doc_no, title: `${TAB_LABEL[tab]} ${doc.doc_no}`, subtitle: doc.note ?? undefined, columns: toXlsx(defs), rows: lines }],
       })
     } finally {
@@ -358,7 +396,7 @@ export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<st
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted">คลิกหัวคอลัมน์เพื่อกรอง/เรียง (เรียงได้หลายคอลัมน์)</span>
+        <span className="text-sm text-muted">แยกทีละขวด {fmtInt(lines.length)} ขวด · คลิกหัวคอลัมน์เพื่อกรอง/เรียง เช่น เรียงตาม Store / Wine racks</span>
         <Button size="sm" className="ml-auto" onClick={exportFile} loading={exporting}>
           <FileSpreadsheet className="size-4" /> ส่งออก Excel
         </Button>
@@ -373,7 +411,8 @@ export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<st
         card={{
           noun: 'รายการ',
           title: (r) => `${r.wine} ${r.vintage}`,
-          fields: defs.filter((d) => !['wine', 'vintage'].includes(d.key)).map((d) => d.key),
+          subtitle: (r) => `ขวดที่ ${r.unit}`,
+          fields: defs.filter((d) => !['wine', 'vintage', 'unit'].includes(d.key)).map((d) => d.key),
         }}
         emptyState="ไม่มีรายการ"
       />

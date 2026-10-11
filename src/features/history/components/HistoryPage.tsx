@@ -13,7 +13,7 @@ import {
   History,
   PackagePlus,
   ShoppingBag,
-  Table2,
+  ListOrdered,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -102,7 +102,7 @@ type DocMode = 'doc' | 'table'
 const DOC_MODE_KEY = 'stock-wine:history-doc-view'
 const DOC_MODES: Array<{ value: DocMode; label: string; icon: LucideIcon }> = [
   { value: 'doc', label: 'มุมมองเอกสาร — หัวเอกสาร ไฟล์แนบ และสรุปรายการ', icon: FileText },
-  { value: 'table', label: 'มุมมองตาราง — ทุกรายการแบบละเอียด กรอง/เรียง/ส่งออกได้', icon: Table2 },
+  { value: 'table', label: 'มุมมองรายขวด — แยกทีละขวด เห็นที่เก็บของแต่ละขวด', icon: ListOrdered },
 ]
 function loadDocMode(): DocMode {
   try {
