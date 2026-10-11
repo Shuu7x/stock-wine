@@ -1,4 +1,4 @@
-import { ChevronDown, Filter, ArrowDown, ArrowUp, X } from 'lucide-react'
+import { ChevronDown, Filter, ArrowDown, ArrowUp } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -19,6 +19,7 @@ import { cn } from '@/lib/cn'
 import { fmtMoney } from '@/lib/format'
 import { CellEditor, type EditorCommit, type MoveAfter } from './CellEditor'
 import { FilterMenu } from './FilterMenu'
+import { FilterChips, pickedText, type FilterChip } from '@/components/ui/filter-chips'
 import type { CardConfig, CellPos, CellValue, FilterState, GridColumn, Selection, SortState } from './types'
 import {
   BLANK_LABEL,
@@ -89,6 +90,8 @@ export type DataGridProps<R> = {
   rowClassName?: (row: R) => string | undefined
   /** ค้นหาทุกคอลัมน์ */
   search?: string
+  /** ล้างคำค้นหาจากชิป (ไม่ส่ง = ไม่แสดงชิปค้นหา) */
+  onClearSearch?: () => void
   emptyState?: ReactNode
   /** จำนวนแถวต่อหน้าเริ่มต้น (0 = ทั้งหมด) · false = ไม่แบ่งหน้า */
   pageSize?: number | false
@@ -126,6 +129,7 @@ function DataGridTable<R>({
   statusLabels,
   rowClassName,
   search = '',
+  onClearSearch,
   emptyState,
   pageSize: defaultPageSize = 50,
   pageSizeKey,
@@ -855,7 +859,40 @@ function DataGridTable<R>({
     width: offsets[g.right + 1] - offsets[g.left],
     height: (g.bottom - g.top + 1) * ROW_H,
   })
-  const activeFilters = Object.keys(filters).length
+  const chips = useMemo<FilterChip[]>(() => {
+    const out: FilterChip[] = []
+    if (search.trim() && onClearSearch) out.push({ key: 'q', label: 'ค้นหา', value: `“${search.trim()}”`, onRemove: onClearSearch })
+    for (const [key, picked] of Object.entries(filters)) {
+      const col = columns.find((c) => c.key === key)
+      if (!col) continue
+      const all = [...new Set(rows.map((r) => filterText(col, r)))]
+      out.push({
+        key: `f:${key}`,
+        label: col.title,
+        value: pickedText(picked, all),
+        onRemove: () => setFilters(({ [key]: _, ...rest }) => rest),
+      })
+    }
+    sort.forEach((st, i) => {
+      out.push({
+        key: `s:${st.key}`,
+        label: sort.length > 1 ? `เรียง ${i + 1}` : 'เรียง',
+        value: (
+          <span className="inline-flex items-center gap-0.5">
+            {columns.find((c) => c.key === st.key)?.title}
+            {st.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+          </span>
+        ),
+        onRemove: () => setSort((v) => toggleSort(v, st.key, null)),
+      })
+    })
+    return out
+  }, [search, onClearSearch, filters, sort, columns, rows])
+  const clearAll = () => {
+    setFilters({})
+    setSort([])
+    onClearSearch?.()
+  }
 
   const bodyRows: ReactNode[] = []
   for (let r = first; r <= last; r++) {
@@ -959,6 +996,7 @@ function DataGridTable<R>({
 
   return (
     <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface', className)}>
+      <FilterChips chips={chips} onClearAll={clearAll} className="shrink-0 border-b border-line bg-surface-2 px-3 py-1.5" />
       <div
         ref={scrollRef}
         tabIndex={0}
@@ -1148,39 +1186,6 @@ function DataGridTable<R>({
                   {statusLabels?.[k] ?? STATUS_LABELS[k]} <b className="text-ink tabular-nums">{statusCounts[k]}</b>
                 </span>
               ) : null,
-            )}
-          </span>
-        )}
-        {activeFilters > 0 && (
-          <button
-            type="button"
-            onClick={() => setFilters({})}
-            className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 font-medium text-brand-800 hover:bg-brand-200"
-          >
-            กรองอยู่ {activeFilters} คอลัมน์ <X className="size-3" />
-          </button>
-        )}
-        {sort.length > 0 && (
-          <span className="inline-flex flex-wrap items-center gap-1">
-            เรียงตาม
-            {sort.map((s, i) => (
-              <button
-                key={s.key}
-                type="button"
-                title="เอาการเรียงนี้ออก"
-                onClick={() => setSort((v) => toggleSort(v, s.key, null))}
-                className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 hover:bg-line"
-              >
-                {sort.length > 1 && <b className="tabular-nums">{i + 1}.</b>}
-                {columns.find((c) => c.key === s.key)?.title}
-                {s.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
-                <X className="size-3" />
-              </button>
-            ))}
-            {sort.length > 1 && (
-              <button type="button" onClick={() => setSort([])} className="px-1 text-brand-700 hover:underline">
-                ล้างการเรียง
-              </button>
             )}
           </span>
         )}

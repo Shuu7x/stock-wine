@@ -192,6 +192,7 @@ export function MovementTable({ stores, filter }: { stores: Store[]; filter: { f
         columns={columns}
         getRowId={(r) => String(r.id)}
         search={search}
+        onClearSearch={() => setSearch('')}
         pageSizeKey="history-all"
         card={{
           noun: 'รายการ',

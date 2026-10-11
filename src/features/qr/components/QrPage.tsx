@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { matchesWords } from "@/components/data-grid/utils";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { FilterChips } from "@/components/ui/filter-chips";
 import { Input } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page";
 import { QrCode, itemUrl } from "@/components/ui/qr-code";
@@ -552,6 +553,24 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
                 เฉพาะที่มีของ
               </label>
             </div>
+            <FilterChips
+              chips={[
+                ...(q.trim()
+                  ? [{ key: "q", label: "ค้นหา", value: `“${q.trim()}”`, onRemove: () => setQ("") }]
+                  : []),
+                ...(scope
+                  ? [{ key: "store", label: "คลัง", value: storeName(stores, scope), onRemove: () => setScope(0) }]
+                  : []),
+                ...(onlyInStock
+                  ? [{ key: "stock", label: "คงเหลือ", value: "เฉพาะที่มีของ", onRemove: () => setOnlyInStock(false) }]
+                  : []),
+              ]}
+              onClearAll={() => {
+                setQ("");
+                setScope(0);
+                setOnlyInStock(false);
+              }}
+            />
           </div>
 
           <ul className="min-h-0 flex-1 divide-y divide-line overflow-auto">

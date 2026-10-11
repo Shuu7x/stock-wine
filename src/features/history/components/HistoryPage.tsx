@@ -14,7 +14,6 @@ import {
   PackagePlus,
   ShoppingBag,
   Table2,
-  X,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
@@ -31,6 +30,7 @@ import { BillDialog } from '@/features/billing/components/BillDialog'
 import { PageHeader } from '@/components/ui/page'
 import { DOC_PAGE_SIZES, Pager } from '@/components/ui/pager'
 import { Segmented } from '@/components/ui/segmented'
+import { FilterChips, type FilterChip } from '@/components/ui/filter-chips'
 import {
   adjustmentsListOptions,
   salesListOptions,
@@ -328,6 +328,22 @@ export function HistoryPage({
   const hasMoney = tab === 'receipts' || tab === 'sales'
   const filtered = !!(filter.status || filter.from || filter.to)
 
+  const pageChips: FilterChip[] = []
+  if (filter.from || filter.to)
+    pageChips.push({
+      key: 'range',
+      label: 'ช่วงวันที่',
+      value: `${filter.from ? fmtDate(filter.from) : 'แรกสุด'} – ${filter.to ? fmtDate(filter.to) : 'วันนี้'}`,
+      onRemove: () => setF({ ...filter, from: undefined, to: undefined }),
+    })
+  if (filter.status && isDocTab)
+    pageChips.push({
+      key: 'status',
+      label: 'สถานะ',
+      value: filter.status === 'void' ? 'ยกเลิก' : 'บันทึกแล้ว',
+      onRemove: () => setF({ ...filter, status: undefined }),
+    })
+
   function setF(next: DocFilter) {
     setFilter(next)
     onChange({ page: 1 })
@@ -387,12 +403,8 @@ export function HistoryPage({
             <Field label="ถึงวันที่" className="w-40">
               <DateInput value={filter.to ?? ''} max={todayIso()} onChange={(v) => setF({ ...filter, to: v })} />
             </Field>
-            {(filter.from || filter.to) && (
-              <Button variant="ghost" onClick={() => setF({})}>
-                <X className="size-4" /> ล้างช่วงวันที่
-              </Button>
-            )}
           </div>
+          <FilterChips chips={pageChips} onClearAll={() => setF({})} className="shrink-0" />
           <MovementTable stores={stores} filter={{ from: filter.from, to: filter.to }} />
         </>
       )}
@@ -420,11 +432,6 @@ export function HistoryPage({
                 ]}
               />
             </div>
-            {filtered && (
-              <Button variant="ghost" onClick={() => setF({})}>
-                <X className="size-4" /> ล้างตัวกรอง
-              </Button>
-            )}
             <div className="ml-auto flex items-center gap-3 pb-0.5">
                 <span className="text-sm text-muted">{fmtInt(total)} เอกสาร</span>
                 <Button
@@ -443,6 +450,8 @@ export function HistoryPage({
                 </Button>
               </div>
           </div>
+
+          <FilterChips chips={pageChips} onClearAll={() => setF({})} className="shrink-0" />
 
           {/* รายการเอกสาร */}
           <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">

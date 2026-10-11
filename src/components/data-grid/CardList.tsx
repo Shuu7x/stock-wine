@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { DateInput } from '@/components/ui/date-input'
 import { cn } from '@/lib/cn'
 import type { DataGridProps } from './DataGrid'
+import { FilterChips, pickedText, type FilterChip } from '@/components/ui/filter-chips'
 import type { CellValue, GridColumn, SortState } from './types'
 import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort } from './utils'
 
@@ -39,6 +40,7 @@ export function CardList<R>({
   search,
   emptyState,
   card,
+  onClearSearch,
 }: DataGridProps<R>) {
   // ไม่ใช้ className ของตาราง (มักเป็น flex-1/ความสูงขั้นต่ำ) — การ์ดสูงตามเนื้อหา ให้หน้าเลื่อนทั้งหน้าแทน
   const editable = !!onRowsChange
@@ -89,6 +91,33 @@ export function CardList<R>({
   const filterCols = columns.filter((c) => c.filterable !== false && (c.filterValue || c.type === 'select' || c.options || c.key === 'country' || c.key === 'store_id'))
   const sortCols = columns.filter((c) => !c.render || c.get)
   const nFilters = Object.values(filters).filter((v) => v.length).length
+  const chips: FilterChip[] = []
+  if (q.trim()) chips.push({ key: 'q', label: 'ค้นหา', value: `“${q.trim()}”`, onRemove: () => setQ('') })
+  else if (search?.trim() && onClearSearch) chips.push({ key: 'q', label: 'ค้นหา', value: `“${search.trim()}”`, onRemove: onClearSearch })
+  for (const [key, picked] of Object.entries(filters)) {
+    const col = columns.find((c) => c.key === key)
+    if (!col || !picked.length) continue
+    chips.push({
+      key: `f:${key}`,
+      label: col.title,
+      value: pickedText(picked, []),
+      onRemove: () => setFilters(({ [key]: _, ...rest }) => rest),
+    })
+  }
+  sort.forEach((st, i) =>
+    chips.push({
+      key: `s:${st.key}`,
+      label: sort.length > 1 ? `เรียง ${i + 1}` : 'เรียง',
+      value: `${columns.find((c) => c.key === st.key)?.title ?? st.key} ${st.dir === 'asc' ? '↑' : '↓'}`,
+      onRemove: () => setSort((v) => toggleSort(v, st.key, null)),
+    }),
+  )
+  const clearAll = () => {
+    setQ('')
+    setFilters({})
+    setSort([])
+    onClearSearch?.()
+  }
   const editing = editId ? rows.find((r) => getRowId(r) === editId) ?? null : null
 
   function addRow() {
@@ -150,6 +179,8 @@ export function CardList<R>({
           {tools}
         </div>
       )}
+
+      <FilterChips chips={chips} onClearAll={clearAll} />
 
       <div className="flex items-center justify-between text-xs text-muted">
         <span>
