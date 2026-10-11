@@ -7,13 +7,11 @@ import {
   LayoutGrid,
   PackagePlus,
   QrCode,
-  Receipt,
   Settings,
   ShoppingBag,
   Warehouse,
   Wine,
   X,
-  LayoutDashboard,
 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
@@ -24,14 +22,12 @@ import { TopLoader } from '@/components/ui/loading'
 // มือถือ: เมนูล่าง 4 อย่างที่ใช้บ่อย + "เพิ่มเติม" สำหรับที่เหลือ
 const MOBILE_NAV = [
   { to: '/stock', label: 'สต็อก', icon: Warehouse },
+  { to: '/withdraw', label: 'เบิก', icon: GlassWater },
   { to: '/receive', label: 'รับเข้า', icon: PackagePlus },
   { to: '/sale', label: 'ขาย', icon: ShoppingBag },
-  { to: '/withdraw', label: 'เบิก', icon: GlassWater },
 ] as const
 
 const MOBILE_MORE = [
-  { to: '/dashboard', label: 'ภาพรวม', icon: LayoutDashboard },
-  { to: '/billing', label: 'ออกบิล', icon: Receipt },
   { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
   { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck },
   { to: '/qr', label: 'ป้าย QR', icon: QrCode },
@@ -87,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* แถบบน (มือถือ/แท็บเล็ต) */}
       <header className="flex h-14 shrink-0 items-center gap-2 bg-brand-900 px-4 text-white lg:hidden">
-        <Link to="/dashboard" className="flex items-center gap-2">
+        <Link to="/stock" className="flex items-center gap-2">
           <Wine className="size-5 text-gold-100" />
           <span className="font-display text-lg font-bold">Wine Cellar</span>
         </Link>

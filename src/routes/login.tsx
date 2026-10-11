@@ -4,13 +4,13 @@ import { getSession } from '@/features/auth/api/auth.api'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 
 /**
- * หลังล็อกอินไปหน้าภาพรวมเสมอ
+ * หลังล็อกอินไปหน้าสต็อกเสมอ
  * ยกเว้นลิงก์จากการสแกน QR ป้ายขวด (/i/…, /item/…) ที่ต้องพาไปหน้าไวน์ขวดนั้น
  */
 function afterLogin(redirectTo?: string) {
-  if (!redirectTo) return '/dashboard'
+  if (!redirectTo) return '/stock'
   const path = redirectTo.startsWith('http') ? new URL(redirectTo).pathname : redirectTo
-  return /^\/(i|item)\//.test(path) ? redirectTo : '/dashboard'
+  return /^\/(i|item)\//.test(path) ? redirectTo : '/stock'
 }
 
 export const Route = createFileRoute('/login')({

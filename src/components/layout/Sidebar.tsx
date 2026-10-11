@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router'
 import {
   ArrowLeftRight,
@@ -7,10 +6,8 @@ import {
   ClipboardCheck,
   GlassWater,
   History,
-  LayoutDashboard,
   PackagePlus,
   QrCode,
-  Receipt,
   Settings,
   ShoppingBag,
   Warehouse,
@@ -18,7 +15,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { unbilledSalesOptions } from '@/features/billing/api/billing.api'
 import { cn } from '@/lib/cn'
 import { UserMenu } from './UserMenu'
 
@@ -86,8 +82,6 @@ function Group({ title, collapsed, children }: { title?: string; collapsed: bool
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { pathname } = useLocation()
-  // จำนวนใบขายที่รอออกบิล
-  const unbilled = useQuery(unbilledSalesOptions()).data?.length ?? 0
   const is = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`)
 
   return (
@@ -99,7 +93,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
     >
       {/* โลโก้ (ย่อแล้วเหลือไอคอน) */}
       <div className={cn('flex h-16 shrink-0 items-center', collapsed ? 'justify-center' : 'px-5')}>
-        <Link to="/dashboard" aria-label="Wine Cellar — กลับหน้าภาพรวม" title={collapsed ? 'Wine Cellar' : undefined} className="flex min-w-0 items-center gap-2.5">
+        <Link to="/stock" aria-label="Wine Cellar — กลับหน้าสต็อก" title={collapsed ? 'Wine Cellar' : undefined} className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-700 text-gold-100">
             <Wine className="size-[18px]" />
           </span>
@@ -122,28 +116,15 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       {/* ย่ออยู่: ไม่ตั้ง overflow ไม่งั้นชื่อเมนูที่ลอยออกไปทางขวาจะถูกตัด */}
       <nav className={cn('flex flex-1 flex-col', collapsed ? 'px-3' : 'overflow-y-auto px-3')} aria-label="เมนูหลัก">
         <Group collapsed={collapsed}>
-          <NavItem to="/dashboard" label="ภาพรวม" icon={LayoutDashboard} active={is('/dashboard')} collapsed={collapsed} />
           <NavItem to="/stock" label="สต็อกไวน์" icon={Warehouse} active={is('/stock')} collapsed={collapsed} />
         </Group>
 
         <Group title="ทำรายการ" collapsed={collapsed}>
-          <NavItem to="/receive" label="รับเข้า" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
-          <NavItem to="/sale" label="ขาย" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
-          <NavItem
-            to="/billing"
-            label={unbilled ? `ออกบิล (รอ ${unbilled})` : 'ออกบิล'}
-            icon={Receipt}
-            active={is('/billing')}
-            collapsed={collapsed}
-            trailing={
-              unbilled > 0 ? (
-                <span className="rounded-full bg-gold-500 px-1.5 text-[11px] font-semibold text-brand-900 tabular-nums">{unbilled}</span>
-              ) : undefined
-            }
-          />
           <NavItem to="/withdraw" label="เบิก" icon={GlassWater} active={is('/withdraw')} collapsed={collapsed} />
+          <NavItem to="/receive" label="รับเข้า" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
           <NavItem to="/transfer" label="โอนย้าย" icon={ArrowLeftRight} active={is('/transfer')} collapsed={collapsed} />
           <NavItem to="/adjust" label="ปรับยอด" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />
+          <NavItem to="/sale" label="ขาย" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
         </Group>
 
         <Group title="เครื่องมือ" collapsed={collapsed}>
