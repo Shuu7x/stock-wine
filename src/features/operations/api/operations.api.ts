@@ -24,6 +24,33 @@ export const opKeys = {
   transfers: (page: number, size: number, f: DocFilter) => ['ops', 'transfers', { page, size, ...f }] as const,
 }
 
+export type CustomerSuggestion = { name: string; count: number; lastSoldAt: string }
+
+/** ลูกค้าที่เคยขาย (จำจากใบขายเดิม) เรียงซื้อบ่อย → ล่าสุด · ใบขายใหม่ invalidate ['ops'] อยู่แล้ว */
+export const customersOptions = () =>
+  queryOptions({
+    queryKey: ['ops', 'customers'] as const,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<CustomerSuggestion[]> => {
+      const { data, error } = await supabase
+        .from('sales')
+        .select('customer, sold_at')
+        .not('customer', 'is', null)
+        .order('sold_at', { ascending: false })
+        .limit(2000)
+      if (error) throw error
+      const m = new Map<string, CustomerSuggestion>()
+      for (const r of data) {
+        const name = r.customer?.trim()
+        if (!name) continue
+        const c = m.get(name)
+        if (c) c.count++
+        else m.set(name, { name, count: 1, lastSoldAt: r.sold_at })
+      }
+      return [...m.values()].sort((a, b) => b.count - a.count || b.lastSoldAt.localeCompare(a.lastSoldAt))
+    },
+  })
+
 const range = (page: number, size: number) => [(page - 1) * size, page * size - 1] as const
 
 export const salesListOptions = (page: number, size = 20, f: DocFilter = {}) =>

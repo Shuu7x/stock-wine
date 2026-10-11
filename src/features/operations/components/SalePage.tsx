@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Printer } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
@@ -5,6 +6,7 @@ import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
 import { Combobox } from '@/components/ui/combobox'
+import { SuggestInput } from '@/components/ui/suggest-input'
 import { DateInput } from '@/components/ui/date-input'
 import { Dialog } from '@/components/ui/dialog'
 import { DocToolbar } from '@/components/ui/doc-toolbar'
@@ -17,12 +19,12 @@ import { storeName, wineLabel } from '@/features/stock/columns'
 import { makePicker, useStockData, wineError, type PickerRow } from '@/features/stock/item-picker'
 import { usePrefillRows } from '@/features/stock/use-prefill'
 import type { VatMode } from '@/lib/database.types'
-import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
+import { fmtDate, fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { useInitialDraft, usePersistDraft } from '@/lib/use-local-draft'
 import { lineVat, sumVat, VAT_MODE_LABEL } from '@/lib/vat'
 import { useIssueBills } from '@/features/billing/api/billing.api'
 import { BillDialog } from '@/features/billing/components/BillDialog'
-import { usePostSale, type Sale } from '../api/operations.api'
+import { customersOptions, usePostSale, type Sale } from '../api/operations.api'
 
 type SaleRow = PickerRow & { qty: number | null; unit_price: number | null; has_vat: boolean; remark: string | null }
 type Draft = { rows: SaleRow[]; soldAt: string; customer: string; note: string; vatMode: VatMode | null }
@@ -58,6 +60,11 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   const [rows, setRows] = useState<SaleRow[]>(() => draft?.rows ?? Array.from({ length: 6 }, () => newRow()))
   const [soldAt, setSoldAt] = useState(draft?.soldAt ?? todayIso())
   const [customer, setCustomer] = useState(draft?.customer ?? '')
+  const customersQ = useQuery(customersOptions())
+  const customerSuggestions = useMemo(
+    () => (customersQ.data ?? []).map((c) => ({ value: c.name, hint: `${c.count} ครั้ง · ${fmtDate(c.lastSoldAt)}` })),
+    [customersQ.data],
+  )
   const [note, setNote] = useState(draft?.note ?? '')
   const [vatModeChoice, setVatMode] = useState<VatMode | null>(draft?.vatMode ?? null)
   const vatMode = vatModeChoice ?? settings.default_vat_mode
@@ -246,7 +253,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
           <DateInput value={soldAt} max={todayIso()} onChange={setSoldAt} />
         </Field>
         <Field label="ลูกค้า">
-          <Input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="ชื่อลูกค้า / บริษัท" />
+          <SuggestInput value={customer} onChange={setCustomer} suggestions={customerSuggestions} title="ลูกค้าประจำ" placeholder="ชื่อลูกค้า / บริษัท" />
         </Field>
         <Field label="หมายเหตุ">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น เลขที่ออเดอร์" />
