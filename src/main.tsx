@@ -3,6 +3,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { env } from '@/lib/env'
+import { applyFontScale, getFontScale } from '@/lib/font-scale'
 import { installHandledErrorFilter, queryClient } from '@/lib/query-client'
 import { supabase } from '@/lib/supabase'
 import { routeTree } from './routeTree.gen'
@@ -29,6 +30,8 @@ async function enableMocking() {
 }
 
 installHandledErrorFilter()
+// ขนาดตัวหนังสือที่ตั้งไว้ในเครื่องนี้ (ใช้ก่อน render ไม่ให้กะพริบ)
+applyFontScale(getFontScale())
 
 // session หมดอายุ / ออกจากระบบจากแท็บอื่น: ทิ้งข้อมูลของผู้ใช้เดิม แล้วให้หน้าที่เปิดอยู่กลับไปล็อกอิน
 supabase.auth.onAuthStateChange((event) => {

@@ -123,6 +123,58 @@ input[type='number']::-webkit-inner-spin-button {
   background-color: var(--color-brand-500);
 }
 
+/* ─── แถบเลื่อนขนาดตัวหนังสือ (หน้าตั้งค่า > การแสดงผล) ─────────────────────── */
+.font-range {
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+.font-range::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--color-brand-600) var(--fill), var(--color-brand-100) var(--fill));
+}
+.font-range::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-brand-100);
+}
+.font-range::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-brand-600);
+}
+.font-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--color-brand-700);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+.font-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid var(--color-brand-700);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+.font-range:hover::-webkit-slider-thumb,
+.font-range:active::-webkit-slider-thumb {
+  transform: scale(1.12);
+}
+.font-range:focus-visible {
+  outline: none;
+}
+.font-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgb(140 44 75 / 0.25);
+}
+
 /* ─── โหลด: แก้วไวน์ · shimmer · แถบบนจอ ─────────────────────────────────────── */
 @keyframes wine-level {
   0%,

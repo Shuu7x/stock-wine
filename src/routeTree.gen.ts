@@ -25,6 +25,7 @@ import { Route as AuthenticatedSaleIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
 import { Route as AuthenticatedSettingsBillRouteImport } from './routes/_authenticated/settings/bill'
+import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings/general'
 import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
 import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
@@ -119,6 +120,12 @@ const AuthenticatedSettingsBillRoute =
     path: '/bill',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsDisplayRoute =
+  AuthenticatedSettingsDisplayRouteImport.update({
+    id: '/display',
+    path: '/display',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsGeneralRoute =
   AuthenticatedSettingsGeneralRouteImport.update({
     id: '/general',
@@ -163,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/bill': typeof AuthenticatedSettingsBillRoute
+  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
@@ -185,6 +193,7 @@ export interface FileRoutesByTo {
   '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/bill': typeof AuthenticatedSettingsBillRoute
+  '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
@@ -210,6 +219,7 @@ export interface FileRoutesById {
   '/_authenticated/item/$id': typeof AuthenticatedItemIdRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/bill': typeof AuthenticatedSettingsBillRoute
+  '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/item/$id'
     | '/settings/account'
     | '/settings/bill'
+    | '/settings/display'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/item/$id'
     | '/settings/account'
     | '/settings/bill'
+    | '/settings/display'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
@@ -281,6 +293,7 @@ export interface FileRouteTypes {
     | '/_authenticated/item/$id'
     | '/_authenticated/settings/account'
     | '/_authenticated/settings/bill'
+    | '/_authenticated/settings/display'
     | '/_authenticated/settings/general'
     | '/_authenticated/settings/lookups'
     | '/_authenticated/settings/stores'
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsBillRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/display': {
+      id: '/_authenticated/settings/display'
+      path: '/display'
+      fullPath: '/settings/display'
+      preLoaderRoute: typeof AuthenticatedSettingsDisplayRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/general': {
       id: '/_authenticated/settings/general'
       path: '/general'
@@ -464,6 +484,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
   AuthenticatedSettingsBillRoute: typeof AuthenticatedSettingsBillRoute
+  AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
   AuthenticatedSettingsLookupsRoute: typeof AuthenticatedSettingsLookupsRoute
   AuthenticatedSettingsStoresRoute: typeof AuthenticatedSettingsStoresRoute
@@ -473,6 +494,7 @@ interface AuthenticatedSettingsRouteChildren {
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
   AuthenticatedSettingsBillRoute: AuthenticatedSettingsBillRoute,
+  AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
   AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
   AuthenticatedSettingsLookupsRoute: AuthenticatedSettingsLookupsRoute,
   AuthenticatedSettingsStoresRoute: AuthenticatedSettingsStoresRoute,

@@ -32,10 +32,12 @@ import {
   setValue,
   toTsv,
 } from './utils'
+import { useFontScale } from '@/lib/font-scale'
 
-const ROW_H = 34
-const HEAD_H = 44
-const ROWHEAD_W = 52
+// ขนาดพื้นฐาน (px) ที่ขนาดตัวหนังสือ 100% — ในคอมโพเนนต์คูณตามขนาดที่ตั้งไว้
+const BASE_ROW_H = 34
+const BASE_HEAD_H = 44
+const BASE_ROWHEAD_W = 52
 const OVERSCAN = 6
 
 type Range = { top: number; bottom: number; left: number; right: number }
@@ -92,6 +94,11 @@ export function DataGrid<R>({
   pageSizeKey,
   className,
 }: DataGridProps<R>) {
+  // ความสูงแถว/หัวตาราง/คอลัมน์เลขแถว ขยายตามขนาดตัวหนังสือที่ตั้งไว้
+  const fontScale = useFontScale() / 100
+  const ROW_H = Math.round(BASE_ROW_H * fontScale)
+  const HEAD_H = Math.round(BASE_HEAD_H * fontScale)
+  const ROWHEAD_W = Math.round(BASE_ROWHEAD_W * fontScale)
   const editable = !!onRowsChange
   const scrollRef = useRef<HTMLDivElement>(null)
   const headerRefs = useRef<Array<HTMLDivElement | null>>([])
@@ -100,16 +107,18 @@ export function DataGrid<R>({
   useEffect(() => {
     setWidths((w) => (w.length === columns.length ? w : columns.map((c) => c.width ?? 120)))
   }, [columns])
+  // widths เก็บเป็นขนาดที่ตัวหนังสือ 100% · ความกว้างที่แสดงจริงคูณตามขนาดที่ตั้งไว้
+  const colW = useMemo(() => widths.map((w) => Math.round(w * fontScale)), [widths, fontScale])
   const offsets = useMemo(() => {
     const o: number[] = []
     let x = 0
-    for (const w of widths) {
+    for (const w of colW) {
       o.push(x)
       x += w
     }
     o.push(x)
     return o
-  }, [widths])
+  }, [colW])
   const totalW = ROWHEAD_W + offsets[offsets.length - 1]
 
   const [sel, setSel] = useState<Selection | null>(null)
@@ -725,7 +734,7 @@ export function DataGrid<R>({
     const x0 = e.clientX
     const w0 = widths[c]
     const move = (ev: PointerEvent) =>
-      setWidths((ws) => ws.map((w, i) => (i === c ? Math.max(48, w0 + ev.clientX - x0) : w)))
+      setWidths((ws) => ws.map((w, i) => (i === c ? Math.max(48, w0 + (ev.clientX - x0) / fontScale) : w)))
     const up = () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
@@ -846,7 +855,7 @@ export function DataGrid<R>({
                 err && 'bg-danger-50',
                 chevron && 'pr-6',
               )}
-              style={{ width: widths[c] }}
+              style={{ width: colW[c] }}
             >
               {err && (
                 <span className="absolute top-0 left-0 size-0 border-t-[7px] border-r-[7px] border-t-danger-600 border-r-transparent" />
@@ -929,7 +938,7 @@ export function DataGrid<R>({
                     'group relative flex shrink-0 items-center gap-1 border-r border-b border-line-strong pr-1 pl-2',
                     inCols ? 'bg-brand-100 text-brand-900' : 'bg-surface-3 text-ink',
                   )}
-                  style={{ width: widths[c] }}
+                  style={{ width: colW[c] }}
                 >
                   <button
                     type="button"
