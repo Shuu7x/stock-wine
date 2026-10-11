@@ -175,6 +175,8 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     render: (r) => <MaturityBadge from={r.maturity_from} to={r.maturity_to} />,
     // กรองด้วยสถานะ (ดื่มได้ / ยังไม่ถึง / เลยช่วง) แทนช่วงปี
     filterValue: (r) => drinkLabel(r.maturity_from, r.maturity_to),
+    // พิมพ์ปีในตัวกรอง เช่น 2030 = ไวน์ที่ช่วงดื่มได้ครอบคลุมปีนั้น
+    yearRange: (r) => ({ from: r.maturity_from, to: r.maturity_to }),
   }
   const price: GridColumn<R> = {
     key: 'price_per_bottle',

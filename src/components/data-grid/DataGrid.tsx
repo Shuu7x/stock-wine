@@ -24,6 +24,7 @@ import type { CardConfig, CellPos, CellValue, FilterState, GridColumn, Selection
 import {
   BLANK_LABEL,
   fillSeries,
+  inYearRange,
   filterText,
   formatValue,
   getValue,
@@ -59,7 +60,8 @@ function headerMinWidth<R>(col: GridColumn<R>) {
   const title = textWidth(col.title, `600 12px ${fam}`)
   const sub = col.subtitle ? textWidth(col.subtitle, `400 10px ${fam}`) : 0
   // pl-2 + pr-1 + ช่องว่าง + ปุ่มตัวกรอง
-  return Math.ceil(Math.max(title, sub) + 8 + 4 + 6 + (col.filterable !== false ? 26 : 0))
+  // + ปุ่มหมุด 24
+  return Math.ceil(Math.max(title, sub) + 8 + 4 + 6 + 24 + (col.filterable !== false ? 26 : 0))
 }
 const OVERSCAN = 6
 
@@ -210,6 +212,8 @@ function DataGridTable<R>({
   const [editing, setEditing] = useState<{ r: number; c: number; text: string; openList: boolean } | null>(null)
   const [sort, setSort] = useState<SortState>([])
   const [filters, setFilters] = useState<FilterState>({})
+  /** กรองตามปีที่ช่วงครอบคลุม (คอลัมน์ที่มี yearRange) */
+  const [years, setYears] = useState<Record<string, number>>({})
   const [filterMenu, setFilterMenu] = useState<number | null>(null)
   const [fillTarget, setFillTarget] = useState<Range | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
@@ -217,8 +221,8 @@ function DataGridTable<R>({
 
   // ── มุมมอง (กรอง/เรียง) ────────────────────────────────────────────────
   // แถวที่แก้หลังกรอง/เรียงแล้วจะไม่กระโดดหาย (เหมือน Excel ที่ต้องกด apply ใหม่)
-  const viewKey = JSON.stringify([sort, filters, search.trim().toLowerCase()])
-  const viewActive = viewKey !== JSON.stringify([[], {}, ''])
+  const viewKey = JSON.stringify([sort, filters, search.trim().toLowerCase(), years])
+  const viewActive = viewKey !== JSON.stringify([[], {}, '', {}])
   const snap = useRef<{ key: string; ids: string[]; known: Set<string> } | null>(null)
 
   /** ลำดับแถวทั้งหมดหลังกรอง/เรียง (ทุกหน้า) */
@@ -236,6 +240,10 @@ function DataGridTable<R>({
         if (!col) continue
         const set = new Set(allowed)
         idx = idx.filter((i) => set.has(filterText(col, rows[i])))
+      }
+      for (const [key, y] of Object.entries(years)) {
+        const col = columns.find((c) => c.key === key)
+        if (col?.yearRange) idx = idx.filter((i) => inYearRange(col.yearRange!(rows[i]), y))
       }
       if (q) {
         idx = idx.filter((i) =>
@@ -920,6 +928,14 @@ function DataGridTable<R>({
         onRemove: () => setFilters(({ [key]: _, ...rest }) => rest),
       })
     }
+    for (const [key, y] of Object.entries(years)) {
+      out.push({
+        key: `y:${key}`,
+        label: columns.find((c) => c.key === key)?.title ?? key,
+        value: `ครอบคลุมปี ${y}`,
+        onRemove: () => setYears(({ [key]: _, ...rest }) => rest),
+      })
+    }
     sort.forEach((st, i) => {
       out.push({
         key: `s:${st.key}`,
@@ -934,9 +950,10 @@ function DataGridTable<R>({
       })
     })
     return out
-  }, [search, onClearSearch, filters, sort, columns, rows])
+  }, [search, onClearSearch, filters, years, sort, columns, rows])
   const clearAll = () => {
     setFilters({})
+    setYears({})
     setSort([])
     onClearSearch?.()
   }
@@ -1101,7 +1118,8 @@ function DataGridTable<R>({
               )}
             </div>
             {columns.map((col, c) => {
-              const filtered = !!filters[col.key]
+              const filtered = !!filters[col.key] || years[col.key] != null
+              const pinned = c < nFrozen
               const level = sort.findIndex((s) => s.key === col.key)
               const sorted = level >= 0 ? sort[level].dir : null
               const inCols = range && c >= range.left && c <= range.right
@@ -1119,9 +1137,7 @@ function DataGridTable<R>({
                   )}
                   style={{ width: colW[c], ...(stickyLeft(c) ?? { position: 'relative' }) }}
                 >
-                  {c < nFrozen && (
-                    <Pin className="absolute top-1 right-1 size-2.5 rotate-45 text-brand-600 group-hover:hidden" aria-label="ตรึงไว้" />
-                  )}
+
                   <button
                     type="button"
                     tabIndex={-1}
@@ -1131,6 +1147,21 @@ function DataGridTable<R>({
                     <span className="block truncate text-xs font-semibold">{col.title}</span>
                     {(col.headerTags && headerTagsOf(col)) ||
                       (col.subtitle && <span className="block truncate text-[10px] text-muted">{col.subtitle}</span>)}
+                  </button>
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => toggleFrozen(col.key)}
+                    aria-label={pinned ? `เลิกตรึง ${col.title}` : `ตรึง ${col.title}`}
+                    title={pinned ? 'เลิกตรึงคอลัมน์' : 'ตรึงคอลัมน์ไว้ทางซ้าย'}
+                    className={cn(
+                      'flex shrink-0 items-center rounded p-1 transition',
+                      pinned
+                        ? 'text-brand-700 hover:bg-brand-100'
+                        : 'text-muted opacity-0 group-hover:opacity-100 hover:bg-surface-2 pointer-coarse:opacity-60',
+                    )}
+                  >
+                    <Pin className={cn('size-3.5 rotate-45', pinned && 'fill-current')} />
                   </button>
                   {col.filterable !== false && (
                     <button
@@ -1283,6 +1314,16 @@ function DataGridTable<R>({
           selected={filters[columns[filterMenu].key] ?? null}
           sort={sort}
           colKey={columns[filterMenu].key}
+          yearMode={
+            columns[filterMenu].yearRange
+              ? {
+                  current: years[columns[filterMenu].key] ?? null,
+                  count: (y) => rows.filter((r) => inYearRange(columns[filterMenu].yearRange!(r), y)).length,
+                  onApply: (y) =>
+                    setYears(({ [columns[filterMenu].key]: _, ...rest }) => (y == null ? rest : { ...rest, [columns[filterMenu].key]: y })),
+                }
+              : undefined
+          }
           frozen={filterMenu < nFrozen}
           onToggleFrozen={() => {
             toggleFrozen(columns[filterMenu].key)

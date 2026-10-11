@@ -1,8 +1,9 @@
-import { ArrowDownAZ, ArrowUpAZ, Pin, PinOff, Search } from 'lucide-react'
+import { ArrowDownAZ, ArrowUpAZ, CalendarRange, Pin, PinOff, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { Floating } from './floating'
 import type { SortDir, SortState } from './types'
+import { asYear } from './utils'
 
 /** เมนูหัวคอลัมน์แบบ Excel: เรียง · ค้นหา · ติ๊กเลือกค่า */
 export function FilterMenu({
@@ -16,6 +17,7 @@ export function FilterMenu({
   onSort,
   frozen,
   onToggleFrozen,
+  yearMode,
   onApply,
   onClose,
 }: {
@@ -33,6 +35,8 @@ export function FilterMenu({
   /** คอลัมน์นี้ตรึงอยู่ไหม · ไม่ส่ง onToggleFrozen = ไม่มีเมนูตรึง */
   frozen?: boolean
   onToggleFrozen?: () => void
+  /** คอลัมน์ช่วงปี: พิมพ์ปีในช่องค้นหา = กรองแถวที่ช่วงครอบคลุมปีนั้น */
+  yearMode?: { current: number | null; count: (year: number) => number; onApply: (year: number | null) => void }
   onApply: (selected: string[] | null) => void
   onClose: () => void
 }) {
@@ -74,7 +78,14 @@ export function FilterMenu({
     })
   }
 
+  const year = yearMode ? asYear(q) : null
+
   function apply() {
+    if (year != null && yearMode) {
+      yearMode.onApply(year)
+      onClose()
+      return
+    }
     // พิมพ์ค้นหาแล้วกดตกลง = กรองเฉพาะค่าที่ค้นเจอและติ๊กไว้ (แบบ Excel)
     const pool = q.trim() ? visible : values
     const picked = pool.filter((v) => checked.has(v.value)).map((v) => v.value)
@@ -127,10 +138,41 @@ export function FilterMenu({
             if (e.key === 'Enter') apply()
             if (e.key === 'Escape') onClose()
           }}
-          placeholder="ค้นหาค่า…"
+          placeholder={yearMode ? 'ค้นหาค่า หรือพิมพ์ปี เช่น 2030' : 'ค้นหาค่า…'}
           className="h-9 w-full rounded-md border border-line bg-surface pr-2 pl-8 text-sm outline-none focus:border-brand-600"
         />
       </label>
+      {yearMode?.current != null && year == null && (
+        <div className="mb-2 flex items-center gap-2 rounded-md bg-brand-50 px-2 py-1.5 text-sm text-brand-900 ring-1 ring-brand-200 ring-inset">
+          <CalendarRange className="size-4 shrink-0 text-brand-700" />
+          <span className="flex-1">
+            ครอบคลุมปี <b>{yearMode.current}</b>
+          </span>
+          <button
+            type="button"
+            className="text-xs font-medium text-brand-700 hover:underline"
+            onClick={() => {
+              yearMode.onApply(null)
+              onClose()
+            }}
+          >
+            ล้างปี
+          </button>
+        </div>
+      )}
+      {year != null && yearMode ? (
+        <button
+          type="button"
+          onClick={apply}
+          className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-brand-300 bg-brand-50/60 px-3 py-3 text-center text-sm text-brand-900 transition hover:bg-brand-50"
+        >
+          <CalendarRange className="size-5 text-brand-700" />
+          <span>
+            ช่วงที่ครอบคลุมปี <b>{year}</b>
+          </span>
+          <span className="text-xs text-muted">{yearMode.count(year)} รายการ · กด Enter หรือ ตกลง</span>
+        </button>
+      ) : (
       <div className="min-h-0 flex-1 overflow-auto rounded-md border border-line">
         <label className="flex cursor-pointer items-center gap-2 border-b border-line bg-surface-2 px-2 py-1.5 text-sm font-medium">
           <input type="checkbox" className="accent-brand-700" checked={allVisibleChecked} onChange={toggleAll} />
@@ -157,6 +199,7 @@ export function FilterMenu({
         ))}
         {visible.length === 0 && <div className="px-2 py-4 text-center text-sm text-muted">ไม่พบค่า</div>}
       </div>
+      )}
       <div className="mt-2 flex gap-2">
         <button
           type="button"

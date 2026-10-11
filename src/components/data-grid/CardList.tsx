@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 import type { DataGridProps } from './DataGrid'
 import { FilterChips, pickedText, type FilterChip } from '@/components/ui/filter-chips'
 import type { CellValue, GridColumn, SortState } from './types'
-import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort } from './utils'
+import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort, inYearRange, asYear } from './utils'
 
 const CHUNK = 30
 
@@ -50,6 +50,7 @@ export function CardList<R>({
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<SortState>([])
   const [filters, setFilters] = useState<Record<string, string[]>>({})
+  const [years, setYears] = useState<Record<string, number>>({})
   const [sheet, setSheet] = useState<null | 'filter' | 'sort'>(null)
   const [limit, setLimit] = useState(CHUNK)
   const [editId, setEditId] = useState<string | null>(null)
@@ -66,6 +67,10 @@ export function CardList<R>({
       const set = new Set(allowed)
       list = list.filter((r) => set.has(filterText(col, r)))
     }
+    for (const [key, y] of Object.entries(years)) {
+      const col = columns.find((c) => c.key === key)
+      if (col?.yearRange) list = list.filter((r) => inYearRange(col.yearRange!(r), y))
+    }
     if (query) {
       const words = query.split(/\s+/)
       list = list.filter((r) => {
@@ -77,9 +82,9 @@ export function CardList<R>({
     if (cmp) list = [...list].sort(cmp)
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, query, sort, columns, editId])
+  }, [rows, filters, years, query, sort, columns, editId])
 
-  useEffect(() => setLimit(CHUNK), [query, filters, sort])
+  useEffect(() => setLimit(CHUNK), [query, filters, years, sort])
   useEffect(() => onSelectionChange?.([...picked]), [picked, onSelectionChange])
   // แถวที่เลือกไว้แต่หายไปแล้ว (ลบ/บันทึก) ไม่ต้องค้าง
   useEffect(() => {
@@ -90,7 +95,7 @@ export function CardList<R>({
 
   const filterCols = columns.filter((c) => c.filterable !== false && (c.filterValue || c.type === 'select' || c.options || c.key === 'country' || c.key === 'store_id'))
   const sortCols = columns.filter((c) => !c.render || c.get)
-  const nFilters = Object.values(filters).filter((v) => v.length).length
+  const nFilters = Object.values(filters).filter((v) => v.length).length + Object.keys(years).length
   const chips: FilterChip[] = []
   if (q.trim()) chips.push({ key: 'q', label: 'ค้นหา', value: `“${q.trim()}”`, onRemove: () => setQ('') })
   else if (search?.trim() && onClearSearch) chips.push({ key: 'q', label: 'ค้นหา', value: `“${search.trim()}”`, onRemove: onClearSearch })
@@ -104,6 +109,13 @@ export function CardList<R>({
       onRemove: () => setFilters(({ [key]: _, ...rest }) => rest),
     })
   }
+  for (const [key, y] of Object.entries(years))
+    chips.push({
+      key: `y:${key}`,
+      label: columns.find((c) => c.key === key)?.title ?? key,
+      value: `ครอบคลุมปี ${y}`,
+      onRemove: () => setYears(({ [key]: _, ...rest }) => rest),
+    })
   sort.forEach((st, i) =>
     chips.push({
       key: `s:${st.key}`,
@@ -115,6 +127,7 @@ export function CardList<R>({
   const clearAll = () => {
     setQ('')
     setFilters({})
+    setYears({})
     setSort([])
     onClearSearch?.()
   }
@@ -358,7 +371,7 @@ export function CardList<R>({
           onClose={() => setSheet(null)}
           footer={
             <>
-              <Button variant="ghost" onClick={() => setFilters({})} disabled={!nFilters}>
+              <Button variant="ghost" onClick={() => (setFilters({}), setYears({}))} disabled={!nFilters}>
                 ล้างตัวกรอง
               </Button>
               <Button variant="primary" onClick={() => setSheet(null)}>
@@ -377,6 +390,22 @@ export function CardList<R>({
               return (
                 <div key={c.key}>
                   <div className="mb-1.5 text-sm font-medium">{c.title}</div>
+                  {c.yearRange && (
+                    <label className="mb-2 flex items-center gap-2 text-sm">
+                      <span className="shrink-0 text-ink-2">ครอบคลุมปี</span>
+                      <input
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="เช่น 2030"
+                        defaultValue={years[c.key] ?? ''}
+                        onChange={(e) => {
+                          const y = asYear(e.target.value)
+                          setYears(({ [c.key]: _, ...rest }) => (y == null ? rest : { ...rest, [c.key]: y }))
+                        }}
+                        className="h-9 w-28 rounded-lg border border-line-strong bg-surface px-3 outline-none focus:border-brand-600"
+                      />
+                    </label>
+                  )}
                   <div className="flex flex-wrap gap-1.5">
                     {values.map((v) => {
                       const on = cur.includes(v)

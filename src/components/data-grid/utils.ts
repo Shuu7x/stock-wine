@@ -167,3 +167,17 @@ export function toggleSort(sort: SortState, key: string, dir: SortDir | null): S
   if (!dir) return sort.filter((s) => s.key !== key)
   return sort.some((s) => s.key === key) ? sort.map((s) => (s.key === key ? { key, dir } : s)) : [...sort, { key, dir }]
 }
+
+/** ช่วงปีครอบคลุมปีที่ค้นหาไหม · ไม่มีปีเริ่ม/ปีจบ = เปิดด้านนั้น · ไม่มีทั้งคู่ = ไม่ตรง */
+export function inYearRange(r: { from: number | null; to: number | null }, year: number): boolean {
+  if (r.from == null && r.to == null) return false
+  return (r.from == null || year >= r.from) && (r.to == null || year <= r.to)
+}
+
+/** ข้อความเป็นปี ค.ศ. 4 หลักไหม (1800–2200) */
+export function asYear(text: string): number | null {
+  const s = text.trim()
+  if (!/^\d{4}$/.test(s)) return null
+  const y = Number(s)
+  return y >= 1800 && y <= 2200 ? y : null
+}
