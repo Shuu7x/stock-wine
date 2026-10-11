@@ -4,10 +4,8 @@ import {
   Archive,
   ArrowLeftRight,
   ClipboardCheck,
-  ExternalLink,
   FileSpreadsheet,
   GlassWater,
-  History,
   QrCode,
   RotateCcw,
   Save,
@@ -34,7 +32,6 @@ import {
   type StockItem,
   type StockItemPatch,
 } from '../api/stock.api'
-import { ItemHistoryDialog } from '@/features/history/components/LogList'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
 import { Loading } from '@/components/ui/loading'
@@ -72,7 +69,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   // ลบที่พักไว้ (ยังไม่บันทึก) — แสดงเป็นแถวสีแดง
   const [pendingDeletes, setPendingDeletes] = useState<string[]>([])
   const [confirmSave, setConfirmSave] = useState(false)
-  const [historyOf, setHistoryOf] = useState<StockItem | null>(null)
 
   const storesQ = useQuery(storesOptions())
   const itemsQ = useQuery(stockItemsOptions())
@@ -244,7 +240,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const selectedToDelete = selectedLive.filter((id) => !pendingSet.has(id))
   const selectedPending = selectedLive.filter((id) => pendingSet.has(id))
   const selectedWithStock = selectedToDelete.filter((id) => (byId.get(id)?.balance ?? 0) > 0)
-  const single = selectedIds.length === 1 ? byId.get(selectedIds[0]) : undefined
 
   const [exporting, setExporting] = useState(false)
 
@@ -401,16 +396,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           <Button size="sm" onClick={() => navigate({ to: '/qr', search: { items: selectedLive.join(',') } })}>
             <QrCode className="size-4" /> ป้าย QR
           </Button>
-          {single && (
-            <>
-              <Button size="sm" variant="ghost" onClick={() => setHistoryOf(single)}>
-                <History className="size-4" /> ประวัติ
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => navigate({ to: '/item/$id', params: { id: single.id } })}>
-                <ExternalLink className="size-4" /> เปิดหน้าไวน์
-              </Button>
-            </>
-          )}
           <span className="flex-1" />
           {selectedToDelete.length > 0 && (
             <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => stageDelete(selectedToDelete)}>
@@ -464,11 +449,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
               <div className={cn('text-xl font-bold tabular-nums', r.balance <= 0 ? 'text-muted' : isLow(r.balance) ? 'text-warning-700' : 'text-brand-800')}>{fmtInt(r.balance)}</div>
               <div className="text-[11px] text-muted">{r.balance <= 0 ? 'หมด' : isLow(r.balance) ? 'ใกล้หมด' : 'ขวด'}</div>
             </div>
-          ),
-          actions: (r) => (
-            <Button className="w-full" onClick={() => navigate({ to: '/item/$id', params: { id: r.id } })}>
-              เปิดหน้าไวน์ · ประวัติ เบิก ขาย ป้าย QR
-            </Button>
           ),
         }}
         getRowId={(r) => r.id}
@@ -544,7 +524,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         )}
       </Dialog>
 
-      <ItemHistoryDialog item={historyOf} stores={stores} onClose={() => setHistoryOf(null)} />
     </div>
   )
 }
