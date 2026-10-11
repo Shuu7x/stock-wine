@@ -12,3 +12,13 @@ export function parseRating(text: string): string | null | undefined {
   return m ? `${m[1]}${m[2].toUpperCase()}` : undefined
 }
 
+
+/** นับคะแนนตามตัวย่อนักวิจารณ์ เช่น [["RP", 18], ["WS", 3]] — มากไปน้อย */
+export function ratingCounts(values: Array<string | null | undefined>): Array<[string, number]> {
+  const m = new Map<string, number>()
+  for (const v of values) {
+    const code = v ? /[A-Za-z]+$/.exec(v.trim())?.[0]?.toUpperCase() : undefined
+    if (code) m.set(code, (m.get(code) ?? 0) + 1)
+  }
+  return [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+}

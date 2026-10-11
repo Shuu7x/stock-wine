@@ -2,7 +2,7 @@ import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { drinkStatus, fmtMaturity, fmtMoney, parseMaturity } from '@/lib/format'
 import type { LookupValue } from '@/features/settings/api/settings.api'
-import { parseRating } from '@/lib/rating'
+import { parseRating, ratingCounts } from '@/lib/rating'
 import type { StockItem, Store } from './api/stock.api'
 
 /** ฟิลด์ไวน์ที่ทั้งสต็อกและใบรับเข้าใช้ร่วมกัน (ชื่อตรงกับคอลัมน์ในตาราง) */
@@ -139,6 +139,20 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     width: 150,
     placeholder: '100RP',
     parse: parseRating,
+    // ป้ายนับจำนวนต่อนักวิจารณ์ของแถวที่แสดงอยู่ เช่น RP 18 · WS 3
+    headerTags: (rows) => {
+      const counts = ratingCounts(rows.map((r) => r.rating))
+      if (!counts.length) return null
+      return counts.map(([code, n]) => (
+        <span
+          key={code}
+          title={`มีคะแนน ${code} ${n} รายการ`}
+          className="inline-flex shrink-0 items-center gap-0.5 rounded bg-brand-100 px-1 text-[10px] leading-4 font-medium text-brand-800"
+        >
+          {code} <b className="tabular-nums">{n}</b>
+        </span>
+      ))
+    },
   }
   const maturity: GridColumn<R> = {
     key: 'maturity',

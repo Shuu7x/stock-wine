@@ -859,6 +859,12 @@ function DataGridTable<R>({
     width: offsets[g.right + 1] - offsets[g.left],
     height: (g.bottom - g.top + 1) * ROW_H,
   })
+  const viewRows = useMemo(() => fullIdx.map((i) => rows[i]), [fullIdx, rows])
+  const headerTagsOf = (col: GridColumn<R>) => {
+    const tags = col.headerTags!(viewRows)
+    return tags == null ? null : <span className="mt-0.5 flex gap-1 overflow-hidden">{tags}</span>
+  }
+
   const chips = useMemo<FilterChip[]>(() => {
     const out: FilterChip[] = []
     if (search.trim() && onClearSearch) out.push({ key: 'q', label: 'ค้นหา', value: `“${search.trim()}”`, onRemove: onClearSearch })
@@ -1073,7 +1079,8 @@ function DataGridTable<R>({
                     className={cn('min-w-0 flex-1 text-left leading-tight', col.align === 'right' && 'text-right')}
                   >
                     <span className="block truncate text-xs font-semibold">{col.title}</span>
-                    {col.subtitle && <span className="block truncate text-[10px] text-muted">{col.subtitle}</span>}
+                    {(col.headerTags && headerTagsOf(col)) ||
+                      (col.subtitle && <span className="block truncate text-[10px] text-muted">{col.subtitle}</span>)}
                   </button>
                   {col.filterable !== false && (
                     <button
