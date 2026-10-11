@@ -31,6 +31,8 @@ import {
   parseText,
   parseTsv,
   setValue,
+  sortComparator,
+  toggleSort,
   toTsv,
 } from './utils'
 import { useFontScale } from '@/lib/font-scale'
@@ -169,7 +171,7 @@ function DataGridTable<R>({
 
   const [sel, setSel] = useState<Selection | null>(null)
   const [editing, setEditing] = useState<{ r: number; c: number; text: string; openList: boolean } | null>(null)
-  const [sort, setSort] = useState<SortState>(null)
+  const [sort, setSort] = useState<SortState>([])
   const [filters, setFilters] = useState<FilterState>({})
   const [filterMenu, setFilterMenu] = useState<number | null>(null)
   const [fillTarget, setFillTarget] = useState<Range | null>(null)
@@ -179,7 +181,7 @@ function DataGridTable<R>({
   // ── มุมมอง (กรอง/เรียง) ────────────────────────────────────────────────
   // แถวที่แก้หลังกรอง/เรียงแล้วจะไม่กระโดดหาย (เหมือน Excel ที่ต้องกด apply ใหม่)
   const viewKey = JSON.stringify([sort, filters, search.trim().toLowerCase()])
-  const viewActive = viewKey !== JSON.stringify([null, {}, ''])
+  const viewActive = viewKey !== JSON.stringify([[], {}, ''])
   const snap = useRef<{ key: string; ids: string[]; known: Set<string> } | null>(null)
 
   /** ลำดับแถวทั้งหมดหลังกรอง/เรียง (ทุกหน้า) */
@@ -207,21 +209,8 @@ function DataGridTable<R>({
           ),
         )
       }
-      if (sort) {
-        const col = columns.find((c) => c.key === sort.key)
-        if (col) {
-          const mul = sort.dir === 'asc' ? 1 : -1
-          idx.sort((a, b) => {
-            const av = getValue(col, rows[a])
-            const bv = getValue(col, rows[b])
-            if (av == null && bv == null) return 0
-            if (av == null) return 1
-            if (bv == null) return -1
-            if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * mul
-            return formatValue(col, rows[a]).localeCompare(formatValue(col, rows[b]), 'th', { numeric: true }) * mul
-          })
-        }
-      }
+      const cmp = sortComparator(columns, sort)
+      if (cmp) idx.sort((a, b) => cmp(rows[a], rows[b]))
       snap.current = { key: viewKey, ids: idx.map((i) => getRowId(rows[i])), known: new Set(idToIdx.keys()) }
     } else {
       const s = snap.current
@@ -1024,7 +1013,8 @@ function DataGridTable<R>({
             </div>
             {columns.map((col, c) => {
               const filtered = !!filters[col.key]
-              const sorted = sort?.key === col.key ? sort.dir : null
+              const level = sort.findIndex((s) => s.key === col.key)
+              const sorted = level >= 0 ? sort[level].dir : null
               const inCols = range && c >= range.left && c <= range.right
               return (
                 <div
@@ -1065,6 +1055,7 @@ function DataGridTable<R>({
                       ) : sorted === 'desc' ? (
                         <ArrowDown className="size-3.5" />
                       ) : null}
+                      {sorted && sort.length > 1 && <span className="text-[10px] leading-none font-bold tabular-nums">{level + 1}</span>}
                       {(filtered || !sorted) && <Filter className="size-3.5" />}
                     </button>
                   )}
@@ -1169,14 +1160,29 @@ function DataGridTable<R>({
             กรองอยู่ {activeFilters} คอลัมน์ <X className="size-3" />
           </button>
         )}
-        {sort && (
-          <button
-            type="button"
-            onClick={() => setSort(null)}
-            className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 hover:bg-line"
-          >
-            เรียงตาม {columns.find((c) => c.key === sort.key)?.title} <X className="size-3" />
-          </button>
+        {sort.length > 0 && (
+          <span className="inline-flex flex-wrap items-center gap-1">
+            เรียงตาม
+            {sort.map((s, i) => (
+              <button
+                key={s.key}
+                type="button"
+                title="เอาการเรียงนี้ออก"
+                onClick={() => setSort((v) => toggleSort(v, s.key, null))}
+                className="inline-flex items-center gap-1 rounded-full bg-surface-3 px-2 py-0.5 hover:bg-line"
+              >
+                {sort.length > 1 && <b className="tabular-nums">{i + 1}.</b>}
+                {columns.find((c) => c.key === s.key)?.title}
+                {s.dir === 'asc' ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                <X className="size-3" />
+              </button>
+            ))}
+            {sort.length > 1 && (
+              <button type="button" onClick={() => setSort([])} className="px-1 text-brand-700 hover:underline">
+                ล้างการเรียง
+              </button>
+            )}
+          </span>
         )}
         {summary && (
           <span className="tabular-nums">
@@ -1213,8 +1219,10 @@ function DataGridTable<R>({
           title={columns[filterMenu].title}
           values={filterValues}
           selected={filters[columns[filterMenu].key] ?? null}
-          sort={sort?.key === columns[filterMenu].key ? sort.dir : null}
-          onSort={(dir) => setSort(dir ? { key: columns[filterMenu].key, dir } : null)}
+          sort={sort}
+          colKey={columns[filterMenu].key}
+          colTitle={(k) => columns.find((c) => c.key === k)?.title ?? k}
+          onSort={(dir) => setSort((v) => toggleSort(v, columns[filterMenu].key, dir))}
           onApply={(picked) =>
             setFilters((f) => {
               const next = { ...f }

@@ -1,5 +1,5 @@
 import { fmtDate, parseDate } from '@/lib/format'
-import type { CellValue, GridColumn, Selection } from './types'
+import type { CellValue, GridColumn, Selection, SortDir, SortState } from './types'
 
 export const BLANK_LABEL = '(ว่าง)'
 
@@ -138,4 +138,32 @@ export function matchesWords(text: string, query: string): boolean {
     .split(/\s+/)
     .filter(Boolean)
     .every((w) => t.includes(w))
+}
+
+/** ตัวเปรียบเทียบแถวตามการเรียงหลายระดับ · ค่าว่างอยู่ท้ายเสมอ */
+export function sortComparator<R>(columns: GridColumn<R>[], sort: SortState): ((a: R, b: R) => number) | null {
+  const levels = sort.flatMap((s) => {
+    const col = columns.find((c) => c.key === s.key)
+    return col ? [{ col, mul: s.dir === 'asc' ? 1 : -1 }] : []
+  })
+  if (!levels.length) return null
+  return (a, b) => {
+    for (const { col, mul } of levels) {
+      const av = getValue(col, a)
+      const bv = getValue(col, b)
+      let d: number
+      if (av == null || av === '') d = bv == null || bv === '' ? 0 : 1
+      else if (bv == null || bv === '') d = -1
+      else if (typeof av === 'number' && typeof bv === 'number') d = (av - bv) * mul
+      else d = formatValue(col, a).localeCompare(formatValue(col, b), 'th', { numeric: true }) * mul
+      if (d) return d
+    }
+    return 0
+  }
+}
+
+/** เลือกเรียงคอลัมน์: ยังไม่มี = ต่อท้ายเป็นระดับถัดไป · มีแล้ว = เปลี่ยนทิศ · null = เอาออก */
+export function toggleSort(sort: SortState, key: string, dir: SortDir | null): SortState {
+  if (!dir) return sort.filter((s) => s.key !== key)
+  return sort.some((s) => s.key === key) ? sort.map((s) => (s.key === key ? { key, dir } : s)) : [...sort, { key, dir }]
 }

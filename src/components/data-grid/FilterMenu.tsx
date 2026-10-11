@@ -2,6 +2,7 @@ import { ArrowDownAZ, ArrowUpAZ, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { Floating } from './floating'
+import type { SortDir, SortState } from './types'
 
 /** เมนูหัวคอลัมน์แบบ Excel: เรียง · ค้นหา · ติ๊กเลือกค่า */
 export function FilterMenu({
@@ -10,6 +11,8 @@ export function FilterMenu({
   values,
   selected,
   sort,
+  colKey,
+  colTitle,
   onSort,
   onApply,
   onClose,
@@ -20,8 +23,11 @@ export function FilterMenu({
   values: Array<{ value: string; count: number }>
   /** null = ไม่กรอง (เลือกทั้งหมด) */
   selected: string[] | null
-  sort: 'asc' | 'desc' | null
-  onSort: (dir: 'asc' | 'desc' | null) => void
+  /** การเรียงทั้งตาราง (หลายระดับ) */
+  sort: SortState
+  colKey: string
+  colTitle: (key: string) => string
+  onSort: (dir: SortDir | null) => void
   onApply: (selected: string[] | null) => void
   onClose: () => void
 }) {
@@ -71,10 +77,13 @@ export function FilterMenu({
     onClose()
   }
 
-  const sortBtn = (dir: 'asc' | 'desc') =>
+  const level = sort.findIndex((s) => s.key === colKey)
+  const dir = level >= 0 ? sort[level].dir : null
+  const others = sort.filter((s) => s.key !== colKey)
+  const sortBtn = (d: SortDir) =>
     cn(
       'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-surface-2',
-      sort === dir && 'bg-brand-50 font-medium text-brand-800',
+      dir === d && 'bg-brand-50 font-medium text-brand-800',
     )
 
   return (
@@ -85,12 +94,19 @@ export function FilterMenu({
       className="flex flex-col rounded-xl border border-line bg-surface p-2 text-ink shadow-2xl"
     >
       <div className="px-2 pt-1 pb-2 text-xs font-semibold tracking-wide text-muted uppercase">{title}</div>
-      <button type="button" className={sortBtn('asc')} onClick={() => onSort(sort === 'asc' ? null : 'asc')}>
+      <button type="button" className={sortBtn('asc')} onClick={() => onSort(dir === 'asc' ? null : 'asc')}>
         <ArrowDownAZ className="size-4" /> เรียง น้อย → มาก
       </button>
-      <button type="button" className={sortBtn('desc')} onClick={() => onSort(sort === 'desc' ? null : 'desc')}>
+      <button type="button" className={sortBtn('desc')} onClick={() => onSort(dir === 'desc' ? null : 'desc')}>
         <ArrowUpAZ className="size-4" /> เรียง มาก → น้อย
       </button>
+      {others.length > 0 && (
+        <p className="px-2 pt-1 text-xs text-muted">
+          {level >= 0
+            ? `การเรียงลำดับที่ ${level + 1} จาก ${sort.length}`
+            : `จะเรียงเป็นลำดับที่ ${sort.length + 1} ต่อจาก ${others.map((s) => colTitle(s.key)).join(', ')}`}
+        </p>
+      )}
       <div className="my-2 border-t border-line" />
       <label className="relative mb-2 block">
         <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted" />

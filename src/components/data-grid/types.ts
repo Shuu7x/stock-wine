@@ -67,7 +67,9 @@ export type CellPos = { r: number; c: number }
 
 export type Selection = { anchor: CellPos; focus: CellPos }
 
-export type SortState = { key: string; dir: 'asc' | 'desc' } | null
+export type SortDir = 'asc' | 'desc'
+/** เรียงหลายคอลัมน์ — ตัวแรกสำคัญสุด ถ้าเท่ากันค่อยดูตัวถัดไป */
+export type SortState = { key: string; dir: SortDir }[]
 
 /** ค่า filter ต่อคอลัมน์ = ชุดข้อความที่ยอมให้แสดง */
 export type FilterState = Record<string, string[]>

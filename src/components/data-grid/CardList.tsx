@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { DateInput } from '@/components/ui/date-input'
 import { cn } from '@/lib/cn'
 import type { DataGridProps } from './DataGrid'
-import type { CellValue, GridColumn } from './types'
-import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue } from './utils'
+import type { CellValue, GridColumn, SortState } from './types'
+import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort } from './utils'
 
 const CHUNK = 30
 
@@ -46,7 +46,7 @@ export function CardList<R>({
   const titleCol = columns.find((c) => c.suggest) ?? columns[0]
 
   const [q, setQ] = useState('')
-  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null)
+  const [sort, setSort] = useState<SortState>([])
   const [filters, setFilters] = useState<Record<string, string[]>>({})
   const [sheet, setSheet] = useState<null | 'filter' | 'sort'>(null)
   const [limit, setLimit] = useState(CHUNK)
@@ -71,20 +71,8 @@ export function CardList<R>({
         return words.every((w) => hay.includes(w))
       })
     }
-    if (sort) {
-      const col = columns.find((c) => c.key === sort.key)
-      if (col) {
-        const mul = sort.dir === 'asc' ? 1 : -1
-        list = [...list].sort((a, b) => {
-          const av = getValue(col, a)
-          const bv = getValue(col, b)
-          if (av == null) return 1
-          if (bv == null) return -1
-          if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * mul
-          return formatValue(col, a).localeCompare(formatValue(col, b), 'th', { numeric: true }) * mul
-        })
-      }
-    }
+    const cmp = sortComparator(columns, sort)
+    if (cmp) list = [...list].sort(cmp)
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, filters, query, sort, columns, editId])
@@ -120,7 +108,7 @@ export function CardList<R>({
         type="button"
         onClick={() => setSheet('sort')}
         aria-label="เรียงลำดับ"
-        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg border', sort ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line-strong bg-surface text-ink-2')}
+        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg border', sort.length ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-line-strong bg-surface text-ink-2')}
       >
         <ArrowDownUp className="size-4" />
       </button>
@@ -300,17 +288,34 @@ export function CardList<R>({
       )}
 
       {sheet === 'sort' && (
-        <Sheet title="เรียงลำดับ" onClose={() => setSheet(null)}>
+        <Sheet
+          title="เรียงลำดับ"
+          onClose={() => setSheet(null)}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setSort([])} disabled={!sort.length}>
+                ล้างการเรียง
+              </Button>
+              <Button className="flex-1" onClick={() => setSheet(null)}>
+                ตกลง
+              </Button>
+            </>
+          }
+        >
+          <p className="px-3 pb-2 text-xs text-muted">เลือกได้หลายคอลัมน์ · เรียงตามลำดับที่เลือก แตะซ้ำเพื่อเอาออก</p>
           <ul className="flex flex-col">
-            <SheetOption on={!sort} onClick={() => (setSort(null), setSheet(null))}>
-              ตามลำดับเดิม
-            </SheetOption>
             {sortCols.flatMap((c) =>
-              (['asc', 'desc'] as const).map((dir) => (
-                <SheetOption key={c.key + dir} on={sort?.key === c.key && sort.dir === dir} onClick={() => (setSort({ key: c.key, dir }), setSheet(null))}>
-                  {c.title} <span className="text-muted">{dir === 'asc' ? 'น้อย → มาก' : 'มาก → น้อย'}</span>
-                </SheetOption>
-              )),
+              (['asc', 'desc'] as const).map((dir) => {
+                const level = sort.findIndex((s) => s.key === c.key && s.dir === dir)
+                return (
+                  <SheetOption key={c.key + dir} on={level >= 0} onClick={() => setSort((v) => toggleSort(v, c.key, level >= 0 ? null : dir))}>
+                    {level >= 0 && sort.length > 1 && (
+                      <b className="mr-1 inline-flex size-5 items-center justify-center rounded-full bg-brand-700 text-[11px] text-white">{level + 1}</b>
+                    )}
+                    {c.title} <span className="text-muted">{dir === 'asc' ? 'น้อย → มาก' : 'มาก → น้อย'}</span>
+                  </SheetOption>
+                )
+              }),
             )}
           </ul>
         </Sheet>
