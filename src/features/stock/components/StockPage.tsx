@@ -461,7 +461,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         cellChanged={cellChanged}
         pageSizeKey="stock"
         search={search}
-        emptyState={itemsQ.isLoading ? <Loading screen label="กำลังโหลดสต็อก…" /> : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
+        emptyState={itemsQ.isLoading ? <Loading label="กำลังโหลดสต็อก…" /> : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />
 
       <Dialog

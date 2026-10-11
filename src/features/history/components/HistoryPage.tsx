@@ -392,9 +392,9 @@ export function HistoryPage({
               <span />
             </div>
 
-            {query?.isLoading && <Loading screen />}
+            {query?.isLoading && <Loading />}
             {!query?.isLoading && list.length === 0 && (
-              <div className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
+              <div className="flex h-full flex-col items-center justify-center gap-2 p-12 text-center text-sm text-muted">
                 <FileX2 className="size-10 text-line-strong" />
                 {filtered ? 'ไม่พบเอกสารตามตัวกรอง' : `ยังไม่มีเอกสาร${TAB[tab].label}`}
               </div>

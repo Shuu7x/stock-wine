@@ -125,9 +125,9 @@ function PendingTab({ onIssued }: { onIssued: (ids: string[]) => void }) {
 
       <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">
         <div className="min-h-0 flex-1 overflow-auto">
-          {salesQ.isLoading && <Loading screen />}
+          {salesQ.isLoading && <Loading />}
           {!salesQ.isLoading && !groups.length && (
-            <div className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-12 text-center text-sm text-muted">
               <FileX2 className="size-10 text-line-strong" />
               {filtered ? 'ไม่พบใบขายตามตัวกรอง' : 'ไม่มีใบขายที่รอออกบิล'}
               {!filtered && (
@@ -383,11 +383,11 @@ function IssuedTab({ onOpen }: { onOpen: (ids: string[]) => void }) {
         <ul className="min-h-0 flex-1 divide-y divide-line overflow-auto">
           {q.isLoading && (
             <li className="h-full">
-              <Loading screen />
+              <Loading />
             </li>
           )}
           {!q.isLoading && !list.length && (
-            <li className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
+            <li className="flex h-full flex-col items-center justify-center gap-2 p-12 text-center text-sm text-muted">
               <FileX2 className="size-10 text-line-strong" />
               {filtered ? 'ไม่พบบิลตามตัวกรอง' : 'ยังไม่มีบิล'}
             </li>

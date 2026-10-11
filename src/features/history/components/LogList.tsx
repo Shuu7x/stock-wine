@@ -211,9 +211,9 @@ export function LogList({
         ))}
       </div>
       <div className={cn(fill && 'min-h-[240px] flex-1 overflow-auto pr-1')}>
-      {q.isLoading && <Loading screen />}
+      {q.isLoading && <Loading className="rounded-xl border border-line bg-surface" />}
       {!q.isLoading && !q.data?.items.length && (
-        <div className="rounded-xl border border-line bg-surface p-10 text-center text-sm text-muted">ยังไม่มีประวัติ</div>
+        <div className="flex h-full items-center justify-center rounded-xl border border-line bg-surface p-10 text-center text-sm text-muted">ยังไม่มีประวัติ</div>
       )}
       {groups.map(([day, logs]) => (
         <section key={day}>

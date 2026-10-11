@@ -301,7 +301,7 @@ export function LookupsSettings() {
         cellError={(r, key) => errors.get(r._id)?.[key] ?? null}
         rowClassName={(r) => (r.is_active ? undefined : 'text-muted')}
         pageSizeKey={`lookups-${category}`}
-        emptyState={lookupsQ.isLoading ? <Loading screen /> : 'ยังไม่มีรายการ — กดเพิ่มแถว หรือนำเข้าจากสต็อก'}
+        emptyState={lookupsQ.isLoading ? <Loading /> : 'ยังไม่มีรายการ — กดเพิ่มแถว หรือนำเข้าจากสต็อก'}
       />
     </div>
   )
