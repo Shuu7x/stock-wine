@@ -7,11 +7,13 @@ import {
   ClipboardCheck,
   Printer,
   FileSpreadsheet,
+  FileText,
   FileX2,
   GlassWater,
   History,
   PackagePlus,
   ShoppingBag,
+  Table2,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -45,12 +47,10 @@ import { cn } from '@/lib/cn'
 import type { DocFilter } from '@/lib/doc-filter'
 import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney, todayIso } from '@/lib/format'
 import { VAT_MODE_LABEL } from '@/lib/vat'
-import { DocLinesTable, exportDocs, MovementTable } from './MovementTables'
+import { DocLinesGrid, exportDocs, MovementTable } from './MovementTables'
 import { Loading } from '@/components/ui/loading'
 
 export const HISTORY_TABS = ['logs', 'receipts', 'sales', 'withdrawals', 'transfers', 'adjustments'] as const
-export const HISTORY_VIEWS = ['docs', 'lines'] as const
-export type HistoryView = (typeof HISTORY_VIEWS)[number]
 export type HistoryTab = (typeof HISTORY_TABS)[number]
 type DocTab = Exclude<HistoryTab, 'logs'>
 
@@ -97,6 +97,21 @@ type DocView = {
   footer?: ReactNode[]
 }
 
+/** มุมมองรายละเอียดเอกสารใน drawer — จำค่าที่เลือกล่าสุดไว้ */
+type DocMode = 'doc' | 'table'
+const DOC_MODE_KEY = 'stock-wine:history-doc-view'
+const DOC_MODES: Array<{ value: DocMode; label: string; icon: LucideIcon }> = [
+  { value: 'doc', label: 'มุมมองเอกสาร — หัวเอกสาร ไฟล์แนบ และสรุปรายการ', icon: FileText },
+  { value: 'table', label: 'มุมมองตาราง — ทุกรายการแบบละเอียด กรอง/เรียง/ส่งออกได้', icon: Table2 },
+]
+function loadDocMode(): DocMode {
+  try {
+    return localStorage.getItem(DOC_MODE_KEY) === 'table' ? 'table' : 'doc'
+  } catch {
+    return 'doc'
+  }
+}
+
 const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((s, x) => s + f(x), 0)
 const place = (stores: Store[], storeId: number, rack: string | null) => `${storeName(stores, storeId)} · ${rack ?? '-'}`
 const localDate = (iso: string) => new Date(iso).toLocaleDateString('sv-SE')
@@ -117,17 +132,14 @@ const bottles = (n: number) => (
 
 export function HistoryPage({
   tab,
-  view,
   page,
   pageSize,
   onChange,
 }: {
   tab: HistoryTab
-  /** แท็บเอกสาร: ตามเอกสาร (เดิม) หรือ รายรายการ */
-  view: HistoryView
   page: number
   pageSize: number
-  onChange: (next: { tab?: HistoryTab; view?: HistoryView; page?: number; pageSize?: number }) => void
+  onChange: (next: { tab?: HistoryTab; page?: number; pageSize?: number }) => void
 }) {
   const stores = useQuery(storesOptions()).data ?? []
   const [filter, setFilter] = useState<DocFilter>({})
@@ -152,6 +164,15 @@ export function HistoryPage({
   const [voiding, setVoiding] = useState<DocView | null>(null)
   const [reason, setReason] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [docMode, setDocModeState] = useState<DocMode>(loadDocMode)
+  const setDocMode = (m: DocMode) => {
+    setDocModeState(m)
+    try {
+      localStorage.setItem(DOC_MODE_KEY, m)
+    } catch {
+      /* ไม่จำก็ได้ */
+    }
+  }
 
   function docs(): DocView[] {
     const base = <T extends { created_by_email: string | null; created_at: string }>(d: T): Array<[string, ReactNode]> => [
@@ -302,6 +323,8 @@ export function HistoryPage({
   const list = isDocTab ? docs() : []
   const total = query?.data?.total ?? 0
   const open = list.find((d) => d.id === openId) ?? null
+  const openRaw = (query?.data?.items as Array<Record<string, any>> | undefined)?.find((d) => d.id === openId)
+  const tableMode = docMode === 'table' && !!openRaw
   const hasMoney = tab === 'receipts' || tab === 'sales'
   const filtered = !!(filter.status || filter.from || filter.to)
 
@@ -397,25 +420,12 @@ export function HistoryPage({
                 ]}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ink-2">มุมมอง</span>
-              <Segmented
-                className="!mx-0 !px-0"
-                value={view}
-                onChange={(v) => onChange({ view: v, page: 1 })}
-                items={[
-                  { value: 'docs', label: 'ตามเอกสาร' },
-                  { value: 'lines', label: 'รายรายการ' },
-                ]}
-              />
-            </div>
             {filtered && (
               <Button variant="ghost" onClick={() => setF({})}>
                 <X className="size-4" /> ล้างตัวกรอง
               </Button>
             )}
-            {view === 'docs' && (
-              <div className="ml-auto flex items-center gap-3 pb-0.5">
+            <div className="ml-auto flex items-center gap-3 pb-0.5">
                 <span className="text-sm text-muted">{fmtInt(total)} เอกสาร</span>
                 <Button
                   loading={exporting}
@@ -423,7 +433,7 @@ export function HistoryPage({
                   onClick={async () => {
                     setExporting(true)
                     try {
-                      await exportDocs(tab, filter)
+                      await exportDocs(tab, filter, stores)
                     } finally {
                       setExporting(false)
                     }
@@ -432,13 +442,9 @@ export function HistoryPage({
                   <FileSpreadsheet className="size-4" /> ส่งออก Excel
                 </Button>
               </div>
-            )}
           </div>
 
-          {view === 'lines' && <DocLinesTable tab={tab} filter={filter} stores={stores} />}
-
           {/* รายการเอกสาร */}
-          {view === 'docs' && (
           <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">
             <div
               className={cn(
@@ -528,13 +534,13 @@ export function HistoryPage({
               />
             )}
           </div>
-          )}
         </>
       )}
 
       {/* รายละเอียดเอกสาร */}
       <Drawer
         open={!!open}
+        wide={tableMode}
         onClose={() => setOpenId(null)}
         header={
           open && (
@@ -549,7 +555,27 @@ export function HistoryPage({
                 </div>
                 <div className="text-sm text-muted">
                   {TAB[tab].label} · {fmtDate(open.date)}
+                  {open.party ? ` · ${open.party}` : ''}
                 </div>
+              </div>
+              <div role="tablist" aria-label="มุมมอง" className="ml-auto flex shrink-0 gap-1 rounded-lg bg-brand-50 p-1 ring-1 ring-brand-200 ring-inset">
+                {DOC_MODES.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={docMode === m.value}
+                    aria-label={m.label}
+                    title={m.label}
+                    onClick={() => setDocMode(m.value)}
+                    className={cn(
+                      'flex size-8 items-center justify-center rounded-md transition',
+                      docMode === m.value ? 'bg-brand-700 text-white shadow-sm' : 'text-brand-700 hover:bg-brand-100',
+                    )}
+                  >
+                    <m.icon className="size-4" />
+                  </button>
+                ))}
               </div>
             </div>
           )
@@ -576,7 +602,18 @@ export function HistoryPage({
           )
         }
       >
-        {open && (
+        {open && tableMode && isDocTab && openRaw && (
+          <div className="flex h-full min-h-[420px] flex-col gap-3">
+            {open.status === 'void' && (
+              <div className="rounded-lg border border-danger-600/20 bg-danger-50 px-4 py-2 text-sm text-danger-700">
+                ยกเลิกเมื่อ {fmtDateTime(open.voided_at)}
+                {open.void_reason ? ` — ${open.void_reason}` : ''}
+              </div>
+            )}
+            <DocLinesGrid tab={tab} doc={openRaw} stores={stores} />
+          </div>
+        )}
+        {open && !tableMode && (
           <div className="flex flex-col gap-5">
             {open.status === 'void' && (
               <div className="rounded-lg border border-danger-600/20 bg-danger-50 px-4 py-3 text-sm text-danger-700">

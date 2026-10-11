@@ -1,6 +1,7 @@
 import { X } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { cn } from '@/lib/cn'
 
 /** แผงเลื่อนออกจากด้านขวา (มือถือเต็มจอ) */
 export function Drawer({
@@ -9,12 +10,15 @@ export function Drawer({
   header,
   children,
   footer,
+  wide,
 }: {
   open: boolean
   onClose: () => void
   header: ReactNode
   children: ReactNode
   footer?: ReactNode
+  /** กว้างขึ้น (เช่น แสดงตาราง) */
+  wide?: boolean
 }) {
   useEffect(() => {
     if (!open) return
@@ -35,7 +39,10 @@ export function Drawer({
       <aside
         role="dialog"
         aria-modal="true"
-        className="relative flex h-full w-full animate-[slide-in_200ms_ease-out] flex-col bg-surface shadow-2xl sm:max-w-2xl"
+        className={cn(
+          'relative flex h-full w-full animate-[slide-in_200ms_ease-out] flex-col bg-surface shadow-2xl transition-[max-width] duration-200',
+          wide ? 'sm:max-w-6xl' : 'sm:max-w-2xl',
+        )}
       >
         <div className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0 flex-1">{header}</div>

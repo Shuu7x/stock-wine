@@ -208,68 +208,60 @@ export function MovementTable({ stores, filter }: { stores: Store[]; filter: { f
 const rangeText = (f: DocFilter) =>
   f.from || f.to ? `ช่วง ${f.from ? fmtDate(f.from) : 'แรกสุด'} – ${f.to ? fmtDate(f.to) : 'วันนี้'}` : 'ทุกช่วงเวลา'
 
-// ─── แท็บเอกสาร: มุมมอง "รายรายการ" (ทุกบรรทัดของทุกเอกสารในตัวกรอง) ─────────────
+// ─── แท็บเอกสาร: บรรทัดของเอกสาร (ตารางใน drawer · แผ่นรายรายการใน Excel) ───────────
 export type DocTab = 'receipts' | 'sales' | 'withdrawals' | 'transfers' | 'adjustments'
 type Line = { _id: string; status: 'posted' | 'void' } & Record<string, unknown>
 
-const ALL = 1000 // เอกสารต่อครั้ง (มุมมองรายรายการ / ส่งออก)
+const ALL = 1000 // เอกสารต่อครั้งตอนส่งออก
 
-function useDocLines(tab: DocTab, filter: DocFilter, stores: Store[]) {
-  const qr = useQuery({ ...receiptsListOptions(1, ALL, filter), enabled: tab === 'receipts' })
-  const qs = useQuery({ ...salesListOptions(1, ALL, filter), enabled: tab === 'sales' })
-  const qw = useQuery({ ...withdrawalsListOptions(1, ALL, filter), enabled: tab === 'withdrawals' })
-  const qt = useQuery({ ...transfersListOptions(1, ALL, filter), enabled: tab === 'transfers' })
-  const qa = useQuery({ ...adjustmentsListOptions(1, ALL, filter), enabled: tab === 'adjustments' })
-  const query = { receipts: qr, sales: qs, withdrawals: qw, transfers: qt, adjustments: qa }[tab]
-
-  const lines = useMemo<Line[]>(() => {
-    const sn = (id: number | null) => (id == null ? '' : storeName(stores, id))
-    switch (tab) {
-      case 'receipts':
-        return (qr.data?.items ?? []).flatMap((d) =>
-          [...d.receipt_lines].sort((a, b) => a.line_no - b.line_no).map((l) => ({
-            _id: l.id, status: d.status, date: d.received_at, doc_no: d.doc_no, supplier: l.supplier ?? d.supplier,
-            wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
-            price: l.price_per_bottle, value: l.price_per_bottle == null ? null : l.qty * l.price_per_bottle,
-            kind: l.is_new_item ? 'ใหม่' : 'เพิ่มยอด', remark: l.remark, note: d.note,
-          })),
-        )
-      case 'sales':
-        return (qs.data?.items ?? []).flatMap((d) =>
-          [...d.sale_lines].sort((a, b) => a.line_no - b.line_no).map((l) => ({
-            _id: l.id, status: d.status, date: d.sold_at, doc_no: d.doc_no, customer: d.customer,
-            wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
-            price: l.unit_price, before: l.amount_before_vat, vat: l.vat_amount, total: l.line_total,
-            cost: l.cost_per_bottle, remark: l.remark,
-          })),
-        )
-      case 'withdrawals':
-        return (qw.data?.items ?? []).flatMap((d) =>
-          [...d.withdrawal_lines].sort((a, b) => a.line_no - b.line_no).map((l) => ({
-            _id: l.id, status: d.status, date: l.withdraw_date, doc_no: d.doc_no,
-            wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
-            remark: l.remark, note: d.note,
-          })),
-        )
-      case 'transfers':
-        return (qt.data?.items ?? []).flatMap((d) =>
-          [...d.transfer_lines].sort((a, b) => a.line_no - b.line_no).map((l) => ({
-            _id: l.id, status: d.status, date: d.transferred_at, doc_no: d.doc_no,
-            wine: l.wine_name, vintage: l.vintage ?? 'NV', from: `${sn(l.from_store_id)} · ${l.from_rack ?? '-'}`,
-            to: `${sn(l.to_store_id)} · ${l.to_rack ?? '-'}`, qty: l.qty, remark: l.remark, note: d.note,
-          })),
-        )
-      case 'adjustments':
-        return (qa.data?.items ?? []).flatMap((d) =>
-          [...d.stock_adjustment_lines].sort((a, b) => a.line_no - b.line_no).map((l) => ({
-            _id: l.id, status: d.status, date: d.adjusted_at, doc_no: d.doc_no,
-            wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack,
-            before: l.balance_before, after: l.balance_after, diff: l.diff, reason: l.reason, remark: l.remark, note: d.note,
-          })),
-        )
-    }
-  }, [tab, qr.data, qs.data, qw.data, qt.data, qa.data, stores])
-  return { lines, loading: query.isLoading }
+/** บรรทัดของเอกสาร (หลายใบรวมกัน) → แถวตาราง */
+function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]): Line[] {
+  const byNo = (ls: Array<Record<string, any>>) => [...ls].sort((a, b) => a.line_no - b.line_no)
+  const sn = (id: number | null) => (id == null ? '' : storeName(stores, id))
+  switch (tab) {
+    case 'receipts':
+      return docs.flatMap((d) =>
+        byNo(d.receipt_lines).map((l) => ({
+          _id: l.id, status: d.status, date: d.received_at, doc_no: d.doc_no, supplier: l.supplier ?? d.supplier,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
+          price: l.price_per_bottle, value: l.price_per_bottle == null ? null : l.qty * l.price_per_bottle,
+          kind: l.is_new_item ? 'ใหม่' : 'เพิ่มยอด', remark: l.remark, note: d.note,
+        })),
+      )
+    case 'sales':
+      return docs.flatMap((d) =>
+        byNo(d.sale_lines).map((l) => ({
+          _id: l.id, status: d.status, date: d.sold_at, doc_no: d.doc_no, customer: d.customer,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
+          price: l.unit_price, before: l.amount_before_vat, vat: l.vat_amount, total: l.line_total,
+          cost: l.cost_per_bottle, remark: l.remark,
+        })),
+      )
+    case 'withdrawals':
+      return docs.flatMap((d) =>
+        byNo(d.withdrawal_lines).map((l) => ({
+          _id: l.id, status: d.status, date: l.withdraw_date, doc_no: d.doc_no,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
+          remark: l.remark, note: d.note,
+        })),
+      )
+    case 'transfers':
+      return docs.flatMap((d) =>
+        byNo(d.transfer_lines).map((l) => ({
+          _id: l.id, status: d.status, date: d.transferred_at, doc_no: d.doc_no,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', from: `${sn(l.from_store_id)} · ${l.from_rack ?? '-'}`,
+          to: `${sn(l.to_store_id)} · ${l.to_rack ?? '-'}`, qty: l.qty, remark: l.remark, note: d.note,
+        })),
+      )
+    case 'adjustments':
+      return docs.flatMap((d) =>
+        byNo(d.stock_adjustment_lines).map((l) => ({
+          _id: l.id, status: d.status, date: d.adjusted_at, doc_no: d.doc_no,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack,
+          before: l.balance_before, after: l.balance_after, diff: l.diff, reason: l.reason, remark: l.remark, note: d.note,
+        })),
+      )
+  }
 }
 
 const v = (k: string) => (r: Line) => (r[k] ?? null) as XlsxValue
@@ -342,47 +334,49 @@ function lineDefs(tab: DocTab): Def<Line>[] {
 
 const TAB_LABEL: Record<DocTab, string> = { receipts: 'รับเข้า', sales: 'ขาย', withdrawals: 'เบิก', transfers: 'โอนย้าย', adjustments: 'ปรับยอด' }
 
-export function DocLinesTable({ tab, filter, stores }: { tab: DocTab; filter: DocFilter; stores: Store[] }) {
-  const { lines, loading } = useDocLines(tab, filter, stores)
-  const [search, setSearch] = useState('')
-  const [exporting, setExporting] = useState(false)
-  const defs = useMemo(() => lineDefs(tab), [tab])
+/** รายละเอียดเอกสาร มุมมอง "ตาราง": ทุกบรรทัดของเอกสารใบเดียว กรอง/เรียง/ส่งออกได้ */
+export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<string, any>; stores: Store[] }) {
+  const lines = useMemo(() => docLines(tab, [doc], stores), [tab, doc, stores])
+  // หัวเอกสาร (วันที่ เลขที่ สถานะ ลูกค้า) เหมือนกันทุกบรรทัด — ไม่ต้องซ้ำในตาราง
+  const defs = useMemo(() => lineDefs(tab).filter((d) => !['date', 'doc_no', 'status', 'customer', 'note'].includes(d.key)), [tab])
   const columns = useMemo(() => toGrid(defs), [defs])
+  const [exporting, setExporting] = useState(false)
 
   async function exportFile() {
     setExporting(true)
     try {
       await exportXlsx({
-        fileName: `ความเคลื่อนไหว-${TAB_LABEL[tab]}-รายรายการ-${todayIso()}.xlsx`,
-        sheets: [{ name: `${TAB_LABEL[tab]} รายรายการ`, title: `${TAB_LABEL[tab]} — รายรายการ`, subtitle: rangeText(filter), columns: toXlsx(defs), rows: lines }],
+        fileName: `${doc.doc_no}.xlsx`,
+        sheets: [{ name: doc.doc_no, title: `${TAB_LABEL[tab]} ${doc.doc_no}`, subtitle: doc.note ?? undefined, columns: toXlsx(defs), rows: lines }],
       })
     } finally {
       setExporting(false)
     }
   }
 
-  if (loading) return <Loading screen />
   return (
-    <>
-      <TableBar q={search} setQ={setSearch} count={lines.length} onExport={exportFile} exporting={exporting} noun="รายการ" />
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted">คลิกหัวคอลัมน์เพื่อกรอง/เรียง (เรียงได้หลายคอลัมน์)</span>
+        <Button size="sm" className="ml-auto" onClick={exportFile} loading={exporting}>
+          <FileSpreadsheet className="size-4" /> ส่งออก Excel
+        </Button>
+      </div>
       <DataGrid
         key={tab}
         className="min-h-[320px] flex-1"
         rows={lines}
         columns={columns}
         getRowId={(r) => r._id}
-        search={search}
-        pageSizeKey={`history-lines-${tab}`}
-        rowClassName={(r) => (r.status === 'void' ? 'text-muted line-through' : undefined)}
+        pageSizeKey={`history-doc-${tab}`}
         card={{
           noun: 'รายการ',
           title: (r) => `${r.wine} ${r.vintage}`,
-          subtitle: (r) => `${fmtDate(String(r.date))} · ${r.doc_no}`,
-          fields: defs.filter((d) => !['date', 'doc_no', 'wine', 'vintage'].includes(d.key)).slice(0, 4).map((d) => d.key),
+          fields: defs.filter((d) => !['wine', 'vintage'].includes(d.key)).map((d) => d.key),
         }}
-        emptyState={`ไม่มีรายการ${TAB_LABEL[tab]}ในช่วงนี้`}
+        emptyState="ไม่มีรายการ"
       />
-    </>
+    </div>
   )
 }
 
@@ -398,8 +392,8 @@ type DocSummary = {
   by: string | null
 }
 
-/** ส่งออก Excel มุมมองเอกสาร (หัวเอกสารละแถว) — ดึงทุกเอกสารในตัวกรอง ไม่ใช่แค่หน้าที่เห็น */
-export async function exportDocs(tab: DocTab, filter: DocFilter) {
+/** ส่งออก Excel: แผ่น "ตามเอกสาร" (หัวเอกสารละแถว) + แผ่น "รายรายการ" — ดึงทุกเอกสารในตัวกรอง ไม่ใช่แค่หน้าที่เห็น */
+export async function exportDocs(tab: DocTab, filter: DocFilter, stores: Store[]) {
   const opts = {
     receipts: receiptsListOptions,
     sales: salesListOptions,
@@ -441,6 +435,15 @@ export async function exportDocs(tab: DocTab, filter: DocFilter) {
   ]
   await exportXlsx({
     fileName: `ความเคลื่อนไหว-${TAB_LABEL[tab]}-${todayIso()}.xlsx`,
-    sheets: [{ name: TAB_LABEL[tab], title: `${TAB_LABEL[tab]} — ตามเอกสาร`, subtitle: rangeText(filter), columns: toXlsx(defs), rows }],
+    sheets: [
+      { name: TAB_LABEL[tab], title: `${TAB_LABEL[tab]} — ตามเอกสาร`, subtitle: rangeText(filter), columns: toXlsx(defs), rows },
+      {
+        name: `${TAB_LABEL[tab]} รายรายการ`,
+        title: `${TAB_LABEL[tab]} — รายรายการ`,
+        subtitle: rangeText(filter),
+        columns: toXlsx(lineDefs(tab)),
+        rows: docLines(tab, data.items, stores),
+      },
+    ],
   })
 }
