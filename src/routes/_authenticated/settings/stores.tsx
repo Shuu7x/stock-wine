@@ -1,6 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { StoresSettings } from '@/features/settings/components/StoresSettings'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// คลังสินค้าย้ายไปอยู่ใน "ข้อมูลหลัก" แล้ว
 export const Route = createFileRoute('/_authenticated/settings/stores')({
-  component: StoresSettings,
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/lookups', search: { tab: 'stores' } })
+  },
 })

@@ -12,6 +12,7 @@ import { stockItemsOptions, storesOptions, type StockItem } from '@/features/sto
 import { storeName } from '@/features/stock/columns'
 import { fmtInt } from '@/lib/format'
 import { Loading } from '@/components/ui/loading'
+import { StoresSettings } from './StoresSettings'
 import {
   lookupValuesOptions,
   useSaveLookupValues,
@@ -53,12 +54,16 @@ const toRow = (l: LookupValue): Row => ({
   is_active: l.is_active,
 })
 
-export function LookupsSettings() {
+export type MasterTab = 'stores' | LookupCategory
+
+/** ข้อมูลหลัก: คลังสินค้า + ตัวเลือกที่ขึ้นให้เลือกในตาราง (ประเทศ · ผู้ขาย · ชั้นวาง) */
+export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: MasterTab) => void }) {
   const lookupsQ = useQuery(lookupValuesOptions())
   const storesQ = useQuery(storesOptions())
   const itemsQ = useQuery(stockItemsOptions())
   const save = useSaveLookupValues()
-  const [category, setCategory] = useState<LookupCategory>('country')
+  // แท็บคลังสินค้าไม่ใช่ตัวเลือก — ตัวแปรของตารางตัวเลือกใช้หมวดล่าสุดต่อไป
+  const category: LookupCategory = tab === 'stores' ? 'country' : tab
   const [rows, setRows] = useState<Row[]>([])
 
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
@@ -246,17 +251,32 @@ export function LookupsSettings() {
 
   const countOf = (c: LookupCategory) => fmtInt(rows.filter((r) => r.category === c && r.id && r.is_active).length)
 
+  const tabs = (
+    <Segmented
+      value={tab}
+      onChange={onTab}
+      items={[
+        { value: 'stores' as MasterTab, label: 'คลังสินค้า', count: fmtInt(stores.filter((s) => s.is_active).length) },
+        ...CATEGORIES.map((c) => ({ value: c.value as MasterTab, label: c.label, count: countOf(c.value) })),
+      ]}
+    />
+  )
+
+  if (tab === 'stores') {
+    return (
+      <div className="flex flex-col gap-4">
+        {tabs}
+        <StoresSettings />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      {tabs}
       <p className="text-sm text-muted">
         รายการที่ขึ้นให้เลือกในตาราง (ปุ่ม ▾) เรียงตาม “ลำดับ” ก่อน ตามด้วยค่าอื่นที่มีอยู่ในสต็อก · ค่าที่ปิดใช้งานจะไม่ขึ้นให้เลือก
       </p>
-
-      <Segmented
-        value={category}
-        onChange={setCategory}
-        items={CATEGORIES.map((c) => ({ value: c.value, label: c.label, count: countOf(c.value) }))}
-      />
 
       <div className="flex flex-wrap items-center gap-2">
         <AddRows onAdd={(n) => setRows((all) => [...all, ...Array.from({ length: n }, () => newRow())])} defaultCount={3} />
