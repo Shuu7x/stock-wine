@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Wine } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/cn'
 import { Field, Input } from '@/components/ui/field'
 import { PasswordInput } from '@/components/ui/password-input'
 import { env } from '@/lib/env'
@@ -18,27 +19,50 @@ type Values = z.infer<typeof schema>
 
 export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [error, setError] = useState<string | null>(null)
+  // รหัสผิด: การ์ดสั่น + คลื่นกระเพื่อม · สำเร็จ: ไวน์ท่วมจอแล้วค่อยเข้าระบบ
+  const [shake, setShake] = useState(0)
+  const [entering, setEntering] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+  useEffect(() => {
+    if (!shake || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    formRef.current?.animate(
+      [0, -10, 8, -6, 3, 0].map((x) => ({ translate: `${x}px 0` })),
+      { duration: 450, easing: 'ease-in-out' },
+    )
+  }, [shake])
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: env.VITE_ENABLE_MOCK ? { email: 'admin@wine.local', password: 'password' } : undefined,
   })
 
-  const submit = form.handleSubmit(async (v) => {
-    setError(null)
-    try {
-      await signIn(v.email, v.password)
+  const submit = form.handleSubmit(
+    async (v) => {
+      setError(null)
+      try {
+        await signIn(v.email, v.password)
+      } catch (e) {
+        setError((e as Error).message)
+        setShake((n) => n + 1)
+        return
+      }
+      setEntering(true)
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      await new Promise((r) => setTimeout(r, reduced ? 0 : 1050))
       onSuccess()
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  })
+    },
+    () => setShake((n) => n + 1),
+  )
 
   return (
     <div className="relative flex min-h-full items-center justify-center overflow-hidden bg-night-900 p-4">
-      <LoginBackground />
+      <LoginBackground agitate={shake} flood={entering} />
       <form
+        ref={formRef}
         onSubmit={submit}
-        className="relative z-10 w-full max-w-sm rounded-2xl border border-white/40 bg-surface/90 p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md sm:p-8"
+        className={cn(
+          'relative z-10 w-full max-w-sm rounded-2xl border border-white/40 bg-surface/90 p-6 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)] backdrop-blur-md transition duration-500 ease-in sm:p-8',
+          entering && 'pointer-events-none translate-y-6 scale-95 opacity-0',
+        )}
       >
         <div className="mb-6 flex flex-col items-center text-center">
           <div className="mb-3 flex size-12 items-center justify-center rounded-2xl bg-brand-700 text-gold-100 shadow-lg">
