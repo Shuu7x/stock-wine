@@ -183,6 +183,7 @@ function StoreDialog({
                   checked={field.value}
                   onChange={field.onChange}
                   label="เปิดใช้งาน"
+                  states={['ใช้งานอยู่', 'ปิดใช้งาน']}
                   disabled={!isNew && hasStock && field.value}
                 />
               </div>

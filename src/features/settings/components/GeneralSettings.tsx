@@ -92,7 +92,7 @@ export function GeneralSettings() {
             control={form.control}
             name="require_withdraw_note"
             render={({ field }) => (
-              <Switch checked={field.value} onChange={field.onChange} label="ต้องกรอกหมายเหตุ / ผู้เบิก" />
+              <Switch checked={field.value} onChange={field.onChange} label="ต้องกรอกหมายเหตุ / ผู้เบิก" states={['เปิดอยู่', 'ปิดอยู่']} />
             )}
           />
         </SettingRow>

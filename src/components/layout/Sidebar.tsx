@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router'
 import {
   ArrowLeftRight,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
@@ -18,9 +17,8 @@ import {
   Wine,
   type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { unbilledSalesOptions } from '@/features/billing/api/billing.api'
-import { stockItemsOptions, storesOptions } from '@/features/stock/api/stock.api'
 import { cn } from '@/lib/cn'
 import { UserMenu } from './UserMenu'
 
@@ -87,39 +85,9 @@ function Group({ title, collapsed, children }: { title?: string; collapsed: bool
 }
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const { pathname, search } = useLocation()
-  const storesQ = useQuery(storesOptions())
-  const itemsQ = useQuery(stockItemsOptions())
+  const { pathname } = useLocation()
   // จำนวนใบขายที่รอออกบิล
   const unbilled = useQuery(unbilledSalesOptions()).data?.length ?? 0
-  const onStock = pathname.startsWith('/stock')
-  const currentStore = onStock ? ((search as { store?: string }).store ?? 'all') : null
-
-  // ทางลัดคลัง: กางเองเมื่ออยู่หน้าสต็อก พับ/กางเองได้
-  const [storesOpen, setStoresOpen] = useState(onStock)
-  useEffect(() => {
-    if (onStock) setStoresOpen(true)
-  }, [onStock])
-
-  // จำนวนรายการที่มีของ ต่อคลัง
-  const counts = useMemo(() => {
-    const m = new Map<number, number>()
-    let all = 0
-    for (const i of itemsQ.data ?? []) {
-      if (i.deleted_at || i.balance <= 0) continue
-      m.set(i.store_id, (m.get(i.store_id) ?? 0) + 1)
-      all++
-    }
-    return { m, all }
-  }, [itemsQ.data])
-
-  const storeLinks = [
-    { code: 'all', name: 'ทุกคลัง', count: counts.all },
-    ...(storesQ.data ?? [])
-      .filter((s) => s.is_active)
-      .map((s) => ({ code: s.code, name: s.name, count: counts.m.get(s.id) ?? 0 })),
-  ]
-
   const is = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`)
 
   return (
@@ -155,42 +123,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       <nav className={cn('flex flex-1 flex-col', collapsed ? 'px-3' : 'overflow-y-auto px-3')} aria-label="เมนูหลัก">
         <Group collapsed={collapsed}>
           <NavItem to="/dashboard" label="ภาพรวม" icon={LayoutDashboard} active={is('/dashboard')} collapsed={collapsed} />
-          <div className="relative">
-            <NavItem to="/stock" label="สต็อกไวน์" icon={Warehouse} active={onStock} collapsed={collapsed} />
-            {!collapsed && (
-              <button
-                type="button"
-                onClick={() => setStoresOpen((o) => !o)}
-                aria-label={storesOpen ? 'ซ่อนรายชื่อคลัง' : 'แสดงรายชื่อคลัง'}
-                aria-expanded={storesOpen}
-                className="absolute top-1/2 right-1.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-brand-300 hover:bg-white/10 hover:text-white"
-              >
-                <ChevronDown className={cn('size-4 transition', storesOpen && 'rotate-180')} />
-              </button>
-            )}
-          </div>
-          {!collapsed && storesOpen && (
-            <div className="mt-0.5 mb-1 ml-[21px] flex flex-col border-l border-white/10 pl-2">
-              {storeLinks.map((s) => {
-                const active = currentStore === s.code
-                return (
-                  <Link
-                    key={s.code}
-                    to="/stock"
-                    search={{ store: s.code }}
-                    aria-current={active ? 'page' : undefined}
-                    className={cn(
-                      'flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px] transition',
-                      active ? 'bg-white/10 font-medium text-white' : 'text-brand-300 hover:bg-white/5 hover:text-white',
-                    )}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    {!itemsQ.isLoading && <span className={cn('text-[11px] tabular-nums', active ? 'text-gold-100' : 'text-brand-400')}>{s.count}</span>}
-                  </Link>
-                )
-              })}
-            </div>
-          )}
+          <NavItem to="/stock" label="สต็อกไวน์" icon={Warehouse} active={is('/stock')} collapsed={collapsed} />
         </Group>
 
         <Group title="ทำรายการ" collapsed={collapsed}>
