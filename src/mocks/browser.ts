@@ -5,6 +5,7 @@ import { operationHandlers } from '@/mocks/handlers/operations'
 import { receiptHandlers } from '@/mocks/handlers/receipts'
 import { settingsHandlers } from '@/mocks/handlers/settings'
 import { stockHandlers } from '@/mocks/handlers/stock'
+import { storageHandlers } from '@/mocks/handlers/storage'
 import { withdrawalHandlers } from '@/mocks/handlers/withdrawals'
 
 export const worker = setupWorker(
@@ -15,4 +16,5 @@ export const worker = setupWorker(
   ...withdrawalHandlers,
   ...operationHandlers,
   ...billHandlers,
+  ...storageHandlers,
 )

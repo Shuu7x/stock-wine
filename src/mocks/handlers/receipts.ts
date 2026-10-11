@@ -23,7 +23,19 @@ type LineInput = {
 const blank = (s: string | null | undefined) => (s ?? '').trim() || null
 
 // เลียนแบบ public.post_receipt
-function postReceipt(email: string, receivedAt: string | null, note: string | null, lines: LineInput[]) {
+type FileInput = { path: string; file_name: string; mime_type: string | null; size_bytes: number | null }
+
+function postReceipt(
+  email: string,
+  receivedAt: string | null,
+  note: string | null,
+  lines: LineInput[],
+  supplier: string | null = null,
+  purchaseDate: string | null = null,
+  files: FileInput[] = [],
+) {
+  // ผู้ขาย / วันที่ซื้อ ของหัวเอกสารใช้กับทุกรายการ (ถ้ารายการไม่ได้ระบุเอง)
+  lines = (lines ?? []).map((l) => ({ ...l, supplier: blank(l.supplier) ?? blank(supplier), purchase_date: l.purchase_date ?? purchaseDate }))
   if (!Array.isArray(lines) || lines.length === 0) throw new PgError('ไม่มีรายการรับเข้า')
   lines.forEach((l, i) => {
     if (!(l.qty > 0)) throw new PgError(`แถว ${i + 1}: จำนวนรับต้องมากกว่า 0`)
@@ -37,6 +49,8 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
     doc_no: docNo('RC', db.seq.receipt + 1),
     received_at: receivedAt ?? new Date().toISOString().slice(0, 10),
     note: blank(note),
+    supplier: blank(supplier),
+    purchase_date: purchaseDate,
     status: 'posted',
     void_reason: null,
     voided_at: null,
@@ -114,6 +128,17 @@ function postReceipt(email: string, receivedAt: string | null, note: string | nu
   db.stock_items = items
   db.receipts.push(receipt)
   db.receipt_lines.push(...newLines)
+  for (const f of files ?? []) {
+    db.receipt_attachments.push({
+      id: crypto.randomUUID(),
+      receipt_id: receipt.id,
+      path: f.path,
+      file_name: blank(f.file_name) ?? 'ไฟล์แนบ',
+      mime_type: f.mime_type,
+      size_bytes: f.size_bytes,
+      ...auditNow(),
+    })
+  }
   for (const [b, a] of logs) logStockChange(b, a, email, 'receive', receipt.doc_no)
   persist()
   return receipt
@@ -158,10 +183,19 @@ export const receiptHandlers = [
   }),
   http.post(
     rest('rpc/post_receipt'),
-    rpc<{ p_received_at: string | null; p_note: string | null; p_lines: LineInput[] }>((req, a) =>
-      postReceipt(emailOf(req), a.p_received_at, a.p_note, a.p_lines),
-    ),
+    rpc<{
+      p_received_at: string | null
+      p_note: string | null
+      p_lines: LineInput[]
+      p_supplier?: string | null
+      p_purchase_date?: string | null
+      p_attachments?: FileInput[]
+    }>((req, a) => postReceipt(emailOf(req), a.p_received_at, a.p_note, a.p_lines, a.p_supplier, a.p_purchase_date, a.p_attachments)),
   ),
+  http.get(rest('receipt_attachments'), ({ request }) => {
+    if (!requireAuth(request)) return respondList(request, [])
+    return respondList(request, db.receipt_attachments)
+  }),
   http.post(
     rest('rpc/void_receipt'),
     rpc<{ p_id: string; p_reason: string | null }>((req, a) => voidReceipt(emailOf(req), a.p_id, a.p_reason)),

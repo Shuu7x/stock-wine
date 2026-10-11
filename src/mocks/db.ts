@@ -21,6 +21,7 @@ type DB = {
   transfer_lines: Tables<'transfer_lines'>[]
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
+  receipt_attachments: Tables<'receipt_attachments'>[]
   seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number }
 }
 
@@ -105,6 +106,7 @@ function emptyOps() {
     transfer_lines: [] as Tables<'transfer_lines'>[],
     bills: [] as Tables<'bills'>[],
     bill_sales: [] as Tables<'bill_sales'>[],
+    receipt_attachments: [] as Tables<'receipt_attachments'>[],
   }
 }
 
@@ -170,6 +172,10 @@ function load(): DB {
       saved.seq.transfer ??= 0
       saved.seq.bill ??= 0
       for (const s of saved.sales) s.bill_id ??= null
+      for (const r of saved.receipts) {
+        r.supplier ??= null
+        r.purchase_date ??= null
+      }
       for (const st of seedSettings()) {
         if (!saved.app_settings.some((x) => x.key === st.key)) saved.app_settings.push(st)
       }

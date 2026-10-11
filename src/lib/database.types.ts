@@ -54,11 +54,24 @@ type ReceiptRow = Audit & {
   doc_no: string
   received_at: string
   note: string | null
+  /** ซื้อจากใคร / วันที่ซื้อ (หัวเอกสาร ใช้กับทุกรายการ) */
+  supplier: string | null
+  purchase_date: string | null
   status: DocStatus
   void_reason: string | null
   voided_at: string | null
   voided_by: string | null
   created_by_email: string | null
+}
+
+type ReceiptAttachmentRow = Audit & {
+  id: string
+  receipt_id: string
+  /** ตำแหน่งไฟล์ใน storage bucket "receipt-files" */
+  path: string
+  file_name: string
+  mime_type: string | null
+  size_bytes: number | null
 }
 
 type ReceiptLineRow = Audit & {
@@ -310,6 +323,7 @@ export type Database = {
         Relationships: []
       }
       receipts: ReadOnlyTable<ReceiptRow>
+      receipt_attachments: ReadOnlyTable<ReceiptAttachmentRow>
       receipt_lines: {
         Row: ReceiptLineRow
         Insert: never
@@ -352,7 +366,14 @@ export type Database = {
     Views: { [_ in never]: never }
     Functions: {
       post_receipt: {
-        Args: { p_received_at: string; p_note: string | null; p_lines: Json }
+        Args: {
+          p_received_at: string
+          p_note: string | null
+          p_lines: Json
+          p_supplier?: string | null
+          p_purchase_date?: string | null
+          p_attachments?: Json
+        }
         Returns: ReceiptRow
       }
       post_withdrawal: {

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Eraser, Save, Trash2 } from 'lucide-react'
+import { Eraser, Save, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Combobox } from '@/components/ui/combobox'
+import { SuggestInput } from '@/components/ui/suggest-input'
 import { DateInput } from '@/components/ui/date-input'
 import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
@@ -17,6 +18,7 @@ import { appSettingsOptions, lookupValuesOptions } from '@/features/settings/api
 import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
 import { buildLookups, identityKey, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
+import { AttachFiles } from './AttachFiles'
 import { usePostReceipt, type ReceiptLineInput } from '../api/receipts.api'
 import {
   isBlankRow,
@@ -59,9 +61,32 @@ function wineSuggest(items: StockItem[], stores: Store[]) {
         maturity_from: i.maturity_from,
         maturity_to: i.maturity_to,
         price_per_bottle: r.price_per_bottle ?? i.price_per_bottle,
-        supplier: r.supplier ?? i.supplier,
       }),
     }))
+    // ไวน์เดิมแต่เก็บที่ชั้นอื่น (ไม่ทับรายการเดิม — ระบบสร้างรายการใหม่ตามคลัง/ชั้นที่เลือก)
+    const seen = new Set<string>()
+    for (const i of hits) {
+      const k = `${i.wine_name.toLowerCase()}|${i.vintage ?? 0}`
+      if (seen.has(k) || seen.size >= 3) continue
+      seen.add(k)
+      out.push({
+        key: `${i.id}:rack`,
+        label: `${wineLabel(i)} — เก็บที่ชั้นอื่น`,
+        detail: 'ไวน์เดิม แต่วางคนละชั้น · เลือก Store / Wine racks เองหลังเลือก',
+        aside: 'ชั้นใหม่',
+        apply: (r) => ({
+          ...r,
+          rack: null,
+          country: i.country,
+          wine_name: i.wine_name,
+          vintage: i.vintage,
+          rating: i.rating,
+          maturity_from: i.maturity_from,
+          maturity_to: i.maturity_to,
+          price_per_bottle: r.price_per_bottle ?? i.price_per_bottle,
+        }),
+      })
+    }
     const exact = items.some((i) => i.wine_name.toLowerCase() === ql)
     if (q.trim() && !exact) {
       out.unshift({
@@ -95,6 +120,10 @@ export function ReceivePage() {
   const [receivedAt, setReceivedAt] = useState(draft?.receivedAt ?? todayIso())
   const [note, setNote] = useState(draft?.note ?? '')
   const [defaultStore, setDefaultStore] = useState<number | null>(draft?.defaultStore ?? null)
+  const [supplier, setSupplier] = useState(draft?.supplier ?? '')
+  const [purchaseDate, setPurchaseDate] = useState<string | null>(draft?.purchaseDate ?? null)
+  // รูปบิลที่แนบ (ไม่เก็บในร่าง — ไฟล์ใหญ่)
+  const [files, setFiles] = useState<File[]>([])
   const [showErrors, setShowErrors] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -109,9 +138,9 @@ export function ReceivePage() {
   }, [activeStores, defaultStore, settingsQ.isFetched, settingsQ.data])
 
   useEffect(() => {
-    const filled = rows.some((r) => !isBlankRow(r)) || note
-    saveReceiveDraft(filled ? { rows, receivedAt, note, defaultStore } : null)
-  }, [rows, receivedAt, note, defaultStore])
+    const filled = rows.some((r) => !isBlankRow(r)) || note || supplier
+    saveReceiveDraft(filled ? { rows, receivedAt, note, defaultStore, supplier, purchaseDate } : null)
+  }, [rows, receivedAt, note, defaultStore, supplier, purchaseDate])
 
   const filled = useMemo(() => rows.filter((r) => !isBlankRow(r)), [rows])
   const errors = useMemo(() => new Map(filled.map((r) => [r._id, validateReceiveRow(r)])), [filled])
@@ -120,6 +149,13 @@ export function ReceivePage() {
   const matchOf = useCallback(
     (r: ReceiveRow) => (r.wine_name?.trim() && r.store_id ? byIdentity.get(identityKey(r)) : undefined),
     [byIdentity],
+  )
+  /** ไวน์ (ชื่อ+ปี) นี้มีอยู่แล้วแต่คนละคลัง/ชั้น → รับเข้าเป็นรายการใหม่ที่ชั้นนี้ */
+  const otherRack = useCallback(
+    (r: ReceiveRow) =>
+      !!r.wine_name?.trim() &&
+      items.some((i) => i.wine_name.trim().toLowerCase() === r.wine_name!.trim().toLowerCase() && (i.vintage ?? 0) === (r.vintage ?? 0)),
+    [items],
   )
 
   // ไวน์เดิม: ช่องที่กรอกค่าต่างจากในสต็อก จะไปทับค่าเดิมตอนบันทึก (ช่องว่าง = คงค่าเดิม)
@@ -150,9 +186,15 @@ export function ReceivePage() {
       width: 86,
       readOnly: true,
       filterable: false,
-      get: (r) => (isBlankRow(r) ? null : match(r) ? 'เพิ่มยอด' : 'ใหม่'),
+      get: (r) => (isBlankRow(r) ? null : match(r) ? 'เพิ่มยอด' : otherRack(r) ? 'ชั้นใหม่' : 'ใหม่'),
       render: (r) =>
-        isBlankRow(r) ? null : match(r) ? <Badge tone="info">เพิ่มยอด</Badge> : <Badge tone="gold">ใหม่</Badge>,
+        isBlankRow(r) ? null : match(r) ? (
+          <Badge tone="info">เพิ่มยอด</Badge>
+        ) : otherRack(r) ? (
+          <Badge tone="brand">ชั้นใหม่</Badge>
+        ) : (
+          <Badge tone="gold">ใหม่</Badge>
+        ),
     }
     const wine: GridColumn<ReceiveRow> = {
       ...c.wine,
@@ -208,11 +250,9 @@ export function ReceivePage() {
       c.rack,
       qty,
       balance,
-      c.supplier,
-      c.purchaseDate,
       c.remark,
     ]
-  }, [stores, lookups, items, matchOf])
+  }, [stores, lookups, items, matchOf, otherRack])
 
   const totals = useMemo(() => {
     const ok = filled.filter((r) => !Object.keys(errors.get(r._id) ?? {}).length)
@@ -239,6 +279,9 @@ export function ReceivePage() {
   function reset() {
     setRows(Array.from({ length: START_ROWS }, () => newReceiveRow(defaultStore)))
     setNote('')
+    setSupplier('')
+    setPurchaseDate(null)
+    setFiles([])
     setShowErrors(false)
     saveReceiveDraft(null)
   }
@@ -264,11 +307,12 @@ export function ReceivePage() {
       maturity_to: r.maturity_to,
       qty: r.qty!,
       price_per_bottle: r.price_per_bottle,
-      supplier: r.supplier,
-      purchase_date: r.purchase_date,
+      // ผู้ขาย / วันที่ซื้อ มาจากหัวเอกสาร
+      supplier: null,
+      purchase_date: null,
       remark: r.remark,
     }))
-    const doc = await post.mutateAsync({ receivedAt, note, lines })
+    const doc = await post.mutateAsync({ receivedAt, note, supplier, purchaseDate, lines, files })
     setConfirm(false)
     reset()
     toast.success(`บันทึกรับเข้า ${doc.doc_no} แล้ว`, {
@@ -290,9 +334,33 @@ export function ReceivePage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[160px_minmax(0,1fr)_170px_220px]">
         <Field label="วันที่รับเข้า">
           <DateInput value={receivedAt} max={todayIso()} onChange={setReceivedAt} />
+        </Field>
+        <Field label="ซื้อจากใคร">
+          <SuggestInput
+            value={supplier}
+            onChange={setSupplier}
+            suggestions={lookups.suppliers.map((s) => ({ value: s }))}
+            title="ผู้ขายที่เคยซื้อ"
+            placeholder="เช่น Wine Connection"
+          />
+        </Field>
+        <Field label="วันที่ซื้อ">
+          <div className="relative">
+            <DateInput value={purchaseDate ?? ''} max={todayIso()} onChange={setPurchaseDate} />
+            {purchaseDate && (
+              <button
+                type="button"
+                aria-label="ล้างวันที่ซื้อ"
+                onClick={() => setPurchaseDate(null)}
+                className="absolute top-1/2 right-9 -translate-y-1/2 rounded p-1 text-muted hover:bg-surface-2"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
         </Field>
         <Field label="คลังตั้งต้นของแถวใหม่">
           <Combobox
@@ -305,9 +373,15 @@ export function ReceivePage() {
             }}
           />
         </Field>
-        <Field label="หมายเหตุ / เลขที่ใบส่งของ">
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น INV-2026-0912 จาก Wine Connection" />
-        </Field>
+        <div className="sm:col-span-2">
+          <Field label="หมายเหตุ / เลขที่ใบส่งของ">
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น INV-2026-0912" />
+          </Field>
+        </div>
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <span className="text-xs font-medium text-ink-2">รูปบิล / ใบส่งของ</span>
+          <AttachFiles files={files} onChange={setFiles} />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -352,7 +426,7 @@ export function ReceivePage() {
           noun: 'รายการรับเข้า',
           title: (r) => (r.wine_name ? `${r.wine_name} ${r.vintage ?? ''}`.trim() : <span className="text-muted">ยังไม่ได้ระบุไวน์</span>),
           subtitle: (r) => (r.store_id ? `${storeName(stores, r.store_id)} · Rack ${r.rack ?? '-'}` : null),
-          fields: ['qty', 'price_per_bottle', 'supplier', 'purchase_date'],
+          fields: ['qty', 'price_per_bottle', 'rating', 'maturity'],
         }}
         getRowId={(r) => r._id}
         onRowsChange={setRows}
@@ -369,7 +443,15 @@ export function ReceivePage() {
         open={confirm}
         onClose={() => setConfirm(false)}
         title="ยืนยันบันทึกรับเข้า"
-        description={`วันที่รับ ${receivedAt.split('-').reverse().join('/')}${note ? ` · ${note}` : ''}`}
+        description={[
+          `วันที่รับ ${receivedAt.split('-').reverse().join('/')}`,
+          supplier.trim() && `ซื้อจาก ${supplier.trim()}`,
+          purchaseDate && `วันที่ซื้อ ${purchaseDate.split('-').reverse().join('/')}`,
+          note,
+          files.length > 0 && `แนบ ${files.length} ไฟล์`,
+        ]
+          .filter(Boolean)
+          .join(' · ')}
         footer={
           <>
             <Button onClick={() => setConfirm(false)}>กลับไปแก้ไข</Button>

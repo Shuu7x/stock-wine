@@ -23,6 +23,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import { Field, Input } from '@/components/ui/field'
 import { useIssueBills } from '@/features/billing/api/billing.api'
+import { ReceiptFiles } from '@/features/receipts/components/ReceiptFiles'
 import { BillDialog } from '@/features/billing/components/BillDialog'
 import { PageHeader } from '@/components/ui/page'
 import { DOC_PAGE_SIZES, Pager } from '@/components/ui/pager'
@@ -161,7 +162,13 @@ export function HistoryPage({
             lineCount: ls.length,
             qty: bottles(sum(ls, (l) => l.qty)),
             amount: value,
-            meta: [['วันที่รับเข้า', fmtDate(d.received_at)], ...base(d), ['มูลค่ารวม', `${fmtMoney(value)} บาท`]],
+            meta: [
+              ['วันที่รับเข้า', fmtDate(d.received_at)],
+              ['ซื้อจากใคร', d.supplier ?? '–'],
+              ['วันที่ซื้อ', d.purchase_date ? fmtDate(d.purchase_date) : '–'],
+              ...base(d),
+              ['มูลค่ารวม', `${fmtMoney(value)} บาท`],
+            ],
             cols: [{ label: 'ไวน์' }, { label: 'คลัง · Rack' }, { label: 'ขวด', right: true }, { label: 'ราคา/ขวด', right: true }],
             lines: ls.map((l) => [
               wineCell(
@@ -547,6 +554,8 @@ export function HistoryPage({
                 </div>
               )}
             </dl>
+
+            {tab === 'receipts' && <ReceiptFiles receiptId={open.id} />}
 
             <div>
               <h3 className="mb-2 text-sm font-semibold">

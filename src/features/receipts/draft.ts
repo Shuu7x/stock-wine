@@ -60,7 +60,14 @@ export function validateReceiveRow(r: ReceiveRow): Record<string, string> {
 // ร่างใบรับเข้าเก็บในเครื่อง กันข้อมูลหายเมื่อรีเฟรช/ปิดแท็บ
 const DRAFT_KEY = 'stock-wine:receive-draft:v1'
 
-export type ReceiveDraft = { rows: ReceiveRow[]; receivedAt: string; note: string; defaultStore: number | null }
+export type ReceiveDraft = {
+  rows: ReceiveRow[]
+  receivedAt: string
+  note: string
+  defaultStore: number | null
+  supplier?: string
+  purchaseDate?: string | null
+}
 
 export function loadReceiveDraft(): ReceiveDraft | null {
   try {
