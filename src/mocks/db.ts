@@ -22,7 +22,7 @@ type DB = {
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
   receipt_attachments: Tables<'receipt_attachments'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -68,6 +68,15 @@ const SEED: Array<
   [3, 'R05', 'France', 'Château d’Yquem', 2009, 2, 100, 98, [2020, 2080], 24000, 'Wine Connection', '2023-07-12'],
   [3, 'R05', 'Portugal', "Taylor's Vintage Port", 2017, 6, 98, 97, [2035, 2070], 4200, 'Bacchus', '2024-02-14'],
 ]
+
+/** ไวน์ที่ใช้คะแนน WS (ที่เหลือใช้ RP) — ให้ข้อมูลตัวอย่างมีทั้งสองแบบ */
+const WS_RATED = new Set([
+  'Château Lafite Rothschild', 'Château Pichon Baron', 'Louis Roederer Cristal', 'Tignanello',
+  'Caymus Cabernet Sauvignon', 'Penfolds Bin 389', 'Almaviva', 'Moët & Chandon Brut Impérial',
+  'Château Palmer', 'Antinori Solaia', 'Cloudy Bay Sauvignon Blanc', "Taylor's Vintage Port",
+])
+const seedRating = (name: string, rp: number | null, ws: number | null) =>
+  WS_RATED.has(name) && ws != null ? `${ws}WS` : ratingText(rp, ws)
 
 const COUNTRIES = [
   'France', 'Italy', 'Spain', 'Portugal', 'Germany', 'Austria', 'USA', 'Australia',
@@ -124,7 +133,7 @@ function seed(): DB {
     wine_name: s[3],
     vintage: s[4],
     balance: s[5],
-    rating: ratingText(s[6], s[7]),
+    rating: seedRating(s[3], s[6], s[7]),
     maturity_from: s[8]?.[0] ?? null,
     maturity_to: s[8]?.[1] ?? null,
     price_per_bottle: s[9],
@@ -150,7 +159,7 @@ function seed(): DB {
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1 },
   }
 }
 
@@ -189,6 +198,14 @@ function load(): DB {
         }
         // เคยรวมหลายค่า "100RP, 98WS" → เหลือค่าแรก
         if (typeof x.rating === 'string' && x.rating.includes(',')) x.rating = x.rating.split(',')[0].trim()
+      }
+      // ข้อมูลตัวอย่างเดิมเป็น RP ทั้งหมด → เปลี่ยนบางไวน์เป็น WS (เฉพาะที่ยังเป็นค่าตั้งต้น ไม่ทับที่ผู้ใช้แก้)
+      if (!saved.seq.ws_seed) {
+        for (const x of saved.stock_items) {
+          const sd = SEED.find((r) => r[3] === x.wine_name && r[4] === x.vintage)
+          if (sd && x.rating === ratingText(sd[6], sd[7])) x.rating = seedRating(sd[3], sd[6], sd[7])
+        }
+        saved.seq.ws_seed = 1
       }
       return saved
     }
