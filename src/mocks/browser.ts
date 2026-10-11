@@ -1,5 +1,6 @@
 import { setupWorker } from 'msw/browser'
 import { authHandlers } from '@/mocks/handlers/auth'
+import { billHandlers } from '@/mocks/handlers/bills'
 import { operationHandlers } from '@/mocks/handlers/operations'
 import { receiptHandlers } from '@/mocks/handlers/receipts'
 import { settingsHandlers } from '@/mocks/handlers/settings'
@@ -13,4 +14,5 @@ export const worker = setupWorker(
   ...receiptHandlers,
   ...withdrawalHandlers,
   ...operationHandlers,
+  ...billHandlers,
 )

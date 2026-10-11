@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { Printer } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -19,7 +20,9 @@ import type { VatMode } from '@/lib/database.types'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { useInitialDraft, usePersistDraft } from '@/lib/use-local-draft'
 import { lineVat, sumVat, VAT_MODE_LABEL } from '@/lib/vat'
-import { usePostSale } from '../api/operations.api'
+import { useIssueBills } from '@/features/billing/api/billing.api'
+import { BillDialog } from '@/features/billing/components/BillDialog'
+import { usePostSale, type Sale } from '../api/operations.api'
 
 type SaleRow = PickerRow & { qty: number | null; unit_price: number | null; has_vat: boolean; remark: string | null }
 type Draft = { rows: SaleRow[]; soldAt: string; customer: string; note: string; vatMode: VatMode | null }
@@ -62,6 +65,10 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   const [scope, setScope] = useState(0)
   const [showErrors, setShowErrors] = useState(false)
   const [confirm, setConfirm] = useState(false)
+  // ใบขายที่เพิ่งบันทึก (ถามพิมพ์บิล) · ใบที่กำลังดูบิล
+  const [saved, setSaved] = useState<Sale | null>(null)
+  const [billIds, setBillIds] = useState<string[] | null>(null)
+  const issue = useIssueBills()
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   usePrefillRows({ ids: prefillIds, to: '/sale', setRows, makeRow: newRow, isBlank })
@@ -217,7 +224,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
     })
     setConfirm(false)
     reset()
-    toast.success(`บันทึกขาย ${doc.doc_no} แล้ว`, { description: `ยอดรวม ${fmtMoney(doc.total)} บาท` })
+    setSaved(doc)
   }
 
   return (
@@ -379,6 +386,37 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         </>
       )}
       </Dialog>
+
+      <Dialog
+        open={!!saved}
+        onClose={() => setSaved(null)}
+        title={`บันทึกขาย ${saved?.doc_no ?? ''} แล้ว`}
+        description={
+          saved
+            ? `${saved.customer ? `${saved.customer} · ` : ''}ยอดรวม ${fmtMoney(saved.total)} บาท · ออกบิลทีหลังได้ที่เมนู “ออกบิล” (รวมหลายใบขายเป็นบิลเดียวได้)`
+            : undefined
+        }
+        footer={
+          <>
+            <Button onClick={() => setSaved(null)}>ไว้ออกบิลทีหลัง</Button>
+            <Button
+              variant="primary"
+              loading={issue.isPending}
+              onClick={async () => {
+                const bills = await issue.mutateAsync({
+                  issuedAt: todayIso(),
+                  groups: [{ sale_ids: [saved!.id], customer: saved!.customer }],
+                })
+                setSaved(null)
+                setBillIds(bills.map((b) => b.id))
+              }}
+            >
+              <Printer className="size-4" /> ออกบิลเลย
+            </Button>
+          </>
+        }
+      />
+      <BillDialog billIds={billIds} onClose={() => setBillIds(null)} />
     </div>
   )
 }

@@ -16,6 +16,19 @@ export const APP_SETTINGS = {
   vat_rate: { schema: z.number().min(0).max(30), default: 7 },
   /** ใบขายใหม่: ราคาที่กรอกรวม VAT แล้ว (included) หรือยังไม่รวม (excluded) */
   default_vat_mode: { schema: z.enum(['included', 'excluded']), default: 'included' as const },
+
+  // ─── บิล / ใบเสร็จ ───
+  shop_name: { schema: z.string().max(120), default: 'Wine Cellar' },
+  shop_address: { schema: z.string().max(400), default: '' },
+  shop_phone: { schema: z.string().max(60), default: '' },
+  /** เลขประจำตัวผู้เสียภาษี (ว่าง = ไม่แสดง) */
+  shop_tax_id: { schema: z.string().max(20), default: '' },
+  bill_title: { schema: z.string().max(60), default: 'ใบส่งสินค้า' },
+  /** หัวบิลภาษาอังกฤษใต้หัวไทย (ว่าง = ไม่แสดง) */
+  bill_title_en: { schema: z.string().max(60), default: 'SALE ORDER' },
+  bill_footer: { schema: z.string().max(200), default: '' },
+  /** กระดาษตั้งต้นตอนพิมพ์บิล */
+  bill_paper: { schema: z.enum(['a4', '80mm']), default: 'a4' as const },
 } as const
 
 type Defs = typeof APP_SETTINGS
@@ -25,6 +38,11 @@ export type AppSettings = { [K in AppSettingKey]: z.infer<Defs[K]['schema']> }
 export const DEFAULT_SETTINGS = Object.fromEntries(
   Object.entries(APP_SETTINGS).map(([k, d]) => [k, d.default]),
 ) as AppSettings
+
+/** เลือกเฉพาะบาง key (แต่ละหน้าตั้งค่าบันทึกเฉพาะส่วนของตัวเอง) */
+export function pickSettings<K extends AppSettingKey>(s: AppSettings, keys: readonly K[]): Pick<AppSettings, K> {
+  return Object.fromEntries(keys.map((k) => [k, s[k]])) as Pick<AppSettings, K>
+}
 
 export function parseSettings(rows: Array<{ key: string; value: unknown }>): AppSettings {
   const out = { ...DEFAULT_SETTINGS } as Record<string, unknown>

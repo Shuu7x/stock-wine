@@ -60,6 +60,17 @@ export const adjustmentsListOptions = (page: number, size = 20, f: DocFilter = {
     },
   })
 
+/** ใบขายใบเดียวพร้อมรายการ (ใช้พิมพ์บิล) */
+export const saleOptions = (id: string) =>
+  queryOptions({
+    queryKey: ['ops', 'sale', id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('sales').select('*, sale_lines(*)').eq('id', id).single()
+      if (error) throw error
+      return data as SaleWithLines
+    },
+  })
+
 export const transfersListOptions = (page: number, size = 20, f: DocFilter = {}) =>
   queryOptions({
     queryKey: opKeys.transfers(page, size, f),

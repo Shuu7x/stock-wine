@@ -3,7 +3,7 @@ import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { env } from '@/lib/env'
-import { queryClient } from '@/lib/query-client'
+import { installHandledErrorFilter, queryClient } from '@/lib/query-client'
 import { routeTree } from './routeTree.gen'
 import './index.css'
 
@@ -20,6 +20,8 @@ async function enableMocking() {
   const { worker } = await import('@/mocks/browser')
   await worker.start({ onUnhandledFrame: 'bypass', quiet: true })
 }
+
+installHandledErrorFilter()
 
 enableMocking().then(() => {
   createRoot(document.getElementById('root')!).render(

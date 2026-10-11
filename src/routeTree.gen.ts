@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedAdjustIndexRouteImport } from './routes/_authenticated/adjust/index'
+import { Route as AuthenticatedBillingIndexRouteImport } from './routes/_authenticated/billing/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedICodeRouteImport } from './routes/_authenticated/i/$code'
 import { Route as AuthenticatedItemIdRouteImport } from './routes/_authenticated/item/$id'
@@ -22,6 +23,7 @@ import { Route as AuthenticatedReceiveIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedSaleIndexRouteImport } from './routes/_authenticated/sale/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings/account'
+import { Route as AuthenticatedSettingsBillRouteImport } from './routes/_authenticated/settings/bill'
 import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings/general'
 import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
 import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
@@ -52,6 +54,12 @@ const AuthenticatedAdjustIndexRoute =
   AuthenticatedAdjustIndexRouteImport.update({
     id: '/adjust/',
     path: '/adjust/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedBillingIndexRoute =
+  AuthenticatedBillingIndexRouteImport.update({
+    id: '/billing/',
+    path: '/billing/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedHistoryIndexRoute =
@@ -98,6 +106,12 @@ const AuthenticatedSettingsAccountRoute =
     path: '/account',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsBillRoute =
+  AuthenticatedSettingsBillRouteImport.update({
+    id: '/bill',
+    path: '/bill',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsGeneralRoute =
   AuthenticatedSettingsGeneralRouteImport.update({
     id: '/general',
@@ -141,10 +155,12 @@ export interface FileRoutesByFullPath {
   '/i/$code': typeof AuthenticatedICodeRoute
   '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/bill': typeof AuthenticatedSettingsBillRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust/': typeof AuthenticatedAdjustIndexRoute
+  '/billing/': typeof AuthenticatedBillingIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/qr/': typeof AuthenticatedQrIndexRoute
   '/receive/': typeof AuthenticatedReceiveIndexRoute
@@ -160,10 +176,12 @@ export interface FileRoutesByTo {
   '/i/$code': typeof AuthenticatedICodeRoute
   '/item/$id': typeof AuthenticatedItemIdRoute
   '/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/settings/bill': typeof AuthenticatedSettingsBillRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust': typeof AuthenticatedAdjustIndexRoute
+  '/billing': typeof AuthenticatedBillingIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/qr': typeof AuthenticatedQrIndexRoute
   '/receive': typeof AuthenticatedReceiveIndexRoute
@@ -182,10 +200,12 @@ export interface FileRoutesById {
   '/_authenticated/i/$code': typeof AuthenticatedICodeRoute
   '/_authenticated/item/$id': typeof AuthenticatedItemIdRoute
   '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
+  '/_authenticated/settings/bill': typeof AuthenticatedSettingsBillRoute
   '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/_authenticated/adjust/': typeof AuthenticatedAdjustIndexRoute
+  '/_authenticated/billing/': typeof AuthenticatedBillingIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/qr/': typeof AuthenticatedQrIndexRoute
   '/_authenticated/receive/': typeof AuthenticatedReceiveIndexRoute
@@ -204,10 +224,12 @@ export interface FileRouteTypes {
     | '/i/$code'
     | '/item/$id'
     | '/settings/account'
+    | '/settings/bill'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
     | '/adjust/'
+    | '/billing/'
     | '/history/'
     | '/qr/'
     | '/receive/'
@@ -223,10 +245,12 @@ export interface FileRouteTypes {
     | '/i/$code'
     | '/item/$id'
     | '/settings/account'
+    | '/settings/bill'
     | '/settings/general'
     | '/settings/lookups'
     | '/settings/stores'
     | '/adjust'
+    | '/billing'
     | '/history'
     | '/qr'
     | '/receive'
@@ -244,10 +268,12 @@ export interface FileRouteTypes {
     | '/_authenticated/i/$code'
     | '/_authenticated/item/$id'
     | '/_authenticated/settings/account'
+    | '/_authenticated/settings/bill'
     | '/_authenticated/settings/general'
     | '/_authenticated/settings/lookups'
     | '/_authenticated/settings/stores'
     | '/_authenticated/adjust/'
+    | '/_authenticated/billing/'
     | '/_authenticated/history/'
     | '/_authenticated/qr/'
     | '/_authenticated/receive/'
@@ -298,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/adjust'
       fullPath: '/adjust/'
       preLoaderRoute: typeof AuthenticatedAdjustIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/billing/': {
+      id: '/_authenticated/billing/'
+      path: '/billing'
+      fullPath: '/billing/'
+      preLoaderRoute: typeof AuthenticatedBillingIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/history/': {
@@ -356,6 +389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/bill': {
+      id: '/_authenticated/settings/bill'
+      path: '/bill'
+      fullPath: '/settings/bill'
+      preLoaderRoute: typeof AuthenticatedSettingsBillRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/general': {
       id: '/_authenticated/settings/general'
       path: '/general'
@@ -403,6 +443,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
+  AuthenticatedSettingsBillRoute: typeof AuthenticatedSettingsBillRoute
   AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
   AuthenticatedSettingsLookupsRoute: typeof AuthenticatedSettingsLookupsRoute
   AuthenticatedSettingsStoresRoute: typeof AuthenticatedSettingsStoresRoute
@@ -411,6 +452,7 @@ interface AuthenticatedSettingsRouteChildren {
 
 const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
+  AuthenticatedSettingsBillRoute: AuthenticatedSettingsBillRoute,
   AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
   AuthenticatedSettingsLookupsRoute: AuthenticatedSettingsLookupsRoute,
   AuthenticatedSettingsStoresRoute: AuthenticatedSettingsStoresRoute,
@@ -428,6 +470,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedICodeRoute: typeof AuthenticatedICodeRoute
   AuthenticatedItemIdRoute: typeof AuthenticatedItemIdRoute
   AuthenticatedAdjustIndexRoute: typeof AuthenticatedAdjustIndexRoute
+  AuthenticatedBillingIndexRoute: typeof AuthenticatedBillingIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedQrIndexRoute: typeof AuthenticatedQrIndexRoute
   AuthenticatedReceiveIndexRoute: typeof AuthenticatedReceiveIndexRoute
@@ -443,6 +486,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedICodeRoute: AuthenticatedICodeRoute,
   AuthenticatedItemIdRoute: AuthenticatedItemIdRoute,
   AuthenticatedAdjustIndexRoute: AuthenticatedAdjustIndexRoute,
+  AuthenticatedBillingIndexRoute: AuthenticatedBillingIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedQrIndexRoute: AuthenticatedQrIndexRoute,
   AuthenticatedReceiveIndexRoute: AuthenticatedReceiveIndexRoute,

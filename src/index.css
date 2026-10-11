@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700&family=Playfair+Display:wght@600;700&display=swap');
 @import 'tailwindcss';
 
 /* สีทั้งหมดผ่าน token — ห้ามใช้ค่าสีตรงใน component */
@@ -6,6 +6,8 @@
 @theme static {
   --font-sans: 'IBM Plex Sans Thai', ui-sans-serif, system-ui, sans-serif;
   --font-display: 'Playfair Display', 'IBM Plex Sans Thai', serif;
+  /* เอกสารพิมพ์ (บิล) */
+  --font-doc: 'Noto Serif Thai', 'Times New Roman', serif;
 
   --color-brand-50: #fbf2f4;
   --color-brand-100: #f5e1e6;
@@ -183,8 +185,8 @@ input[type='number']::-webkit-inner-spin-button {
     background: #fff !important;
     height: auto;
   }
-  #root,
-  [data-sonner-toaster] {
+  /* พิมพ์เฉพาะ .print-root — ซ่อนหน้าแอปและ portal อื่น (dialog, toast) ทั้งหมด */
+  body > :not(.print-root) {
     display: none !important;
   }
   .print-root {
@@ -196,6 +198,13 @@ input[type='number']::-webkit-inner-spin-button {
     -webkit-print-color-adjust: exact;
   }
   .print-root .qr-sheet:last-child {
+    break-after: auto;
+  }
+  /* พิมพ์บิลหลายใบ: ใบละหน้า */
+  .print-root .bill-sheet {
+    break-after: page;
+  }
+  .print-root .bill-sheet:last-child {
     break-after: auto;
   }
 }

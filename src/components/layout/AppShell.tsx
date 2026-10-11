@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   PackagePlus,
   QrCode,
+  Receipt,
   Settings,
   ShoppingBag,
   Warehouse,
@@ -27,6 +28,7 @@ const MOBILE_NAV = [
 ] as const
 
 const MOBILE_MORE = [
+  { to: '/billing', label: 'ออกบิล', icon: Receipt },
   { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
   { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck },
   { to: '/qr', label: 'ป้าย QR', icon: QrCode },

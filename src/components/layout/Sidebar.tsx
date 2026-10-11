@@ -10,6 +10,7 @@ import {
   History,
   PackagePlus,
   QrCode,
+  Receipt,
   Settings,
   ShoppingBag,
   Warehouse,
@@ -17,6 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { unbilledSalesOptions } from '@/features/billing/api/billing.api'
 import { stockItemsOptions, storesOptions } from '@/features/stock/api/stock.api'
 import { cn } from '@/lib/cn'
 import { UserMenu } from './UserMenu'
@@ -62,7 +64,7 @@ function NavItem({
     >
       {active && <span className="absolute top-2 bottom-2 left-0 w-[3px] rounded-r-full bg-gold-500" />}
       <Icon className={cn('size-[18px] shrink-0', active ? 'text-gold-100' : 'text-brand-300 group-hover:text-white')} />
-      {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
+      {!collapsed && <span className="min-w-0 flex-1 truncate">{trailing ? label.replace(/\s*\(.*\)$/, '') : label}</span>}
       {!collapsed && trailing}
       <Tip show={collapsed}>{label}</Tip>
     </Link>
@@ -87,6 +89,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const { pathname, search } = useLocation()
   const storesQ = useQuery(storesOptions())
   const itemsQ = useQuery(stockItemsOptions())
+  // จำนวนใบขายที่รอออกบิล
+  const unbilled = useQuery(unbilledSalesOptions()).data?.length ?? 0
   const onStock = pathname.startsWith('/stock')
   const currentStore = onStock ? ((search as { store?: string }).store ?? 'all') : null
 
@@ -190,6 +194,18 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
         <Group title="ทำรายการ" collapsed={collapsed}>
           <NavItem to="/receive" label="รับเข้า" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
           <NavItem to="/sale" label="ขาย" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
+          <NavItem
+            to="/billing"
+            label={unbilled ? `ออกบิล (รอ ${unbilled})` : 'ออกบิล'}
+            icon={Receipt}
+            active={is('/billing')}
+            collapsed={collapsed}
+            trailing={
+              unbilled > 0 ? (
+                <span className="rounded-full bg-gold-500 px-1.5 text-[11px] font-semibold text-brand-900 tabular-nums">{unbilled}</span>
+              ) : undefined
+            }
+          />
           <NavItem to="/withdraw" label="เบิก" icon={GlassWater} active={is('/withdraw')} collapsed={collapsed} />
           <NavItem to="/transfer" label="โอนย้าย" icon={ArrowLeftRight} active={is('/transfer')} collapsed={collapsed} />
           <NavItem to="/adjust" label="ปรับยอด" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />

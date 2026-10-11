@@ -154,6 +154,8 @@ export type VatMode = 'included' | 'excluded'
 
 type SaleRow = DocBase & {
   sold_at: string
+  /** บิลที่ใช้อยู่ (null = ยังไม่ออกบิล) */
+  bill_id: string | null
   customer: string | null
   vat_mode: VatMode
   vat_rate: number
@@ -181,6 +183,24 @@ type SaleLineRow = Audit & {
   vintage: number | null
   cost_per_bottle: number | null
 }
+
+type BillRow = Audit & {
+  id: string
+  bill_no: string
+  issued_at: string
+  customer: string | null
+  note: string | null
+  subtotal: number
+  vat_amount: number
+  total: number
+  status: DocStatus
+  void_reason: string | null
+  voided_at: string | null
+  voided_by: string | null
+  created_by_email: string | null
+}
+
+type BillSaleRow = Audit & { bill_id: string; sale_id: string }
 
 type AdjustmentRow = DocBase & { adjusted_at: string }
 
@@ -309,6 +329,8 @@ export type Database = {
       withdrawals: ReadOnlyTable<WithdrawalRow>
       sales: ReadOnlyTable<SaleRow>
       sale_lines: LineTable<SaleLineRow, 'sale_id', 'sales'>
+      bills: ReadOnlyTable<BillRow>
+      bill_sales: ReadOnlyTable<BillSaleRow>
       stock_adjustments: ReadOnlyTable<AdjustmentRow>
       stock_adjustment_lines: LineTable<AdjustmentLineRow, 'adjustment_id', 'stock_adjustments'>
       transfers: ReadOnlyTable<TransferRow>
@@ -343,6 +365,12 @@ export type Database = {
         Returns: SaleRow
       }
       void_sale: { Args: { p_id: string; p_reason: string | null }; Returns: SaleRow }
+      issue_bills: {
+        Args: { p_issued_at: string; p_groups: Json }
+        Returns: BillRow[]
+        SetofOptions: { from: '*'; to: 'bills'; isOneToOne: false; isSetofReturn: true }
+      }
+      void_bill: { Args: { p_id: string; p_reason: string | null }; Returns: BillRow }
       post_adjustment: { Args: { p_adjusted_at: string; p_note: string | null; p_lines: Json }; Returns: AdjustmentRow }
       void_adjustment: { Args: { p_id: string; p_reason: string | null }; Returns: AdjustmentRow }
       post_transfer: { Args: { p_transferred_at: string; p_note: string | null; p_lines: Json }; Returns: TransferRow }

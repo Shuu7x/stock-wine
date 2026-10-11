@@ -1,5 +1,5 @@
 import type { LinkProps } from '@tanstack/react-router'
-import { Building2, ListChecks, SlidersHorizontal, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { Building2, ListChecks, Receipt, SlidersHorizontal, UserCog, Users, type LucideIcon } from 'lucide-react'
 
 export type SettingsSection = {
   id: string
@@ -25,6 +25,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: 'ทั่วไป',
     description: 'ค่าเริ่มต้นการรับเข้า แจ้งเตือนไวน์ใกล้หมด กติกาการเบิก',
     icon: SlidersHorizontal,
+    group: 'ระบบ',
+  },
+  {
+    id: 'bill',
+    to: '/settings/bill',
+    label: 'ใบเสร็จ / บิล',
+    description: 'ข้อมูลร้าน หัวบิล ข้อความท้ายบิล และกระดาษที่ใช้พิมพ์',
+    icon: Receipt,
     group: 'ระบบ',
   },
   {

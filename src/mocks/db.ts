@@ -19,7 +19,9 @@ type DB = {
   stock_adjustment_lines: Tables<'stock_adjustment_lines'>[]
   transfers: Tables<'transfers'>[]
   transfer_lines: Tables<'transfer_lines'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number }
+  bills: Tables<'bills'>[]
+  bill_sales: Tables<'bill_sales'>[]
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -101,6 +103,8 @@ function emptyOps() {
     stock_adjustment_lines: [] as Tables<'stock_adjustment_lines'>[],
     transfers: [] as Tables<'transfers'>[],
     transfer_lines: [] as Tables<'transfer_lines'>[],
+    bills: [] as Tables<'bills'>[],
+    bill_sales: [] as Tables<'bill_sales'>[],
   }
 }
 
@@ -140,7 +144,7 @@ function seed(): DB {
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0 },
   }
 }
 
@@ -160,6 +164,8 @@ function load(): DB {
       saved.seq.sale ??= 0
       saved.seq.adjustment ??= 0
       saved.seq.transfer ??= 0
+      saved.seq.bill ??= 0
+      for (const s of saved.sales) s.bill_id ??= null
       for (const st of seedSettings()) {
         if (!saved.app_settings.some((x) => x.key === st.key)) saved.app_settings.push(st)
       }
@@ -205,7 +211,7 @@ export class PgError extends Error {
 
 export const auditNow = audit
 
-export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF', n: number) {
+export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF' | 'BL', n: number) {
   const d = new Date()
   const yymm = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}`
   return `${prefix}${yymm}-${String(n).padStart(4, '0')}`

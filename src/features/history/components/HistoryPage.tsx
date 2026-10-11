@@ -5,6 +5,7 @@ import {
   Ban,
   ChevronRight,
   ClipboardCheck,
+  Printer,
   FileX2,
   GlassWater,
   History,
@@ -21,6 +22,8 @@ import { DateInput } from '@/components/ui/date-input'
 import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import { Field, Input } from '@/components/ui/field'
+import { useIssueBills } from '@/features/billing/api/billing.api'
+import { BillDialog } from '@/features/billing/components/BillDialog'
 import { PageHeader } from '@/components/ui/page'
 import { DOC_PAGE_SIZES, Pager } from '@/components/ui/pager'
 import { Segmented } from '@/components/ui/segmented'
@@ -78,6 +81,8 @@ type DocView = {
   created_at: string
   created_by_email: string | null
   lineCount: number
+  /** ใบขาย: บิลที่ออกแล้ว (null = ยังไม่ออกบิล) · เอกสารอื่น = undefined */
+  billId?: string | null
   /** จำนวนที่แสดงในรายการ เช่น "12 ขวด" หรือ "+2 −1" */
   qty: ReactNode
   amount: number | null
@@ -134,6 +139,8 @@ export function HistoryPage({
   }
 
   const [openId, setOpenId] = useState<string | null>(null)
+  const [billIds, setBillIds] = useState<string[] | null>(null)
+  const issue = useIssueBills()
   const [voiding, setVoiding] = useState<DocView | null>(null)
   const [reason, setReason] = useState('')
 
@@ -188,6 +195,7 @@ export function HistoryPage({
             ...d,
             date: d.sold_at,
             party: d.customer,
+            billId: d.bill_id,
             lineCount: ls.length,
             qty: bottles(sum(ls, (l) => l.qty)),
             amount: d.total,
@@ -195,6 +203,7 @@ export function HistoryPage({
               ['ลูกค้า', d.customer ?? '–'],
               ['วันที่ขาย', fmtDate(d.sold_at)],
               ['ราคาที่กรอก', `${VAT_MODE_LABEL[d.vat_mode]} (VAT ${d.vat_rate}%)`],
+              ['บิล', d.bill_id ? 'ออกบิลแล้ว' : d.status === 'void' ? '–' : 'ยังไม่ออกบิล'],
               ...base(d),
             ],
             cols: [
@@ -430,7 +439,13 @@ export function HistoryPage({
                     </span>
                     <span className="text-right font-semibold tabular-nums">{d.amount != null ? fmtMoney(d.amount) : ''}</span>
                     <span className="hidden md:block">
-                      {d.status === 'void' ? <Badge tone="danger">ยกเลิก</Badge> : <Badge tone="success">บันทึกแล้ว</Badge>}
+                      {d.status === 'void' ? (
+                        <Badge tone="danger">ยกเลิก</Badge>
+                      ) : d.billId === null ? (
+                        <Badge tone="warning">รอออกบิล</Badge>
+                      ) : (
+                        <Badge tone="success">บันทึกแล้ว</Badge>
+                      )}
                     </span>
                     <ChevronRight className="hidden size-4 text-muted md:block" />
                   </button>
@@ -484,9 +499,27 @@ export function HistoryPage({
                   <Ban className="size-4" /> ยกเลิกเอกสาร
                 </Button>
               )}
-              <Button className="ml-auto" onClick={() => setOpenId(null)}>
-                ปิด
-              </Button>
+              <span className="ml-auto" />
+              {tab === 'sales' && open.billId && (
+                <Button onClick={() => setBillIds([open.billId!])}>
+                  <Printer className="size-4" /> พิมพ์บิล
+                </Button>
+              )}
+              {tab === 'sales' && open.billId === null && open.status === 'posted' && (
+                <Button
+                  loading={issue.isPending}
+                  onClick={async () => {
+                    const bills = await issue.mutateAsync({
+                      issuedAt: todayIso(),
+                      groups: [{ sale_ids: [open.id], customer: open.party }],
+                    })
+                    setBillIds(bills.map((b) => b.id))
+                  }}
+                >
+                  <Printer className="size-4" /> ออกบิล
+                </Button>
+              )}
+              <Button onClick={() => setOpenId(null)}>ปิด</Button>
             </>
           )
         }
@@ -560,6 +593,8 @@ export function HistoryPage({
           </div>
         )}
       </Drawer>
+
+      <BillDialog billIds={billIds} onClose={() => setBillIds(null)} />
 
       <Dialog
         open={!!voiding}

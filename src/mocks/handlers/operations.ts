@@ -53,6 +53,7 @@ function postSale(email: string, a: { p_sold_at: string; p_customer: string | nu
   const doc: Tables<'sales'> = {
     ...docBase(email, 'SO', db.seq.sale + 1, a.p_note),
     sold_at: a.p_sold_at ?? today(),
+    bill_id: null,
     customer: blank(a.p_customer),
     vat_mode: a.p_vat_mode,
     vat_rate: rate,
@@ -104,6 +105,10 @@ function voidSale(email: string, id: string, reason: string | null) {
   const doc = db.sales.find((d) => d.id === id)
   if (!doc) throw new PgError('ไม่พบเอกสาร')
   if (doc.status === 'void') throw new PgError('เอกสารนี้ถูกยกเลิกแล้ว')
+  if (doc.bill_id) {
+    const bill = db.bills.find((b) => b.id === doc.bill_id)
+    throw new PgError(`ใบขายนี้ออกบิล ${bill?.bill_no ?? ''} แล้ว ต้องยกเลิกบิลก่อน`)
+  }
   const items = structuredClone(db.stock_items)
   const logs: Log[] = []
   for (const l of db.sale_lines.filter((x) => x.sale_id === id)) {

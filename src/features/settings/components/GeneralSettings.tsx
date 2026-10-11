@@ -11,7 +11,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import { VAT_MODE_LABEL } from '@/lib/vat'
 import { storesOptions } from '@/features/stock/api/stock.api'
-import { APP_SETTINGS, DEFAULT_SETTINGS, type AppSettings } from '../app-settings'
+import { APP_SETTINGS, DEFAULT_SETTINGS, pickSettings, type AppSettings } from '../app-settings'
 import { appSettingsOptions, useSaveAppSettings } from '../api/settings.api'
 import { SaveBar, SettingRow, SettingsCard } from './SettingsLayout'
 
@@ -21,16 +21,20 @@ const schema = z.object({
   require_withdraw_note: APP_SETTINGS.require_withdraw_note.schema,
   vat_rate: z.number({ error: 'ระบุตัวเลข' }).min(0, 'ต้องไม่ติดลบ').max(30, 'ไม่เกิน 30%'),
   default_vat_mode: APP_SETTINGS.default_vat_mode.schema,
-}) satisfies z.ZodType<AppSettings>
+}) satisfies z.ZodType<Values>
+
+const KEYS = ['default_receive_store_id', 'low_stock_threshold', 'require_withdraw_note', 'vat_rate', 'default_vat_mode'] as const
+type Values = Pick<AppSettings, (typeof KEYS)[number]>
 
 export function GeneralSettings() {
   const settingsQ = useQuery(appSettingsOptions())
   const storesQ = useQuery(storesOptions())
   const save = useSaveAppSettings()
-  const form = useForm<AppSettings>({ resolver: zodResolver(schema), defaultValues: DEFAULT_SETTINGS })
+  const form = useForm<Values>({ resolver: zodResolver(schema), defaultValues: pickSettings(DEFAULT_SETTINGS, KEYS) })
 
   useEffect(() => {
-    if (settingsQ.data) form.reset(settingsQ.data)
+    // ไม่ทับสิ่งที่ผู้ใช้กำลังแก้ (ค่าโหลดเสร็จช้ากว่าการพิมพ์)
+    if (settingsQ.data && !form.formState.isDirty) form.reset(pickSettings(settingsQ.data, KEYS))
   }, [settingsQ.data, form])
 
   const submit = form.handleSubmit(async (values) => {
@@ -131,7 +135,7 @@ export function GeneralSettings() {
         </SettingRow>
       </SettingsCard>
 
-      <SaveBar dirty={isDirty} saving={save.isPending} onReset={() => form.reset(settingsQ.data ?? DEFAULT_SETTINGS)} />
+      <SaveBar dirty={isDirty} saving={save.isPending} onReset={() => form.reset(pickSettings(settingsQ.data ?? DEFAULT_SETTINGS, KEYS))} />
     </form>
   )
 }

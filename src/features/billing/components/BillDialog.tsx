@@ -1,0 +1,145 @@
+import { useQuery } from '@tanstack/react-query'
+import { Ban, Printer } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Dialog } from '@/components/ui/dialog'
+import { Field, Input } from '@/components/ui/field'
+import { Segmented } from '@/components/ui/segmented'
+import { useAppSettings } from '@/features/settings/api/settings.api'
+import { storesOptions } from '@/features/stock/api/stock.api'
+import { fmtMoney } from '@/lib/format'
+import { billDocsOptions, useVoidBill } from '../api/billing.api'
+import { Bill, receiptHeightMm, type BillPaper } from './Bill'
+
+const MM = 96 / 25.4
+
+/** ดูตัวอย่างและพิมพ์บิล (หนึ่งใบหรือหลายใบพร้อมกัน — ใบละหน้า) */
+export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onClose: () => void }) {
+  const settings = useAppSettings()
+  const stores = useQuery(storesOptions()).data ?? []
+  const ids = billIds ?? []
+  const docsQ = useQuery(billDocsOptions(ids, stores))
+  const docs = docsQ.data ?? []
+  const [paper, setPaper] = useState<BillPaper | null>(null)
+  const current = paper ?? settings.bill_paper
+  const [voiding, setVoiding] = useState(false)
+  const [reason, setReason] = useState('')
+  const voidBill = useVoidBill()
+
+  useEffect(() => {
+    if (!billIds) setPaper(null)
+  }, [billIds])
+
+  // ย่อตัวอย่างให้พอดีกล่อง
+  const boxRef = useRef<HTMLDivElement>(null)
+  const [zoom, setZoom] = useState(1)
+  useLayoutEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const update = () => setZoom(Math.min(1, (el.clientWidth - 24) / ((current === 'a4' ? 210 : 80) * MM)))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [current, docs.length])
+
+  // ขนาดหน้ากระดาษตอนพิมพ์ (ทับค่า A4 ของป้าย QR) · ม้วน 80 มม. ใช้ความสูงของใบที่ยาวที่สุด
+  const pageCss = docs.length
+    ? current === 'a4'
+      ? '@media print { @page { size: A4; margin: 0 } }'
+      : `@media print { @page { size: 80mm ${Math.max(...docs.map(receiptHeightMm))}mm; margin: 0 } }`
+    : ''
+
+  const single = docs.length === 1 ? docs[0] : null
+  const total = docs.reduce((s, d) => s + d.total, 0)
+
+  async function confirmVoid() {
+    if (!single) return
+    await voidBill.mutateAsync({ id: single.id, reason })
+    toast.success(`ยกเลิกบิล ${single.doc_no} แล้ว ใบขายกลับไปรอออกบิล`)
+    setVoiding(false)
+    setReason('')
+  }
+
+  return (
+    <>
+      <Dialog
+        open={!!billIds}
+        onClose={onClose}
+        size="lg"
+        title={single ? `บิล ${single.doc_no}` : `พิมพ์บิล ${ids.length} ใบ`}
+        description={
+          docs.length > 1
+            ? `รวม ${fmtMoney(total)} บาท · พิมพ์ใบละหน้า · เลือก “บันทึกเป็น PDF” เพื่อส่งให้ลูกค้าทางออนไลน์ได้`
+            : 'ตรวจตัวอย่างแล้วกดพิมพ์ · เลือก “บันทึกเป็น PDF” ในหน้าต่างพิมพ์เพื่อส่งให้ลูกค้าทางออนไลน์ได้'
+        }
+        footer={
+          <>
+            <Segmented
+              className="!mx-0 mr-auto !px-0"
+              value={current}
+              onChange={setPaper}
+              items={[
+                { value: 'a4', label: 'A4' },
+                { value: '80mm', label: 'ใบเสร็จม้วน 80 มม.' },
+              ]}
+            />
+            {single?.status === 'posted' && (
+              <Button variant="ghost" className="text-danger-700" onClick={() => setVoiding(true)}>
+                <Ban className="size-4" /> ยกเลิกบิล
+              </Button>
+            )}
+            <Button onClick={onClose}>ปิด</Button>
+            <Button variant="primary" disabled={!docs.length} onClick={() => window.print()}>
+              <Printer className="size-4" /> พิมพ์{docs.length > 1 ? ` ${docs.length} ใบ` : 'บิล'}
+            </Button>
+          </>
+        }
+      >
+        <div ref={boxRef} className="flex flex-col items-center gap-4 rounded-lg bg-surface-3 p-3">
+          {!docs.length ? (
+            <div className="py-16 text-sm text-muted">กำลังโหลด…</div>
+          ) : (
+            docs.map((d) => (
+              <div key={d.id} className="shadow-lg" style={{ zoom }}>
+                <Bill doc={d} shop={settings} paper={current} />
+              </div>
+            ))
+          )}
+        </div>
+
+        {docs.length > 0 &&
+          createPortal(
+            <div className="print-root">
+              <style>{pageCss}</style>
+              {docs.map((d) => (
+                <Bill key={d.id} doc={d} shop={settings} paper={current} />
+              ))}
+            </div>,
+            document.body,
+          )}
+      </Dialog>
+
+      <Dialog
+        open={voiding}
+        onClose={() => setVoiding(false)}
+        title={`ยกเลิกบิล ${single?.doc_no ?? ''}?`}
+        description="ใบขายในบิลนี้จะกลับไปอยู่ในรายการรอออกบิล (ยอดสต็อกไม่เปลี่ยน) · บิลยังเก็บไว้ในประวัติ"
+        footer={
+          <>
+            <Button onClick={() => setVoiding(false)}>ไม่ยกเลิก</Button>
+            <Button variant="danger" loading={voidBill.isPending} onClick={confirmVoid}>
+              ยืนยันยกเลิกบิล
+            </Button>
+          </>
+        }
+      >
+        <Field label="เหตุผล">
+          <Input autoFocus value={reason} onChange={(e) => setReason(e.target.value)} placeholder="เช่น ออกบิลผิดลูกค้า / ต้องการรวมบิลใหม่" />
+        </Field>
+      </Dialog>
+    </>
+  )
+}
