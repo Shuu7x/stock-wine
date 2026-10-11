@@ -12,6 +12,7 @@ import { storesOptions } from '@/features/stock/api/stock.api'
 import { fmtMoney } from '@/lib/format'
 import { billDocsOptions, useVoidBill } from '../api/billing.api'
 import { Bill, receiptHeightMm, type BillPaper } from './Bill'
+import { Loading } from '@/components/ui/loading'
 
 const MM = 96 / 25.4
 
@@ -100,7 +101,7 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
       >
         <div ref={boxRef} className="flex flex-col items-center gap-4 rounded-lg bg-surface-3 p-3">
           {!docs.length ? (
-            <div className="py-16 text-sm text-muted">กำลังโหลด…</div>
+            <Loading className="py-16" label="กำลังเตรียมบิล…" />
           ) : (
             docs.map((d) => (
               <div key={d.id} className="shadow-lg" style={{ zoom }}>

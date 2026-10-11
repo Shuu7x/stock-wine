@@ -19,6 +19,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { Sidebar } from './Sidebar'
 import { UserMenu } from './UserMenu'
+import { TopLoader } from '@/components/ui/loading'
 
 // มือถือ: เมนูล่าง 4 อย่างที่ใช้บ่อย + "เพิ่มเติม" สำหรับที่เหลือ
 const MOBILE_NAV = [
@@ -101,6 +102,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <UserMenu placement="header" />
       </header>
 
+      <TopLoader />
       <main className="min-h-0 min-w-0 flex-1 overflow-auto p-4 lg:p-6">{children}</main>
 
       {/* เมนูเพิ่มเติม (มือถือ) */}

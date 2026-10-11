@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Loading, Skeleton } from '@/components/ui/loading'
 import { PageHeader } from '@/components/ui/page'
 import { Segmented } from '@/components/ui/segmented'
 import { unbilledSalesOptions } from '@/features/billing/api/billing.api'
@@ -87,9 +88,11 @@ function Kpi({
   delta,
   to,
   search,
+  loading,
 }: {
   icon: LucideIcon
   label: string
+  loading?: boolean
   value: string
   unit?: string
   hint?: ReactNode
@@ -97,6 +100,20 @@ function Kpi({
   to?: string
   search?: Record<string, string>
 }) {
+  const figure = loading ? (
+    <>
+      <Skeleton className="mt-3 h-6 w-3/4 sm:mt-4 sm:h-7" />
+      <Skeleton className="mt-2 h-3 w-1/2" />
+    </>
+  ) : (
+    <>
+      <div className="mt-2 flex items-baseline gap-1.5 sm:mt-3">
+        <span className="truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">{value}</span>
+        {unit && <span className="text-sm text-muted">{unit}</span>}
+      </div>
+      {hint && <div className="mt-0.5 line-clamp-2 text-xs text-muted sm:truncate">{hint}</div>}
+    </>
+  )
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
@@ -106,13 +123,9 @@ function Kpi({
           </span>
           {label}
         </span>
-        {delta}
+        {!loading && delta}
       </div>
-      <div className="mt-2 flex items-baseline gap-1.5 sm:mt-3">
-        <span className="truncate text-lg font-bold text-ink tabular-nums sm:text-2xl">{value}</span>
-        {unit && <span className="text-sm text-muted">{unit}</span>}
-      </div>
-      {hint && <div className="mt-0.5 line-clamp-2 text-xs text-muted sm:truncate">{hint}</div>}
+      {figure}
     </>
   )
   const cls = 'block min-w-0 rounded-xl border border-line bg-surface p-3 transition sm:p-4'
@@ -125,15 +138,46 @@ function Kpi({
   )
 }
 
-function Panel({ title, action, children, className }: { title: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
+function Panel({
+  title,
+  action,
+  children,
+  className,
+  loading,
+  skeleton = <SkeletonRows />,
+}: {
+  title: ReactNode
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+  /** ระหว่างโหลดแสดง skeleton แทนเนื้อหา */
+  loading?: boolean
+  skeleton?: ReactNode
+}) {
   return (
     <section className={cn('min-w-0 rounded-xl border border-line bg-surface p-4 sm:p-5', className)}>
       <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="font-semibold text-ink">{title}</h2>
         {action}
       </div>
-      {children}
+      {loading ? skeleton : children}
     </section>
+  )
+}
+
+function SkeletonRows({ n = 3 }: { n?: number }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {Array.from({ length: n }, (_, i) => (
+        <div key={i}>
+          <div className="flex justify-between gap-4">
+            <Skeleton className="h-3.5 w-1/2" />
+            <Skeleton className="h-3.5 w-12" />
+          </div>
+          <Skeleton className="mt-2 h-1.5 w-full rounded-full" />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -150,7 +194,8 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
   const itemsQ = useQuery(stockItemsOptions())
   const activityQ = useQuery(activityOptions(prev.from, cur.to))
   const unbilled = useQuery(unbilledSalesOptions()).data ?? []
-  const logs = useQuery(logsListOptions({ page: 1, pageSize: 8 })).data?.items ?? []
+  const logsQ = useQuery(logsListOptions({ page: 1, pageSize: 8 }))
+  const logs = logsQ.data?.items ?? []
 
   const now = useMemo(() => summarize(activityQ.data, cur), [activityQ.data, cur])
   const before = useMemo(() => summarize(activityQ.data, prev), [activityQ.data, prev])
@@ -233,7 +278,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
   const rangeText = cur.from === cur.to ? fmtDate(cur.from) : `${fmtDate(cur.from)} – ${fmtDate(cur.to)}`
 
   return (
-    <div className={cn('flex flex-col gap-4 transition-opacity', loading && 'opacity-60')}>
+    <div className="flex flex-col gap-4">
       <PageHeader
         title="ภาพรวม"
         description={`${rangeText} · เทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน`}
@@ -250,6 +295,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
       {/* ตัวเลขหลัก */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Kpi
+          loading={loading}
           icon={ShoppingBag}
           label="ยอดขาย"
           value={`฿${fmtMoney(now.revenue)}`}
@@ -259,6 +305,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           search={{ tab: 'sales' }}
         />
         <Kpi
+          loading={loading}
           icon={TrendingUp}
           label="กำไรขั้นต้น"
           value={`฿${fmtMoney(Math.round(now.profit))}`}
@@ -266,6 +313,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           delta={<Delta cur={now.profit} prev={before.profit} />}
         />
         <Kpi
+          loading={loading}
           icon={GlassWater}
           label="ขวดที่ออก"
           value={fmtInt(now.bottles + now.withdrawn)}
@@ -274,6 +322,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           delta={<Delta cur={now.bottles + now.withdrawn} prev={before.bottles + before.withdrawn} />}
         />
         <Kpi
+          loading={loading}
           icon={Warehouse}
           label="มูลค่าสต็อก"
           value={`฿${fmtMoney(stock.value)}`}
@@ -287,12 +336,14 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           className="xl:col-span-2"
           title={`ยอดขาย${period === 'year' ? 'รายเดือน' : 'รายวัน'}`}
           action={<span className="text-xs text-muted">ชี้ที่แท่งเพื่อดูรายละเอียด</span>}
+          loading={loading}
+          skeleton={<Loading className="min-h-[240px]" label="กำลังรวมยอดขาย…" />}
         >
           <BarChart data={chart} height={240} />
         </Panel>
 
         {/* สิ่งที่ต้องดูแล */}
-        <Panel title="ต้องดูแล">
+        <Panel title="ต้องดูแล" loading={loading} skeleton={<SkeletonRows n={4} />}>
           <ul className="flex flex-col divide-y divide-line">
             <Attention
               icon={Receipt}
@@ -332,7 +383,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Panel title="ขายดี" action={<span className="text-xs text-muted">{PERIOD_LABEL[period]} · ตามจำนวนขวด</span>}>
+        <Panel title="ขายดี" loading={loading} action={<span className="text-xs text-muted">{PERIOD_LABEL[period]} · ตามจำนวนขวด</span>}>
           <BarList
             empty="ยังไม่มีการขายในช่วงนี้"
             rows={topWines.map(([id, w], i) => ({
@@ -350,7 +401,7 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           />
         </Panel>
 
-        <Panel title="สต็อกตามคลัง" action={<MoreLink to="/stock">ดูสต็อก</MoreLink>}>
+        <Panel title="สต็อกตามคลัง" loading={loading} action={<MoreLink to="/stock">ดูสต็อก</MoreLink>}>
           <BarList
             rows={stores
               .filter((s) => s.is_active)
@@ -372,12 +423,12 @@ export function DashboardPage({ period, onPeriod }: { period: Period; onPeriod: 
           />
         </Panel>
 
-        <Panel title="ขวดในสต็อกตามประเทศ" className="lg:col-span-2 xl:col-span-1">
+        <Panel title="ขวดในสต็อกตามประเทศ" className="lg:col-span-2 xl:col-span-1" loading={loading} skeleton={<SkeletonRows n={2} />}>
           <StackBar parts={stock.countries.map(([label, value], i) => ({ key: label, label, value, color: COUNTRY_COLORS[i % COUNTRY_COLORS.length] }))} />
         </Panel>
       </div>
 
-      <Panel title="ความเคลื่อนไหวล่าสุด" action={<MoreLink to="/history" search={{ tab: 'logs' }}>ดูทั้งหมด</MoreLink>}>
+      <Panel title="ความเคลื่อนไหวล่าสุด" loading={logsQ.isPending} skeleton={<SkeletonRows n={4} />} action={<MoreLink to="/history" search={{ tab: 'logs' }}>ดูทั้งหมด</MoreLink>}>
         {logs.length ? (
           <ul className="grid grid-cols-1 gap-x-6 divide-y divide-line md:grid-cols-2 md:divide-y-0">
             {logs.map((l) => {

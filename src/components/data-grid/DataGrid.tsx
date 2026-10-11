@@ -1017,7 +1017,10 @@ export function DataGrid<R>({
         </div>
 
         {nRows === 0 && (
-          <div className="pointer-events-none sticky left-0 flex w-full flex-col items-center justify-center py-16 text-center text-sm text-muted" style={{ marginTop: -HEAD_H }}>
+          <div
+            className="pointer-events-none sticky left-0 flex min-h-48 w-full flex-col items-center justify-center text-center text-sm text-muted"
+            style={{ marginTop: -HEAD_H, paddingTop: HEAD_H, height: '100%' }}
+          >
             {viewActive ? 'ไม่มีแถวที่ตรงกับตัวกรอง' : (emptyState ?? 'ยังไม่มีข้อมูล')}
           </div>
         )}

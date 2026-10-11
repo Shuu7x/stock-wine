@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn'
 import type { Json, StockAction } from '@/lib/database.types'
 import { fmtDate, fmtInt, fmtMoney } from '@/lib/format'
 import { logsListOptions, type StockItemLog } from '../api/logs.api'
+import { Loading } from '@/components/ui/loading'
 
 type Tone = 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'brand' | 'neutral'
 
@@ -210,7 +211,7 @@ export function LogList({
         ))}
       </div>
       <div className={cn(fill && 'min-h-[240px] flex-1 overflow-auto pr-1')}>
-      {q.isLoading && <div className="rounded-xl border border-line bg-surface p-8 text-center text-sm text-muted">กำลังโหลด…</div>}
+      {q.isLoading && <Loading screen />}
       {!q.isLoading && !q.data?.items.length && (
         <div className="rounded-xl border border-line bg-surface p-10 text-center text-sm text-muted">ยังไม่มีประวัติ</div>
       )}

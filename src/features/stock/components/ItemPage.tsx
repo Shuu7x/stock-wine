@@ -9,6 +9,7 @@ import { useAppSettings } from '@/features/settings/api/settings.api'
 import { fmtDate, fmtInt, fmtMoney } from '@/lib/format'
 import { stockItemsOptions, storesOptions } from '../api/stock.api'
 import { MaturityBadge, storeName } from '../columns'
+import { Loading } from '@/components/ui/loading'
 
 function Info({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -26,7 +27,7 @@ export function ItemPage({ id }: { id: string }) {
   const { low_stock_threshold: lowAt } = useAppSettings()
   const it = itemsQ.data?.find((i) => i.id === id)
 
-  if (itemsQ.isLoading) return <div className="p-10 text-center text-sm text-muted">กำลังโหลด…</div>
+  if (itemsQ.isLoading) return <Loading screen />
   if (!it) {
     return (
       <div className="mx-auto max-w-md rounded-xl border border-line bg-surface p-8 text-center">

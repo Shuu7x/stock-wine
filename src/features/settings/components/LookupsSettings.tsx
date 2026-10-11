@@ -11,6 +11,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
 import { storeName } from '@/features/stock/columns'
 import { fmtInt } from '@/lib/format'
+import { Loading } from '@/components/ui/loading'
 import {
   lookupValuesOptions,
   useSaveLookupValues,
@@ -300,7 +301,7 @@ export function LookupsSettings() {
         cellError={(r, key) => errors.get(r._id)?.[key] ?? null}
         rowClassName={(r) => (r.is_active ? undefined : 'text-muted')}
         pageSizeKey={`lookups-${category}`}
-        emptyState={lookupsQ.isLoading ? 'กำลังโหลด…' : 'ยังไม่มีรายการ — กดเพิ่มแถว หรือนำเข้าจากสต็อก'}
+        emptyState={lookupsQ.isLoading ? <Loading screen /> : 'ยังไม่มีรายการ — กดเพิ่มแถว หรือนำเข้าจากสต็อก'}
       />
     </div>
   )

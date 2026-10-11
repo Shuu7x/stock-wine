@@ -37,6 +37,7 @@ import {
 import { ItemHistoryDialog } from '@/features/history/components/LogList'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
+import { Loading } from '@/components/ui/loading'
 
 /** 'all' หรือรหัสคลัง (stores.code) — คลังเพิ่ม/แก้ได้ในหน้าตั้งค่า */
 export type StoreTab = string
@@ -200,7 +201,8 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     }
   }, [live, currentStore, isLow])
 
-  const tabCount = (id?: number) => fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
+  const tabCount = (id?: number) =>
+    itemsQ.isLoading ? undefined : fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
 
   const updates = Object.values(edits)
     .filter((row) => !pendingSet.has(row.id))
@@ -348,13 +350,14 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
+          loading={itemsQ.isLoading}
           label="รายการที่มีของ"
           value={fmtInt(stats.items)}
           hint={lowAt > 0 ? <span className={stats.low ? 'text-warning-700' : undefined}>ใกล้หมด (≤ {lowAt} ขวด) {fmtInt(stats.low)} รายการ</span> : undefined}
         />
-        <Stat label="จำนวนขวดคงเหลือ" value={fmtInt(stats.bottles)} />
-        <Stat label="มูลค่ารวม (บาท)" value={fmtMoney(stats.value)} />
-        <Stat label="อยู่ในช่วงดื่มได้" value={fmtInt(stats.ready)} hint="ตาม Maturity ปีนี้" />
+        <Stat loading={itemsQ.isLoading} label="จำนวนขวดคงเหลือ" value={fmtInt(stats.bottles)} />
+        <Stat loading={itemsQ.isLoading} label="มูลค่ารวม (บาท)" value={fmtMoney(stats.value)} />
+        <Stat loading={itemsQ.isLoading} label="อยู่ในช่วงดื่มได้" value={fmtInt(stats.ready)} hint="ตาม Maturity ปีนี้" />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -458,7 +461,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         cellChanged={cellChanged}
         pageSizeKey="stock"
         search={search}
-        emptyState={itemsQ.isLoading ? 'กำลังโหลด…' : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
+        emptyState={itemsQ.isLoading ? <Loading screen label="กำลังโหลดสต็อก…" /> : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />
 
       <Dialog

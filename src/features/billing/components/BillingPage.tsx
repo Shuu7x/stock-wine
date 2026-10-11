@@ -18,6 +18,7 @@ import type { DocFilter } from '@/lib/doc-filter'
 import { fmtDate, fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { billsListOptions, unbilledSalesOptions, useIssueBills, type BillGroup } from '../api/billing.api'
 import { BillDialog } from './BillDialog'
+import { Loading } from '@/components/ui/loading'
 
 export type BillingTab = 'pending' | 'issued'
 type Mode = 'per_customer' | 'per_sale'
@@ -124,7 +125,7 @@ function PendingTab({ onIssued }: { onIssued: (ids: string[]) => void }) {
 
       <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface">
         <div className="min-h-0 flex-1 overflow-auto">
-          {salesQ.isLoading && <div className="p-10 text-center text-sm text-muted">กำลังโหลด…</div>}
+          {salesQ.isLoading && <Loading screen />}
           {!salesQ.isLoading && !groups.length && (
             <div className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
               <FileX2 className="size-10 text-line-strong" />
@@ -380,7 +381,11 @@ function IssuedTab({ onOpen }: { onOpen: (ids: string[]) => void }) {
           <span>สถานะ</span>
         </div>
         <ul className="min-h-0 flex-1 divide-y divide-line overflow-auto">
-          {q.isLoading && <li className="p-10 text-center text-sm text-muted">กำลังโหลด…</li>}
+          {q.isLoading && (
+            <li className="h-full">
+              <Loading screen />
+            </li>
+          )}
           {!q.isLoading && !list.length && (
             <li className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
               <FileX2 className="size-10 text-line-strong" />

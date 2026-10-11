@@ -44,6 +44,7 @@ import type { DocFilter } from '@/lib/doc-filter'
 import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney, todayIso } from '@/lib/format'
 import { VAT_MODE_LABEL } from '@/lib/vat'
 import { LogList } from './LogList'
+import { Loading } from '@/components/ui/loading'
 
 export const HISTORY_TABS = ['receipts', 'sales', 'withdrawals', 'transfers', 'adjustments', 'logs'] as const
 export type HistoryTab = (typeof HISTORY_TABS)[number]
@@ -391,7 +392,7 @@ export function HistoryPage({
               <span />
             </div>
 
-            {query?.isLoading && <div className="p-10 text-center text-sm text-muted">กำลังโหลด…</div>}
+            {query?.isLoading && <Loading screen />}
             {!query?.isLoading && list.length === 0 && (
               <div className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted">
                 <FileX2 className="size-10 text-line-strong" />

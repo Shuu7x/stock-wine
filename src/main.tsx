@@ -6,9 +6,15 @@ import { env } from '@/lib/env'
 import { installHandledErrorFilter, queryClient } from '@/lib/query-client'
 import { supabase } from '@/lib/supabase'
 import { routeTree } from './routeTree.gen'
+import { Loading } from '@/components/ui/loading'
 import './index.css'
 
-const router = createRouter({ routeTree, defaultPreload: 'intent' })
+const router = createRouter({
+  routeTree,
+  defaultPreload: 'intent',
+  defaultPendingMs: 300,
+  defaultPendingComponent: () => <Loading screen />,
+})
 
 declare module '@tanstack/react-router' {
   interface Register {

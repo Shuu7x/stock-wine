@@ -185,7 +185,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
                     )}
                   >
                     <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    <span className={cn('text-[11px] tabular-nums', active ? 'text-gold-100' : 'text-brand-400')}>{s.count}</span>
+                    {!itemsQ.isLoading && <span className={cn('text-[11px] tabular-nums', active ? 'text-gold-100' : 'text-brand-400')}>{s.count}</span>}
                   </Link>
                 )
               })}
