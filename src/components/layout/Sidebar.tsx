@@ -123,8 +123,8 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           <NavItem to="/withdraw" label="เบิก" icon={GlassWater} active={is('/withdraw')} collapsed={collapsed} />
           <NavItem to="/receive" label="รับเข้า" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
           <NavItem to="/transfer" label="โอนย้าย" icon={ArrowLeftRight} active={is('/transfer')} collapsed={collapsed} />
-          <NavItem to="/adjust" label="ปรับยอด" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />
           <NavItem to="/sale" label="ขาย" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
+          <NavItem to="/adjust" label="ปรับยอด" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />
         </Group>
 
         <Group title="เครื่องมือ" collapsed={collapsed}>
