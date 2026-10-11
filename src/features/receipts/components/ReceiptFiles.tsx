@@ -1,10 +1,13 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { FileText, Paperclip } from 'lucide-react'
+import { useState } from 'react'
+import { FileLightbox } from '@/components/ui/file-lightbox'
 import { attachmentUrl, receiptAttachmentsOptions } from '../api/receipts.api'
 
-/** รูปบิล/ไฟล์แนบของใบรับเข้า — แตะเพื่อเปิดดูเต็มในแท็บใหม่ */
+/** รูปบิล/ไฟล์แนบของใบรับเข้า — แตะเพื่อดูเต็มจอ */
 export function ReceiptFiles({ receiptId }: { receiptId: string }) {
   const q = useQuery(receiptAttachmentsOptions(receiptId))
+  const [viewing, setViewing] = useState<number | null>(null)
   const files = q.data ?? []
   const urls = useQueries({
     queries: files.map((f) => ({
@@ -25,12 +28,11 @@ export function ReceiptFiles({ receiptId }: { receiptId: string }) {
           const url = urls[i]?.data
           const isImage = f.mime_type?.startsWith('image/')
           return (
-            <a
+            <button
+              type="button"
               key={f.id}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              title={f.file_name}
+              onClick={() => setViewing(i)}
+              title={`ดู ${f.file_name}`}
               className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-line bg-surface-2 hover:border-brand-400"
             >
               {url && isImage ? (
@@ -41,10 +43,16 @@ export function ReceiptFiles({ receiptId }: { receiptId: string }) {
                   <span className="w-full truncate text-[10px]">{url ? f.file_name : 'กำลังโหลด…'}</span>
                 </span>
               )}
-            </a>
+            </button>
           )
         })}
       </div>
+      <FileLightbox
+        items={files.map((f, i) => ({ url: urls[i]?.data, name: f.file_name, isImage: !!f.mime_type?.startsWith('image/') }))}
+        index={viewing}
+        onIndex={setViewing}
+        onClose={() => setViewing(null)}
+      />
     </div>
   )
 }
