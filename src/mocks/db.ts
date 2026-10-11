@@ -22,7 +22,7 @@ type DB = {
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
   receipt_attachments: Tables<'receipt_attachments'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -68,6 +68,24 @@ const SEED: Array<
   [3, 'R05', 'France', 'Château d’Yquem', 2009, 2, 100, 98, [2020, 2080], 24000, 'Wine Connection', '2023-07-12'],
   [3, 'R05', 'Portugal', "Taylor's Vintage Port", 2017, 6, 98, 97, [2035, 2070], 4200, 'Bacchus', '2024-02-14'],
 ]
+
+/** ไวน์เดียวกันเก็บหลายที่ (ต่างคลัง / คลังเดียวกันแต่ต่างชั้น) — ข้อมูลไวน์เหมือนแถวหลักใน SEED */
+const SEED_SPLIT: Array<[name: string, vintage: number | null, store: number, rack: string, bal: number]> = [
+  ['Château Margaux', 2015, 3, 'R02', 4], // SW1 A1 + Big Room R02
+  ['Opus One', 2018, 1, 'B2', 3], // SW2 C1 + SW1 B2
+  ['Dom Pérignon', 2013, 2, 'C2', 6], // Big Room R01 + SW2 C2
+  ['Penfolds Bin 389', 2019, 2, 'C1', 4], // SW2 C2 + SW2 C1 (คลังเดียวกัน ต่างชั้น)
+  ['Sassicaia', 2017, 1, 'A2', 2], // SW1 B2 + SW1 A2 (คลังเดียวกัน ต่างชั้น)
+]
+const seedSplitRows = () =>
+  SEED_SPLIT.map(([name, vintage, store, rack, bal]) => {
+    const base = SEED.find((r) => r[3] === name && r[4] === vintage)!
+    const row = [...base] as (typeof SEED)[number]
+    row[0] = store
+    row[1] = rack
+    row[5] = bal
+    return row
+  })
 
 /** ไวน์ที่ใช้คะแนน WS (ที่เหลือใช้ RP) — ให้ข้อมูลตัวอย่างมีทั้งสองแบบ */
 const WS_RATED = new Set([
@@ -124,8 +142,8 @@ function ratingText(rp: number | null | undefined, ws: number | null | undefined
   return rp != null ? `${rp}RP` : ws != null ? `${ws}WS` : null
 }
 
-function seed(): DB {
-  const stock_items: Tables<'stock_items'>[] = SEED.map((s) => ({
+function seedItem(s: (typeof SEED)[number]): Tables<'stock_items'> {
+  return {
     id: crypto.randomUUID(),
     store_id: s[0],
     rack: s[1],
@@ -143,7 +161,11 @@ function seed(): DB {
     deleted_at: null,
     deleted_by: null,
     ...audit(),
-  }))
+  }
+}
+
+function seed(): DB {
+  const stock_items = [...SEED, ...seedSplitRows()].map(seedItem)
   return {
     stores: [
       { id: 1, code: 'SW1', name: 'Showroom Wines 1', sort_order: 1, is_active: true, ...audit() },
@@ -159,7 +181,7 @@ function seed(): DB {
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1 },
   }
 }
 
@@ -206,6 +228,19 @@ function load(): DB {
           if (sd && x.rating === ratingText(sd[6], sd[7])) x.rating = seedRating(sd[3], sd[6], sd[7])
         }
         saved.seq.ws_seed = 1
+      }
+      // เพิ่มตัวอย่างไวน์เดียวกันที่เก็บหลายที่ (ถ้ายังไม่มีแถวที่ตำแหน่งนั้น)
+      if (!saved.seq.split_seed) {
+        for (const r of seedSplitRows()) {
+          const exists = saved.stock_items.some((x) => x.wine_name === r[3] && x.vintage === r[4] && x.store_id === r[0] && x.rack === r[1])
+          if (!exists && saved.stores.some((st) => st.id === r[0])) saved.stock_items.push(seedItem(r))
+        }
+        saved.seq.split_seed = 1
+        try {
+          localStorage.setItem(KEY, JSON.stringify(saved)) // id ไวน์ใหม่ต้องคงที่ข้ามการรีเฟรช
+        } catch {
+          /* ไม่เป็นไร */
+        }
       }
       return saved
     }
