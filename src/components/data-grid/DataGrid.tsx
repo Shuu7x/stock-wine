@@ -264,7 +264,9 @@ function DataGridTable<R>({
       for (const r of rows) {
         const id = getRowId(r)
         if (!s.known.has(id)) {
-          ids.push(id)
+          // แถวใหม่ต้องผ่านตัวกรองด้วย (เช่น สลับแท็บคลังแล้วมีแถวเพิ่ม) · ยกเว้นแถวว่างที่ผู้ใช้เพิ่งเพิ่ม
+          const blank = columns.every((c) => formatValue(c, r) === '')
+          if (blank || !matcher || matcher(r)) ids.push(id)
           s.known.add(id)
         }
       }
