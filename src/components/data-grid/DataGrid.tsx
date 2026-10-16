@@ -95,7 +95,7 @@ export type DataGridProps<R> = {
   search?: string
   /** ล้างคำค้นหาจากชิป (ไม่ส่ง = ไม่แสดงชิปค้นหา) */
   onClearSearch?: () => void
-  /** false = ปิดคัดลอก/วาง/ตัด (Ctrl+C/V/X) · ย้อนกลับ (Ctrl+Z/Y) · ลากคัดลอก · Ctrl+D */
+  /** true = เปิดคัดลอก/วาง/ตัด (Ctrl+C/V/X) · ย้อนกลับ (Ctrl+Z/Y) · ลากมุมคัดลอก · Ctrl+D (ตั้งต้นปิด) */
   clipboard?: boolean
   /** เงื่อนไขการค้นหา/กรองที่ใช้อยู่ · null = ไม่ได้กรอง — หน้าใช้สรุปยอด/นับจำนวนตามตัวกรองได้ (รวมแถวนอกตาราง) */
   onFilterChange?: (match: ((row: R) => boolean) | null) => void
@@ -138,7 +138,7 @@ function DataGridTable<R>({
   search = '',
   onClearSearch,
   onFilterChange,
-  clipboard = true,
+  clipboard = false,
   emptyState,
   pageSize: defaultPageSize = 50,
   pageSizeKey,

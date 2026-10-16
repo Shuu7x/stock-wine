@@ -448,7 +448,7 @@ export function ReceivePage() {
           }}
         />
         <span className="hidden text-xs text-muted lg:inline">
-          นำเข้า .xlsx / .csv (จับคู่ตามหัวคอลัมน์) หรือวางจาก Excel: คลิกเซลล์ Name of wine แล้ว Ctrl+V
+          นำเข้า .xlsx / .csv / .tsv (จับคู่ตามหัวคอลัมน์ชื่อไทย/อังกฤษ)
         </span>
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-ink-2">
