@@ -151,6 +151,10 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       format: (v) => fmtMoney(v as number | null),
       ...extra,
     })
+    const diffOf = (r: SaleRow) => {
+      const cost = p.item(r)?.price_per_bottle
+      return cost != null && r.unit_price != null && r.qty != null ? Math.round((r.unit_price - cost) * r.qty * 100) / 100 : null
+    }
     const list: GridColumn<SaleRow>[] = [
       p.wine,
       p.lift(p.c.vintage),
@@ -186,19 +190,15 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       ro('total', 'รวม', (r) => calc(r)?.total ?? null, {
         render: (r) => <b className="text-brand-800">{fmtMoney(calc(r)?.total ?? null)}</b>,
       }),
-      p.lift(p.c.price, { key: 'cost', title: 'ต้นทุน/ขวด', subtitle: 'Price/Btl.' }),
-      ro('profit', 'กำไรขั้นต้น', (r) => {
-        const it = p.item(r)
-        const c = calc(r)
-        return it && c && it.price_per_bottle != null ? c.before - it.price_per_bottle * (r.qty ?? 0) : null
-      }, {
-        subtitle: 'ก่อน VAT − ต้นทุน',
+      p.lift(p.c.price, { key: 'cost', title: 'ราคาซื้อ/ขวด', subtitle: 'Price/Btl. (ราคาที่ซื้อมา)' }),
+      // ราคาซื้อคือราคาที่จ่ายจริง (ไม่ใช่ราคาส่ง) และอาจขายเท่าทุน — เทียบราคาที่กรอกตรงๆ ไม่ถอด VAT
+      ro('profit', 'ส่วนต่าง', (r) => diffOf(r), {
+        subtitle: 'ราคาขาย − ราคาซื้อ',
         render: (r) => {
-          const it = p.item(r)
-          const c = calc(r)
-          if (!it || !c || it.price_per_bottle == null) return null
-          const v = c.before - it.price_per_bottle * (r.qty ?? 0)
-          return <span className={v < 0 ? 'text-danger-700' : 'text-success-700'}>{fmtMoney(v)}</span>
+          const v = diffOf(r)
+          if (v == null) return null
+          if (v === 0) return <span className="text-muted">เท่าทุน</span>
+          return <span className={v < 0 ? 'text-danger-700' : 'text-success-700'}>{v > 0 ? '+' : ''}{fmtMoney(v)}</span>
         },
       }),
       { key: 'remark', title: 'Remark', subtitle: 'หมายเหตุ', width: 200 },

@@ -302,7 +302,7 @@ function lineDefs(tab: DocTab): Def<Line>[] {
         { key: 'before', title: 'ก่อน VAT', width: 120, kind: 'money', value: v('before'), total: true },
         { key: 'vat', title: 'VAT', width: 100, kind: 'money', value: v('vat'), total: true },
         { key: 'total', title: 'รวม', width: 120, kind: 'money', value: v('total'), total: true },
-        { key: 'cost', title: 'ต้นทุน/ขวด', width: 110, kind: 'money', value: v('cost') },
+        { key: 'cost', title: 'ราคาซื้อ/ขวด', width: 110, kind: 'money', value: v('cost') },
         { key: 'remark', title: 'Remark', width: 180, value: v('remark') },
       ]
     case 'withdrawals':
