@@ -40,6 +40,7 @@ function postReceipt(
   lines.forEach((l, i) => {
     if (!(l.qty > 0)) throw new PgError(`แถว ${i + 1}: จำนวนรับต้องมากกว่า 0`)
     if (!l.wine_name?.trim()) throw new PgError(`แถว ${i + 1}: ต้องระบุชื่อไวน์`)
+    if (l.store_id == null || !l.rack?.trim()) throw new PgError(`แถว ${i + 1}: เลือกคลังและ Wine racks (ชั้นวาง)`)
   })
 
   // ทำบนสำเนาก่อน ถ้าพังกลางทางจะไม่มีอะไรถูกบันทึก (เลียนแบบ transaction)

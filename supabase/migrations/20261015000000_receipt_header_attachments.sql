@@ -79,6 +79,10 @@ begin
     if coalesce((v_line ->> 'qty')::int, 0) <= 0 then
       raise exception 'แถว %: จำนวนรับต้องมากกว่า 0', v_no;
     end if;
+    -- บังคับเลือกคลัง + ชั้นวาง
+    if (v_line ->> 'store_id') is null or nullif(btrim(v_line ->> 'rack'), '') is null then
+      raise exception 'แถว %: เลือกคลังและ Wine racks (ชั้นวาง)', v_no;
+    end if;
     -- ผู้ขาย / วันที่ซื้อ ของหัวเอกสารใช้กับทุกรายการ (ถ้ารายการไม่ได้ระบุเอง)
     v_line := v_line
       || jsonb_build_object('supplier', coalesce(nullif(btrim(v_line ->> 'supplier'), ''), v_supplier))

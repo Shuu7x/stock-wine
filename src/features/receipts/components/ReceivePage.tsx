@@ -246,8 +246,8 @@ export function ReceivePage() {
       c.maturity,
       c.price,
       // กว้างกว่าค่าปกติ: ช่องนี้มีปุ่ม ▾ เลือกคลัง ชื่อคลังจึงไม่ถูกตัด
-      { ...c.store, width: 200 },
-      c.rack,
+      { ...c.store, width: 200, subtitle: 'คลัง · จำเป็น' },
+      { ...c.rack, width: 110, subtitle: 'ชั้นวาง · จำเป็น' },
       qty,
       balance,
       c.remark,

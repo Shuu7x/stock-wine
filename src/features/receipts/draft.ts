@@ -40,6 +40,7 @@ export function isBlankRow(r: ReceiveRow) {
 
 const lineSchema = z.object({
   store_id: z.number({ error: 'เลือกคลัง' }),
+  rack: z.string({ error: 'เลือก Wine racks (ชั้นวาง)' }).trim().min(1, 'เลือก Wine racks (ชั้นวาง)'),
   wine_name: z.string({ error: 'ระบุชื่อไวน์' }).trim().min(1, 'ระบุชื่อไวน์'),
   qty: z.number({ error: 'ระบุจำนวนที่รับ' }).int('จำนวนต้องเป็นจำนวนเต็ม').positive('จำนวนต้องมากกว่า 0'),
 })
