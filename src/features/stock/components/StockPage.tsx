@@ -4,7 +4,6 @@ import {
   Archive,
   ArrowLeftRight,
   ClipboardCheck,
-  Filter,
   GlassWater,
   QrCode,
   RotateCcw,
@@ -190,7 +189,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   // เงื่อนไขค้นหา/กรองของตาราง (null = ไม่ได้กรอง) — การ์ดสรุปและตัวเลขที่แท็บคลังคิดตามนี้
   const [match, setMatch] = useState<((row: StockItem) => boolean) | null>(null)
   const onFilterChange = useCallback((m: ((row: StockItem) => boolean) | null) => setMatch(() => m), [])
-  const filtered = !!match
   const stats = useMemo(() => {
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter(
       (i) => i.balance > 0 && (!match || match(i)),
@@ -351,11 +349,6 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {filtered && (
-          <p className="col-span-full -mb-1 flex items-center gap-1.5 text-xs font-medium text-brand-700">
-            <Filter className="size-3.5" /> สรุปตามตัวกรองในตาราง
-          </p>
-        )}
         <Stat
           loading={itemsQ.isLoading}
           label="รายการที่มีของ"
