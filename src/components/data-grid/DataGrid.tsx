@@ -25,6 +25,7 @@ import {
   BLANK_LABEL,
   fillSeries,
   inYearRange,
+  makeRowMatcher,
   filterText,
   formatValue,
   getValue,
@@ -96,8 +97,8 @@ export type DataGridProps<R> = {
   onClearSearch?: () => void
   /** false = ปิดคัดลอก/วาง/ตัด (Ctrl+C/V/X) · ย้อนกลับ (Ctrl+Z/Y) · ลากคัดลอก · Ctrl+D */
   clipboard?: boolean
-  /** แถวที่ผ่านการค้นหา/กรองอยู่ (ทุกหน้า) · null = ไม่ได้กรอง — ใช้สรุปยอดตามตัวกรอง */
-  onViewChange?: (ids: string[] | null) => void
+  /** เงื่อนไขการค้นหา/กรองที่ใช้อยู่ · null = ไม่ได้กรอง — หน้าใช้สรุปยอด/นับจำนวนตามตัวกรองได้ (รวมแถวนอกตาราง) */
+  onFilterChange?: (match: ((row: R) => boolean) | null) => void
   emptyState?: ReactNode
   /** จำนวนแถวต่อหน้าเริ่มต้น (0 = ทั้งหมด) · false = ไม่แบ่งหน้า */
   pageSize?: number | false
@@ -136,7 +137,7 @@ function DataGridTable<R>({
   rowClassName,
   search = '',
   onClearSearch,
-  onViewChange,
+  onFilterChange,
   clipboard = true,
   emptyState,
   pageSize: defaultPageSize = 50,
@@ -235,6 +236,11 @@ function DataGridTable<R>({
   const snap = useRef<{ key: string; ids: string[]; known: Set<string> } | null>(null)
 
   /** ลำดับแถวทั้งหมดหลังกรอง/เรียง (ทุกหน้า) */
+  const matcher = useMemo(() => makeRowMatcher(columns, filters, years, search), [columns, filters, years, search])
+  useEffect(() => {
+    onFilterChange?.(matcher)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matcher])
   const fullIdx = useMemo(() => {
     if (!viewActive) {
       snap.current = null
@@ -247,27 +253,8 @@ function DataGridTable<R>({
     const kept = prev ? prev.ids.filter((id) => idToIdx.has(id)).length : 0
     const replaced = !!prev && (prev.ids.length > 0 ? kept < prev.ids.length / 2 : rows.length > 0)
     if (!prev || prev.key !== viewKey || replaced) {
-      const q = search.trim().toLowerCase()
       let idx = rows.map((_, i) => i)
-      for (const [key, allowed] of Object.entries(filters)) {
-        const col = columns.find((c) => c.key === key)
-        if (!col) continue
-        const set = new Set(allowed)
-        idx = idx.filter((i) => set.has(filterText(col, rows[i])))
-      }
-      for (const [key, y] of Object.entries(years)) {
-        const col = columns.find((c) => c.key === key)
-        if (col?.yearRange) idx = idx.filter((i) => inYearRange(col.yearRange!(rows[i]), y))
-      }
-      if (q) {
-        idx = idx.filter((i) =>
-          columns.some(
-            (c) =>
-              formatValue(c, rows[i]).toLowerCase().includes(q) ||
-              (c.filterValue && c.filterValue(rows[i]).toLowerCase().includes(q)),
-          ),
-        )
-      }
+      if (matcher) idx = idx.filter((i) => matcher(rows[i]))
       const cmp = sortComparator(columns, sort)
       if (cmp) idx.sort((a, b) => cmp(rows[a], rows[b]))
       snap.current = { key: viewKey, ids: idx.map((i) => getRowId(rows[i])), known: new Set(idToIdx.keys()) }
@@ -340,13 +327,6 @@ function DataGridTable<R>({
     setChecked((p) => ([...p].every((id) => ids.has(id)) ? p : new Set([...p].filter((id) => ids.has(id)))))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
-  // แจ้งแถวที่กรองอยู่ (เรียงไม่นับ — ยอดรวมไม่เปลี่ยน)
-  const filterActive = !!search.trim() || Object.keys(filters).length > 0 || Object.keys(years).length > 0
-  const viewSig = filterActive ? fullIdx.map((i) => getRowId(rows[i])).join('|') : null
-  useEffect(() => {
-    onViewChange?.(viewSig == null ? null : viewSig ? viewSig.split('|') : [])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewSig])
   // ติ๊ก "เลือกทั้งหมด" = เฉพาะแถวในหน้าที่แสดงอยู่
   const viewIds = useMemo(() => viewIdx.map((i) => getRowId(rows[i])), [viewIdx, rows, getRowId])
   const allChecked = viewIds.length > 0 && viewIds.every((id) => checked.has(id))

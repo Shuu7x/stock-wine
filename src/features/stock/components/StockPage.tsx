@@ -187,11 +187,13 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   }, [stores, lookups, tab, pendingSet, isLow, balanceLabel])
 
   // แถวที่ตารางกรองอยู่ (null = ไม่ได้กรอง) — การ์ดสรุปคิดตามนี้
-  const [viewIds, setViewIds] = useState<string[] | null>(null)
+  // เงื่อนไขค้นหา/กรองของตาราง (null = ไม่ได้กรอง) — การ์ดสรุปและตัวเลขที่แท็บคลังคิดตามนี้
+  const [match, setMatch] = useState<((row: StockItem) => boolean) | null>(null)
+  const onFilterChange = useCallback((m: ((row: StockItem) => boolean) | null) => setMatch(() => m), [])
+  const filtered = !!match
   const stats = useMemo(() => {
-    const inView = viewIds ? new Set(viewIds) : null
     const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter(
-      (i) => i.balance > 0 && (!inView || inView.has(i.id)),
+      (i) => i.balance > 0 && (!match || match(i)),
     )
     const year = new Date().getFullYear()
     return {
@@ -201,10 +203,12 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       value: src.reduce((s, i) => s + i.balance * (i.price_per_bottle ?? 0), 0),
       ready: src.filter((i) => drinkStatus(i.maturity_from, i.maturity_to, year) === 'ready').length,
     }
-  }, [live, currentStore, isLow, viewIds])
+  }, [live, currentStore, isLow, match])
 
   const tabCount = (id?: number) =>
-    itemsQ.isLoading ? undefined : fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
+    itemsQ.isLoading
+      ? undefined
+      : fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0 && (!match || match(i))).length)
 
   const updates = Object.values(edits)
     .filter((row) => !pendingSet.has(row.id))
@@ -347,7 +351,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {viewIds && (
+        {filtered && (
           <p className="col-span-full -mb-1 flex items-center gap-1.5 text-xs font-medium text-brand-700">
             <Filter className="size-3.5" /> สรุปตามตัวกรองในตาราง
           </p>
@@ -467,7 +471,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         pageSizeKey="stock"
         search={search}
         onClearSearch={() => setSearch('')}
-        onViewChange={setViewIds}
+        onFilterChange={onFilterChange}
         emptyState={itemsQ.isLoading ? <Loading label="กำลังโหลดสต็อก…" /> : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />
 

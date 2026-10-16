@@ -181,3 +181,37 @@ export function asYear(text: string): number | null {
   const y = Number(s)
   return y >= 1800 && y <= 2200 ? y : null
 }
+
+/**
+ * เงื่อนไขกรองของตาราง (ตัวกรองคอลัมน์ · ช่วงปี · ค้นหา) เป็นฟังก์ชันเดียว — null = ไม่ได้กรอง
+ * words = ค้นหาแบบแยกคำ (ทุกคำต้องเจอในแถว) · ไม่งั้นทั้งข้อความต้องเจอในคอลัมน์ใดคอลัมน์หนึ่ง
+ */
+export function makeRowMatcher<R>(
+  columns: GridColumn<R>[],
+  filters: Record<string, string[]>,
+  years: Record<string, number>,
+  search: string,
+  words = false,
+): ((row: R) => boolean) | null {
+  const q = search.trim().toLowerCase()
+  const fs = Object.entries(filters).flatMap(([key, allowed]) => {
+    const col = columns.find((c) => c.key === key)
+    return col ? [{ col, set: new Set(allowed) }] : []
+  })
+  const ys = Object.entries(years).flatMap(([key, y]) => {
+    const col = columns.find((c) => c.key === key)
+    return col?.yearRange ? [{ get: col.yearRange, y }] : []
+  })
+  if (!fs.length && !ys.length && !q) return null
+  const parts = q.split(/\s+/).filter(Boolean)
+  return (row) => {
+    for (const f of fs) if (!f.set.has(filterText(f.col, row))) return false
+    for (const y of ys) if (!inYearRange(y.get(row), y.y)) return false
+    if (!q) return true
+    if (words) {
+      const hay = columns.map((c) => `${formatValue(c, row)} ${c.filterValue?.(row) ?? ''}`).join(' ').toLowerCase()
+      return parts.every((w) => hay.includes(w))
+    }
+    return columns.some((c) => formatValue(c, row).toLowerCase().includes(q) || !!c.filterValue?.(row).toLowerCase().includes(q))
+  }
+}

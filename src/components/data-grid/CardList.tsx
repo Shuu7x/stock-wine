@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 import type { DataGridProps } from './DataGrid'
 import { FilterChips, pickedText, type FilterChip } from '@/components/ui/filter-chips'
 import type { CellValue, GridColumn, SortState } from './types'
-import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort, inYearRange, asYear } from './utils'
+import { BLANK_LABEL, filterText, formatValue, getOptions, getValue, isReadOnly, parseText, setValue, sortComparator, toggleSort, asYear, makeRowMatcher } from './utils'
 
 const CHUNK = 30
 
@@ -41,7 +41,7 @@ export function CardList<R>({
   emptyState,
   card,
   onClearSearch,
-  onViewChange,
+  onFilterChange,
 }: DataGridProps<R>) {
   // ไม่ใช้ className ของตาราง (มักเป็น flex-1/ความสูงขั้นต่ำ) — การ์ดสูงตามเนื้อหา ให้หน้าเลื่อนทั้งหน้าแทน
   const editable = !!onRowsChange
@@ -60,38 +60,25 @@ export function CardList<R>({
   const query = `${search ?? ''} ${q}`.trim().toLowerCase()
   const isDoc = !!createRow
   const showSearch = !isDoc && search === undefined
+  // แผ่นตัวกรองบนมือถือ: ไม่ได้ติ๊กค่าไหน = ไม่กรองคอลัมน์นั้น · ค้นหาแบบแยกคำ
+  const matcher = useMemo(
+    () => makeRowMatcher(columns, Object.fromEntries(Object.entries(filters).filter(([, v]) => v.length)), years, query, true),
+    [columns, filters, years, query],
+  )
+  useEffect(() => {
+    onFilterChange?.(matcher)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matcher])
   const view = useMemo(() => {
     let list = rows.filter((r) => !isBlank(r) || getRowId(r) === editId)
-    for (const [key, allowed] of Object.entries(filters)) {
-      const col = columns.find((c) => c.key === key)
-      if (!col || !allowed.length) continue
-      const set = new Set(allowed)
-      list = list.filter((r) => set.has(filterText(col, r)))
-    }
-    for (const [key, y] of Object.entries(years)) {
-      const col = columns.find((c) => c.key === key)
-      if (col?.yearRange) list = list.filter((r) => inYearRange(col.yearRange!(r), y))
-    }
-    if (query) {
-      const words = query.split(/\s+/)
-      list = list.filter((r) => {
-        const hay = columns.map((c) => `${formatValue(c, r)} ${c.filterValue?.(r) ?? ''}`).join(' ').toLowerCase()
-        return words.every((w) => hay.includes(w))
-      })
-    }
+    if (matcher) list = list.filter(matcher)
     const cmp = sortComparator(columns, sort)
     if (cmp) list = [...list].sort(cmp)
     return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, filters, years, query, sort, columns, editId])
+  }, [rows, matcher, sort, columns, editId])
 
   useEffect(() => setLimit(CHUNK), [query, filters, years, sort])
-  const filterActive = !!query || Object.values(filters).some((v) => v.length) || Object.keys(years).length > 0
-  const viewSig = filterActive ? view.map(getRowId).join('|') : null
-  useEffect(() => {
-    onViewChange?.(viewSig == null ? null : viewSig ? viewSig.split('|') : [])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewSig])
   useEffect(() => onSelectionChange?.([...picked]), [picked, onSelectionChange])
   // แถวที่เลือกไว้แต่หายไปแล้ว (ลบ/บันทึก) ไม่ต้องค้าง
   useEffect(() => {
