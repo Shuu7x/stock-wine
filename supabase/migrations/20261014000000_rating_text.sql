@@ -1,19 +1,19 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- รวมคะแนน RP / WS เป็นคอลัมน์เดียว "rating" (ข้อความ ค่าเดียว) เช่น '100RP', '98WS', '88RS'
--- ใส่นักวิจารณ์รายใดก็ได้ · ค่าเดิมแปลงมาให้ (มี RP ใช้ RP ก่อน) แล้วเลิกใช้ rating_rp / rating_ws
+-- รวมคะแนน RP / WS เป็นคอลัมน์เดียว "rating" (ข้อความ ใส่ได้หลายค่า) เช่น '100RP, 98WS, 88JS'
+-- ใส่นักวิจารณ์รายใดก็ได้ · ค่าเดิมแปลงมาให้ แล้วเลิกใช้ rating_rp / rating_ws
 -- ═══════════════════════════════════════════════════════════════════════════
 
 alter table public.stock_items   add column rating text;
 alter table public.receipt_lines add column rating text;
 
--- ค่าเดียว: ตัวเลข (ทศนิยม / + ได้) + ตัวย่อนักวิจารณ์ เช่น 100RP, 95+WS
+-- แต่ละค่า: ตัวเลข (ทศนิยม / + ได้) + ตัวย่อนักวิจารณ์ คั่นด้วย ", " เช่น 100RP, 95+WS
 
-update public.stock_items set rating = case
-  when rating_rp is not null then trim(trailing '.' from trim(trailing '0' from rating_rp::text)) || 'RP'
-  when rating_ws is not null then trim(trailing '.' from trim(trailing '0' from rating_ws::text)) || 'WS' end;
-update public.receipt_lines set rating = case
-  when rating_rp is not null then trim(trailing '.' from trim(trailing '0' from rating_rp::text)) || 'RP'
-  when rating_ws is not null then trim(trailing '.' from trim(trailing '0' from rating_ws::text)) || 'WS' end;
+update public.stock_items set rating = nullif(concat_ws(', ',
+  case when rating_rp is not null then trim(trailing '.' from trim(trailing '0' from rating_rp::text)) || 'RP' end,
+  case when rating_ws is not null then trim(trailing '.' from trim(trailing '0' from rating_ws::text)) || 'WS' end), '');
+update public.receipt_lines set rating = nullif(concat_ws(', ',
+  case when rating_rp is not null then trim(trailing '.' from trim(trailing '0' from rating_rp::text)) || 'RP' end,
+  case when rating_ws is not null then trim(trailing '.' from trim(trailing '0' from rating_ws::text)) || 'WS' end), '');
 
 -- ─── log: ติดตามคอลัมน์ rating แทน ─────────────────────────────────────────────
 create or replace function public.log_stock_item_change()

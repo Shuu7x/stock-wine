@@ -1,4 +1,5 @@
 import { cn } from '@/lib/cn'
+import { ratingParts } from '@/lib/rating'
 
 /** สีต่อนักวิจารณ์ — RP แดงไวน์ · WS น้ำเงิน · อื่นๆ ทอง */
 export function ratingTone(code: string) {
@@ -7,6 +8,19 @@ export function ratingTone(code: string) {
     : code === 'WS'
       ? 'bg-info-50 text-info-600 ring-info-600/25'
       : 'bg-gold-100 text-gold-700 ring-gold-500/30'
+}
+
+/** คะแนนหลายค่าเป็นชิปเรียงกัน: "100RP, 98WS" → [100 RP] [98 WS] */
+export function RatingChips({ rating, wrap = true, className }: { rating: string | null | undefined; wrap?: boolean; className?: string }) {
+  const parts = ratingParts(rating)
+  if (!parts.length) return null
+  return (
+    <span className={cn('inline-flex gap-1', wrap ? 'flex-wrap' : 'flex-nowrap', className)}>
+      {parts.map((p) => (
+        <RatingChip key={p} rating={p} />
+      ))}
+    </span>
+  )
 }
 
 /** คะแนนเป็นชิป: "95RP" → [95 RP] */

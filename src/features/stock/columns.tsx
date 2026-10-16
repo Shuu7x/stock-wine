@@ -2,8 +2,8 @@ import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { drinkStatus, fmtMaturity, fmtMoney, parseMaturity } from '@/lib/format'
 import type { LookupValue } from '@/features/settings/api/settings.api'
-import { parseRating, ratingCounts } from '@/lib/rating'
-import { RatingChip, ratingTone } from '@/components/ui/rating-chip'
+import { parseRating } from '@/lib/rating'
+import { RatingChips } from '@/components/ui/rating-chip'
 import type { StockItem, Store } from './api/stock.api'
 
 /** ฟิลด์ไวน์ที่ทั้งสต็อกและใบรับเข้าใช้ร่วมกัน (ชื่อตรงกับคอลัมน์ในตาราง) */
@@ -137,25 +137,11 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
   const rating: GridColumn<R> = {
     key: 'rating',
     title: 'Rate',
-    subtitle: 'ค่าเดียว เช่น 100RP',
-    width: 150,
-    placeholder: '100RP',
+    subtitle: 'ชั้นวาง',
+    width: 190,
+    placeholder: '100RP, 98WS',
     parse: parseRating,
-    render: (r) => <RatingChip rating={r.rating} />,
-    // ป้ายนับจำนวนต่อนักวิจารณ์ของแถวที่แสดงอยู่ เช่น RP 18 · WS 3
-    headerTags: (rows) => {
-      const counts = ratingCounts(rows.map((r) => r.rating))
-      if (!counts.length) return null
-      return counts.map(([code, n]) => (
-        <span
-          key={code}
-          title={`มีคะแนน ${code} ${n} รายการ`}
-          className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 text-[10px] leading-4 font-medium ring-1 ring-inset ${ratingTone(code)}`}
-        >
-          <b className="tabular-nums">{n}</b> {code}
-        </span>
-      ))
-    },
+    render: (r) => <RatingChips rating={r.rating} wrap={false} />,
   }
   const maturity: GridColumn<R> = {
     key: 'maturity',

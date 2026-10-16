@@ -22,7 +22,7 @@ type DB = {
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
   receipt_attachments: Tables<'receipt_attachments'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -93,8 +93,14 @@ const WS_RATED = new Set([
   'Caymus Cabernet Sauvignon', 'Penfolds Bin 389', 'Almaviva', 'Moët & Chandon Brut Impérial',
   'Château Palmer', 'Antinori Solaia', 'Cloudy Bay Sauvignon Blanc', "Taylor's Vintage Port",
 ])
+/** ไวน์ที่มีคะแนนหลายค่า (RP + WS) */
+const MULTI_RATED = new Set(['Château Margaux', 'Opus One', 'Penfolds Grange', 'Château d’Yquem'])
 const seedRating = (name: string, rp: number | null, ws: number | null) =>
-  WS_RATED.has(name) && ws != null ? `${ws}WS` : ratingText(rp, ws)
+  MULTI_RATED.has(name) && rp != null && ws != null
+    ? `${rp}RP, ${ws}WS`
+    : WS_RATED.has(name) && ws != null
+      ? `${ws}WS`
+      : ratingText(rp, ws)
 
 const COUNTRIES = [
   'France', 'Italy', 'Spain', 'Portugal', 'Germany', 'Austria', 'USA', 'Australia',
@@ -181,7 +187,7 @@ function seed(): DB {
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1 },
   }
 }
 
@@ -218,8 +224,6 @@ function load(): DB {
           delete x.rating_rp
           delete x.rating_ws
         }
-        // เคยรวมหลายค่า "100RP, 98WS" → เหลือค่าแรก
-        if (typeof x.rating === 'string' && x.rating.includes(',')) x.rating = x.rating.split(',')[0].trim()
       }
       // ข้อมูลตัวอย่างเดิมเป็น RP ทั้งหมด → เปลี่ยนบางไวน์เป็น WS (เฉพาะที่ยังเป็นค่าตั้งต้น ไม่ทับที่ผู้ใช้แก้)
       if (!saved.seq.ws_seed) {
@@ -228,6 +232,14 @@ function load(): DB {
           if (sd && x.rating === ratingText(sd[6], sd[7])) x.rating = seedRating(sd[3], sd[6], sd[7])
         }
         saved.seq.ws_seed = 1
+      }
+      // ตัวอย่างไวน์ที่มีหลายคะแนน (เฉพาะที่ยังเป็นค่าตั้งต้น)
+      if (!saved.seq.multi_seed) {
+        for (const x of saved.stock_items) {
+          const sd = SEED.find((r) => r[3] === x.wine_name && r[4] === x.vintage)
+          if (sd && MULTI_RATED.has(sd[3]) && x.rating === ratingText(sd[6], sd[7])) x.rating = seedRating(sd[3], sd[6], sd[7])
+        }
+        saved.seq.multi_seed = 1
       }
       // เพิ่มตัวอย่างไวน์เดียวกันที่เก็บหลายที่ (ถ้ายังไม่มีแถวที่ตำแหน่งนั้น)
       if (!saved.seq.split_seed) {
