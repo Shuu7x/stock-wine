@@ -22,7 +22,7 @@ import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
-import { DateRangeButton } from '@/components/ui/date-range'
+import { DATE_PRESETS, DateRangeButton } from '@/components/ui/date-range'
 import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import { ExportButton } from '@/components/ui/export-button'
@@ -38,7 +38,7 @@ import { ReceiptFiles } from '@/features/receipts/components/ReceiptFiles'
 import { storesOptions, type Store } from '@/features/stock/api/stock.api'
 import { useVoidWithdrawal } from '@/features/withdrawals/api/withdrawals.api'
 import { cn } from '@/lib/cn'
-import { fmtDate, fmtDateTime, fmtInt, fmtMoney, todayIso } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtInt, fmtMoney } from '@/lib/format'
 import {
   DOC_TYPES,
   exportMovements,
@@ -78,15 +78,6 @@ const VOID_HINT: Record<DocType, string> = {
 }
 
 // ─── ช่วงวันที่ (ต้องมีเสมอ — ไม่ดึง "ตั้งแต่แรก") ───────────────────────────────
-const iso = (d: Date) => d.toLocaleDateString('sv-SE')
-const PRESETS = [
-  { key: 'today', label: 'วันนี้', range: () => ({ from: todayIso(), to: todayIso() }) },
-  { key: '7d', label: '7 วัน', range: () => ({ from: iso(new Date(Date.now() - 6 * 864e5)), to: todayIso() }) },
-  { key: 'month', label: 'เดือนนี้', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth(), 1)), to: todayIso() } } },
-  { key: 'lastMonth', label: 'เดือนก่อน', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth() - 1, 1)), to: iso(new Date(n.getFullYear(), n.getMonth(), 0)) } } },
-  { key: '3m', label: '3 เดือน', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth() - 2, 1)), to: todayIso() } } },
-  { key: 'year', label: 'ปีนี้', range: () => ({ from: `${new Date().getFullYear()}-01-01`, to: todayIso() }) },
-] as const
 
 /** มุมมองรายละเอียดเอกสารใน drawer — จำค่าที่เลือกล่าสุดไว้ */
 type DocMode = 'doc' | 'table'
@@ -120,7 +111,7 @@ export function HistoryPage({
   onView: (v: HistoryView) => void
 }) {
   const stores = useQuery(storesOptions()).data ?? []
-  const [range, setRange] = useState(() => PRESETS[2].range())
+  const [range, setRange] = useState(() => DATE_PRESETS[2].range())
   const [types, setTypes] = useState<Set<MoveType>>(() => new Set(initialType ? [initialType] : MOVE_TYPES))
   const [status, setStatus] = useState<'all' | 'posted' | 'void'>('all')
   const [search, setSearch] = useState('')
@@ -214,7 +205,7 @@ export function HistoryPage({
       {/* ── ตัวกรอง ── */}
       <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <DateRangeButton value={range} onChange={setRange} presets={PRESETS} />
+          <DateRangeButton value={range} onChange={setRange} presets={DATE_PRESETS} />
           <Combobox
             className="w-36"
             value={status}

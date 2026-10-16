@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   GlassWater,
   History,
+  ScrollText,
   LayoutGrid,
   PackagePlus,
   QrCode,
@@ -32,6 +33,7 @@ const MOBILE_MORE = [
   { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck },
   { to: '/qr', label: 'ป้าย QR', icon: QrCode },
   { to: '/history', label: 'ความเคลื่อนไหว', icon: History },
+  { to: '/audit', label: 'Audit log', icon: ScrollText },
   { to: '/settings', label: 'ตั้งค่า', icon: Settings },
 ] as const
 

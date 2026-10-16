@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedAdjustIndexRouteImport } from './routes/_authenticated/adjust/index'
+import { Route as AuthenticatedAuditIndexRouteImport } from './routes/_authenticated/audit/index'
 import { Route as AuthenticatedHistoryIndexRouteImport } from './routes/_authenticated/history/index'
 import { Route as AuthenticatedICodeRouteImport } from './routes/_authenticated/i/$code'
 import { Route as AuthenticatedItemIdRouteImport } from './routes/_authenticated/item/$id'
@@ -56,6 +57,11 @@ const AuthenticatedAdjustIndexRoute =
     path: '/adjust/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAuditIndexRoute = AuthenticatedAuditIndexRouteImport.update({
+  id: '/audit/',
+  path: '/audit/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedHistoryIndexRoute =
   AuthenticatedHistoryIndexRouteImport.update({
     id: '/history/',
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust/': typeof AuthenticatedAdjustIndexRoute
+  '/audit/': typeof AuthenticatedAuditIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/qr/': typeof AuthenticatedQrIndexRoute
   '/receive/': typeof AuthenticatedReceiveIndexRoute
@@ -182,6 +189,7 @@ export interface FileRoutesByTo {
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust': typeof AuthenticatedAdjustIndexRoute
+  '/audit': typeof AuthenticatedAuditIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/qr': typeof AuthenticatedQrIndexRoute
   '/receive': typeof AuthenticatedReceiveIndexRoute
@@ -206,6 +214,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/_authenticated/adjust/': typeof AuthenticatedAdjustIndexRoute
+  '/_authenticated/audit/': typeof AuthenticatedAuditIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/qr/': typeof AuthenticatedQrIndexRoute
   '/_authenticated/receive/': typeof AuthenticatedReceiveIndexRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/settings/lookups'
     | '/settings/stores'
     | '/adjust/'
+    | '/audit/'
     | '/history/'
     | '/qr/'
     | '/receive/'
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/settings/lookups'
     | '/settings/stores'
     | '/adjust'
+    | '/audit'
     | '/history'
     | '/qr'
     | '/receive'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/lookups'
     | '/_authenticated/settings/stores'
     | '/_authenticated/adjust/'
+    | '/_authenticated/audit/'
     | '/_authenticated/history/'
     | '/_authenticated/qr/'
     | '/_authenticated/receive/'
@@ -324,6 +336,13 @@ declare module '@tanstack/react-router' {
       path: '/adjust'
       fullPath: '/adjust/'
       preLoaderRoute: typeof AuthenticatedAdjustIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/audit/': {
+      id: '/_authenticated/audit/'
+      path: '/audit'
+      fullPath: '/audit/'
+      preLoaderRoute: typeof AuthenticatedAuditIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/history/': {
@@ -472,6 +491,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedICodeRoute: typeof AuthenticatedICodeRoute
   AuthenticatedItemIdRoute: typeof AuthenticatedItemIdRoute
   AuthenticatedAdjustIndexRoute: typeof AuthenticatedAdjustIndexRoute
+  AuthenticatedAuditIndexRoute: typeof AuthenticatedAuditIndexRoute
   AuthenticatedHistoryIndexRoute: typeof AuthenticatedHistoryIndexRoute
   AuthenticatedQrIndexRoute: typeof AuthenticatedQrIndexRoute
   AuthenticatedReceiveIndexRoute: typeof AuthenticatedReceiveIndexRoute
@@ -487,6 +507,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedICodeRoute: AuthenticatedICodeRoute,
   AuthenticatedItemIdRoute: AuthenticatedItemIdRoute,
   AuthenticatedAdjustIndexRoute: AuthenticatedAdjustIndexRoute,
+  AuthenticatedAuditIndexRoute: AuthenticatedAuditIndexRoute,
   AuthenticatedHistoryIndexRoute: AuthenticatedHistoryIndexRoute,
   AuthenticatedQrIndexRoute: AuthenticatedQrIndexRoute,
   AuthenticatedReceiveIndexRoute: AuthenticatedReceiveIndexRoute,

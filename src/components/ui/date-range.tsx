@@ -115,3 +115,14 @@ export function DateRangeButton({
     </>
   )
 }
+
+/** ทางลัดช่วงวันที่ที่ใช้บ่อย (ไม่มี "ตั้งแต่แรก" — ต้องเลือกช่วงเสมอ) */
+const iso = (d: Date) => d.toLocaleDateString('sv-SE')
+export const DATE_PRESETS: readonly DatePreset[] = [
+  { key: 'today', label: 'วันนี้', range: () => ({ from: todayIso(), to: todayIso() }) },
+  { key: '7d', label: '7 วัน', range: () => ({ from: iso(new Date(Date.now() - 6 * 864e5)), to: todayIso() }) },
+  { key: 'month', label: 'เดือนนี้', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth(), 1)), to: todayIso() } } },
+  { key: 'lastMonth', label: 'เดือนก่อน', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth() - 1, 1)), to: iso(new Date(n.getFullYear(), n.getMonth(), 0)) } } },
+  { key: '3m', label: '3 เดือน', range: () => { const n = new Date(); return { from: iso(new Date(n.getFullYear(), n.getMonth() - 2, 1)), to: todayIso() } } },
+  { key: 'year', label: 'ปีนี้', range: () => ({ from: `${new Date().getFullYear()}-01-01`, to: todayIso() }) },
+]

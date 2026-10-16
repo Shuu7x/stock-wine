@@ -4,7 +4,7 @@
  * ใช้ทั้งตารางรายการ · จัดกลุ่ม · ส่งออก Excel (ข้อมูล + สรุปแบบ pivot)
  */
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeftRight, ClipboardCheck, GlassWater, PackagePlus, PencilLine, ShoppingBag, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ClipboardCheck, GlassWater, PackagePlus, ShoppingBag, type LucideIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { adjustmentsListOptions, salesListOptions, transfersListOptions } from '@/features/operations/api/operations.api'
 import { receiptsListOptions } from '@/features/receipts/api/receipts.api'
@@ -13,13 +13,12 @@ import { storeName } from '@/features/stock/columns'
 import { withdrawalsListOptions } from '@/features/withdrawals/api/withdrawals.api'
 import { exportXlsx, type XlsxColumn, type XlsxSheet } from '@/lib/export-xlsx'
 import { fmtDate } from '@/lib/format'
-import { logsTableOptions, type StockItemLog } from './api/logs.api'
-import { actionOf, FIELD_LABELS, fmtField } from './components/LogList'
 import type { RawDoc } from './components/DocViews'
 
 export const DOC_TYPES = ['receipts', 'sales', 'withdrawals', 'transfers', 'adjustments'] as const
 export type DocType = (typeof DOC_TYPES)[number]
-export const MOVE_TYPES = [...DOC_TYPES, 'edits'] as const
+/** การแก้ไขข้อมูลไวน์ (ไม่เปลี่ยนยอด) ดูที่หน้า Audit log */
+export const MOVE_TYPES = DOC_TYPES
 export type MoveType = (typeof MOVE_TYPES)[number]
 
 type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold'
@@ -29,7 +28,6 @@ export const TYPE_META: Record<MoveType, { label: string; icon: LucideIcon; tone
   withdrawals: { label: 'เบิก', icon: GlassWater, tone: 'brand' },
   transfers: { label: 'โอนย้าย', icon: ArrowLeftRight, tone: 'info' },
   adjustments: { label: 'ปรับยอด', icon: ClipboardCheck, tone: 'warning' },
-  edits: { label: 'แก้ไขข้อมูล', icon: PencilLine, tone: 'neutral' },
 }
 
 /** หนึ่งความเคลื่อนไหว (บรรทัดเอกสาร · โอนย้ายแยกเป็นโอนออก/โอนเข้า) */
@@ -124,20 +122,6 @@ function rowsOfDoc(type: DocType, raw: RawDoc, stores: Store[]): MovementRow[] {
   }
 }
 
-/** บันทึกแก้ไขข้อมูลไวน์ (เพิ่มใหม่ / แก้ไข / ลบ / กู้คืน) — ไม่เปลี่ยนยอด */
-const EDIT_ACTIONS = new Set(['create', 'update', 'delete', 'restore'])
-function rowOfEdit(l: StockItemLog, stores: Store[]): MovementRow {
-  const detail = Object.entries(l.changes)
-    .filter(([k]) => k !== 'deleted_at' && k !== 'balance')
-    .map(([k, ch]) => `${FIELD_LABELS[k] ?? k}: ${fmtField(stores, k, ch.old)} → ${fmtField(stores, k, ch.new)}`)
-    .join(' · ')
-  return {
-    _id: `log:${l.id}`, type: 'edits', kind: actionOf(l).label, status: 'posted', date: localDate(l.created_at),
-    doc_type: null, doc_id: null, doc_no: null, wine: l.wine_name, vintage: nv(l.vintage), store: storeName(stores, l.store_id),
-    rack: null, qty_in: 0, qty_out: 0, net: 0, amount: null, party: null, remark: detail || null, by: l.created_by_email,
-  }
-}
-
 /** ดึงทุกประเภทที่เลือกในช่วงวันที่ → แถวความเคลื่อนไหว + เอกสารดิบ (ไว้เปิดรายละเอียด) */
 export function useMovements(types: ReadonlySet<MoveType>, f: MoveFilter, stores: Store[]) {
   const df = { from: f.from, to: f.to, status: f.status }
@@ -148,7 +132,6 @@ export function useMovements(types: ReadonlySet<MoveType>, f: MoveFilter, stores
     transfers: useQuery({ ...transfersListOptions(1, ALL, df), enabled: types.has('transfers') }),
     adjustments: useQuery({ ...adjustmentsListOptions(1, ALL, df), enabled: types.has('adjustments') }),
   }
-  const logs = useQuery({ ...logsTableOptions({ from: f.from, to: f.to }), enabled: types.has('edits') && f.status !== 'void' })
 
   const docs = useMemo(() => {
     const out = {} as Record<DocType, RawDoc[]>
@@ -160,12 +143,10 @@ export function useMovements(types: ReadonlySet<MoveType>, f: MoveFilter, stores
   const rows = useMemo(() => {
     const out: MovementRow[] = []
     for (const t of DOC_TYPES) for (const d of docs[t]) out.push(...rowsOfDoc(t, d, stores))
-    if (types.has('edits') && f.status !== 'void')
-      for (const l of logs.data ?? []) if (EDIT_ACTIONS.has(l.action)) out.push(rowOfEdit(l, stores))
     return out.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1))
-  }, [docs, logs.data, types, stores, f.status])
+  }, [docs, stores])
 
-  const loading = DOC_TYPES.some((t) => types.has(t) && q[t].isLoading) || (types.has('edits') && logs.isLoading)
+  const loading = DOC_TYPES.some((t) => types.has(t) && q[t].isLoading)
   /** ประเภทที่เอกสารเกินจำนวนที่ดึง (ควรแคบช่วงวันที่) */
   const truncated = DOC_TYPES.filter((t) => types.has(t) && (q[t].data?.total ?? 0) > ALL)
   return { rows, docs, loading, truncated }
