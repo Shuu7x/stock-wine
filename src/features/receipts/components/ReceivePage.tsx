@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Eraser, Save, Trash2, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Eraser, FileUp, Save, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn, Suggestion } from '@/components/data-grid/types'
@@ -18,6 +18,7 @@ import { appSettingsOptions, lookupValuesOptions } from '@/features/settings/api
 import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
 import { buildLookups, identityKey, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
+import { IMPORT_ACCEPT, readTableFile, tableToRows } from '@/lib/import-table'
 import { AttachFiles } from './AttachFiles'
 import { usePostReceipt, type ReceiptLineInput } from '../api/receipts.api'
 import {
@@ -175,6 +176,33 @@ export function ReceivePage() {
     },
     [matchOf],
   )
+
+  // ── นำเข้าไฟล์ ─ แถวจากไฟล์แทนที่แถวว่าง ต่อท้ายแถวที่กรอกไว้แล้ว
+  const importInput = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  async function importFile(file: File) {
+    setImporting(true)
+    try {
+      const matrix = await readTableFile(file)
+      const res = tableToRows(matrix, columns, () => newReceiveRow(defaultStore))
+      const got = res.rows.filter((r) => !isBlankRow(r))
+      if (!got.length) return toast.error('ไม่พบรายการในไฟล์ — ตรวจหัวคอลัมน์ เช่น Name of wine / จำนวนรับ / Store / Wine racks')
+      setRows((rs) => [...rs.filter((r) => !isBlankRow(r)), ...got])
+      setShowErrors(true)
+      toast.success(`นำเข้า ${got.length} รายการจาก ${file.name}`, {
+        description: [
+          res.mapped.length ? `คอลัมน์: ${res.mapped.join(', ')}` : '',
+          res.invalid ? `มี ${res.invalid} ค่าที่อ่านไม่ได้ (เว้นว่างไว้)` : '',
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'อ่านไฟล์ไม่ได้')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const columns = useMemo(() => {
     const c = wineColumns<ReceiveRow>(stores, lookups)
@@ -405,8 +433,22 @@ export function ReceivePage() {
         <Button size="sm" variant="ghost" onClick={reset} disabled={!filled.length}>
           <Eraser className="size-4" /> ล้างทั้งหมด
         </Button>
+        <Button size="sm" variant="ghost" onClick={() => importInput.current?.click()} loading={importing}>
+          {!importing && <FileUp className="size-4" />} นำเข้าไฟล์
+        </Button>
+        <input
+          ref={importInput}
+          type="file"
+          accept={IMPORT_ACCEPT}
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) importFile(f)
+          }}
+        />
         <span className="hidden text-xs text-muted lg:inline">
-          วางจาก Excel ได้: คลิกเซลล์ Name of wine แถวแรก แล้ว Ctrl+V (เรียงคอลัมน์ตามตาราง)
+          นำเข้า .xlsx / .csv (จับคู่ตามหัวคอลัมน์) หรือวางจาก Excel: คลิกเซลล์ Name of wine แล้ว Ctrl+V
         </span>
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-ink-2">
