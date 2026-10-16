@@ -17,7 +17,7 @@ import type { RawDoc } from './components/DocViews'
 
 export const DOC_TYPES = ['receipts', 'sales', 'withdrawals', 'transfers', 'adjustments'] as const
 export type DocType = (typeof DOC_TYPES)[number]
-/** การแก้ไขข้อมูลไวน์ (ไม่เปลี่ยนยอด) ดูที่หน้า Audit log */
+/** ความเคลื่อนไหวนับเฉพาะเอกสารที่เปลี่ยนยอด · การแก้ไขข้อมูลไวน์ดูที่หน้าไวน์ */
 export const MOVE_TYPES = DOC_TYPES
 export type MoveType = (typeof MOVE_TYPES)[number]
 

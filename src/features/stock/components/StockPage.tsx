@@ -232,7 +232,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     setEdits({})
     setPendingDeletes([])
     setConfirmSave(false)
-    toast.success(`บันทึกแล้ว (${msg} รายการ)`, { description: 'ดูรายละเอียดได้ที่ เมนู Audit log' })
+    toast.success(`บันทึกแล้ว (${msg} รายการ)`, { description: 'ดูรายละเอียดได้ที่ หน้าไวน์ (ประวัติการแก้ไข)' })
   }
 
   function discardAll() {
