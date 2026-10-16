@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowLeftRight,
   ClipboardCheck,
+  Filter,
   GlassWater,
   QrCode,
   RotateCcw,
@@ -185,8 +186,13 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     }))
   }, [stores, lookups, tab, pendingSet, isLow, balanceLabel])
 
+  // แถวที่ตารางกรองอยู่ (null = ไม่ได้กรอง) — การ์ดสรุปคิดตามนี้
+  const [viewIds, setViewIds] = useState<string[] | null>(null)
   const stats = useMemo(() => {
-    const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter((i) => i.balance > 0)
+    const inView = viewIds ? new Set(viewIds) : null
+    const src = (currentStore ? live.filter((i) => i.store_id === currentStore.id) : live).filter(
+      (i) => i.balance > 0 && (!inView || inView.has(i.id)),
+    )
     const year = new Date().getFullYear()
     return {
       items: src.length,
@@ -195,7 +201,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       value: src.reduce((s, i) => s + i.balance * (i.price_per_bottle ?? 0), 0),
       ready: src.filter((i) => drinkStatus(i.maturity_from, i.maturity_to, year) === 'ready').length,
     }
-  }, [live, currentStore, isLow])
+  }, [live, currentStore, isLow, viewIds])
 
   const tabCount = (id?: number) =>
     itemsQ.isLoading ? undefined : fmtInt(live.filter((i) => (id ? i.store_id === id : true) && i.balance > 0).length)
@@ -341,6 +347,11 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {viewIds && (
+          <p className="col-span-full -mb-1 flex items-center gap-1.5 text-xs font-medium text-brand-700">
+            <Filter className="size-3.5" /> สรุปตามตัวกรองในตาราง
+          </p>
+        )}
         <Stat
           loading={itemsQ.isLoading}
           label="รายการที่มีของ"
@@ -456,6 +467,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         pageSizeKey="stock"
         search={search}
         onClearSearch={() => setSearch('')}
+        onViewChange={setViewIds}
         emptyState={itemsQ.isLoading ? <Loading label="กำลังโหลดสต็อก…" /> : 'ยังไม่มีไวน์ในคลังนี้ — เริ่มจากหน้ารับเข้า'}
       />
 

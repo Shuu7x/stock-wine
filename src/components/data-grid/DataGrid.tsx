@@ -94,6 +94,8 @@ export type DataGridProps<R> = {
   search?: string
   /** ล้างคำค้นหาจากชิป (ไม่ส่ง = ไม่แสดงชิปค้นหา) */
   onClearSearch?: () => void
+  /** แถวที่ผ่านการค้นหา/กรองอยู่ (ทุกหน้า) · null = ไม่ได้กรอง — ใช้สรุปยอดตามตัวกรอง */
+  onViewChange?: (ids: string[] | null) => void
   emptyState?: ReactNode
   /** จำนวนแถวต่อหน้าเริ่มต้น (0 = ทั้งหมด) · false = ไม่แบ่งหน้า */
   pageSize?: number | false
@@ -132,6 +134,7 @@ function DataGridTable<R>({
   rowClassName,
   search = '',
   onClearSearch,
+  onViewChange,
   emptyState,
   pageSize: defaultPageSize = 50,
   pageSizeKey,
@@ -334,6 +337,13 @@ function DataGridTable<R>({
     setChecked((p) => ([...p].every((id) => ids.has(id)) ? p : new Set([...p].filter((id) => ids.has(id)))))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
+  // แจ้งแถวที่กรองอยู่ (เรียงไม่นับ — ยอดรวมไม่เปลี่ยน)
+  const filterActive = !!search.trim() || Object.keys(filters).length > 0 || Object.keys(years).length > 0
+  const viewSig = filterActive ? fullIdx.map((i) => getRowId(rows[i])).join('|') : null
+  useEffect(() => {
+    onViewChange?.(viewSig == null ? null : viewSig ? viewSig.split('|') : [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewSig])
   // ติ๊ก "เลือกทั้งหมด" = เฉพาะแถวในหน้าที่แสดงอยู่
   const viewIds = useMemo(() => viewIdx.map((i) => getRowId(rows[i])), [viewIdx, rows, getRowId])
   const allChecked = viewIds.length > 0 && viewIds.every((id) => checked.has(id))

@@ -41,6 +41,7 @@ export function CardList<R>({
   emptyState,
   card,
   onClearSearch,
+  onViewChange,
 }: DataGridProps<R>) {
   // ไม่ใช้ className ของตาราง (มักเป็น flex-1/ความสูงขั้นต่ำ) — การ์ดสูงตามเนื้อหา ให้หน้าเลื่อนทั้งหน้าแทน
   const editable = !!onRowsChange
@@ -85,6 +86,12 @@ export function CardList<R>({
   }, [rows, filters, years, query, sort, columns, editId])
 
   useEffect(() => setLimit(CHUNK), [query, filters, years, sort])
+  const filterActive = !!query || Object.values(filters).some((v) => v.length) || Object.keys(years).length > 0
+  const viewSig = filterActive ? view.map(getRowId).join('|') : null
+  useEffect(() => {
+    onViewChange?.(viewSig == null ? null : viewSig ? viewSig.split('|') : [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewSig])
   useEffect(() => onSelectionChange?.([...picked]), [picked, onSelectionChange])
   // แถวที่เลือกไว้แต่หายไปแล้ว (ลบ/บันทึก) ไม่ต้องค้าง
   useEffect(() => {
