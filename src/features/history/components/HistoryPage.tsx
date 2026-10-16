@@ -12,25 +12,24 @@ import {
   Printer,
   Rows3,
   Search,
+  X,
   type LucideIcon,
 } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
-import { DateInput } from '@/components/ui/date-input'
+import { DateRangeButton } from '@/components/ui/date-range'
 import { Dialog } from '@/components/ui/dialog'
 import { Drawer } from '@/components/ui/drawer'
 import { ExportButton } from '@/components/ui/export-button'
 import { Field, Input } from '@/components/ui/field'
-import { FilterChips, type FilterChip } from '@/components/ui/filter-chips'
 import { Loading } from '@/components/ui/loading'
 import { PageHeader } from '@/components/ui/page'
 import { DOC_PAGE_SIZES, Pager } from '@/components/ui/pager'
-import { Segmented } from '@/components/ui/segmented'
 import { usePrintSaleBill } from '@/features/billing/api/billing.api'
 import { BillDialog } from '@/features/billing/components/BillDialog'
 import { useVoidAdjustment, useVoidSale, useVoidTransfer } from '@/features/operations/api/operations.api'
@@ -58,13 +57,16 @@ import {
 import { buildDocView, type DocView } from './DocViews'
 import { DocLinesGrid } from './MovementTables'
 
+/** ดึงทุกประเภทเสมอ (นับจำนวนต่อประเภทได้) แล้วกรองประเภทที่หน้า */
+const ALL_TYPES: ReadonlySet<MoveType> = new Set(MOVE_TYPES)
+
 export const HISTORY_VIEWS = ['rows', 'groups', 'docs'] as const
 export type HistoryView = (typeof HISTORY_VIEWS)[number]
 
 const VIEWS: Array<{ value: HistoryView; label: string; icon: LucideIcon }> = [
   { value: 'rows', label: 'รายการ', icon: Rows3 },
-  { value: 'groups', label: 'จัดกลุ่ม', icon: Layers },
   { value: 'docs', label: 'เอกสาร', icon: Files },
+  { value: 'groups', label: 'จัดกลุ่ม', icon: Layers },
 ]
 
 const VOID_HINT: Record<DocType, string> = {
@@ -123,9 +125,21 @@ export function HistoryPage({
   const [status, setStatus] = useState<'all' | 'posted' | 'void'>('all')
   const [search, setSearch] = useState('')
   const filter = { ...range, status: status === 'all' ? undefined : status }
-  const { rows, docs, loading, truncated } = useMovements(types, filter, stores)
+  const { rows: allRows, docs: allDocs, loading, truncated } = useMovements(ALL_TYPES, filter, stores)
   const q = search.trim().toLowerCase()
-  const shown = useMemo(() => rows.filter((r) => matches(r, q)), [rows, q])
+  const searched = useMemo(() => allRows.filter((r) => matches(r, q)), [allRows, q])
+  const shown = useMemo(() => searched.filter((r) => types.has(r.type)), [searched, types])
+  const docs = useMemo(() => {
+    const out = { ...allDocs }
+    for (const t of DOC_TYPES) if (!types.has(t)) out[t] = []
+    return out
+  }, [allDocs, types])
+  /** จำนวนรายการต่อประเภท (ตามช่วงวันที่ · สถานะ · ค้นหา) */
+  const counts = useMemo(() => {
+    const c = Object.fromEntries(MOVE_TYPES.map((t) => [t, 0])) as Record<MoveType, number>
+    for (const r of searched) c[r.type]++
+    return c
+  }, [searched])
 
   const voids = {
     receipts: useVoidReceipt(),
@@ -156,10 +170,10 @@ export function HistoryPage({
   const openDoc = (type: DocType | null, id: string | null) => type && id && setOpened({ type, id })
 
   const allTypes = types.size === MOVE_TYPES.length
-  const toggleType = (t: MoveType) =>
+  // คลิก = ดูเฉพาะประเภทนั้น · Ctrl/⌘ + คลิก = เพิ่ม/เอาออกทีละประเภท
+  const pickType = (t: MoveType, multi: boolean) =>
     setTypes((s) => {
-      // จากทั้งหมด กดประเภทไหน = ดูเฉพาะประเภทนั้น
-      if (s.size === MOVE_TYPES.length) return new Set([t])
+      if (!multi || s.size === MOVE_TYPES.length) return s.size === 1 && s.has(t) ? new Set(MOVE_TYPES) : new Set([t])
       const n = new Set(s)
       if (n.has(t)) n.delete(t)
       else n.add(t)
@@ -167,12 +181,6 @@ export function HistoryPage({
     })
   const typesLabel = allTypes ? 'ทุกประเภท' : MOVE_TYPES.filter((t) => types.has(t)).map((t) => TYPE_META[t].label).join(', ')
   const days = Math.round((new Date(range.to).getTime() - new Date(range.from).getTime()) / 864e5) + 1
-  const preset = PRESETS.find((p) => { const r = p.range(); return r.from === range.from && r.to === range.to })?.key
-
-  const chips: FilterChip[] = []
-  if (!allTypes) chips.push({ key: 'types', label: 'ประเภท', value: typesLabel, onRemove: () => setTypes(new Set(MOVE_TYPES)) })
-  if (status !== 'all') chips.push({ key: 'status', label: 'สถานะ', value: status === 'void' ? 'ยกเลิก' : 'บันทึกแล้ว', onRemove: () => setStatus('all') })
-  if (q) chips.push({ key: 'q', label: 'ค้นหา', value: `“${search.trim()}”`, onRemove: () => setSearch('') })
 
   async function confirmVoid() {
     if (!voiding) return
@@ -205,77 +213,54 @@ export function HistoryPage({
 
       {/* ── ตัวกรอง ── */}
       <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
-        <div className="flex flex-wrap items-end gap-2">
-          <Field label="ตั้งแต่วันที่" className="w-40">
-            <DateInput value={range.from} max={range.to} onChange={(v) => v && setRange((r) => ({ ...r, from: v }))} />
-          </Field>
-          <Field label="ถึงวันที่" className="w-40">
-            <DateInput value={range.to} max={todayIso()} onChange={(v) => v && setRange((r) => ({ ...r, to: v }))} />
-          </Field>
-          <div className="flex flex-wrap gap-1 pb-0.5">
-            {PRESETS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setRange(p.range())}
-                className={cn(
-                  'h-9 rounded-lg px-2.5 text-sm font-medium transition',
-                  preset === p.key ? 'bg-brand-700 text-white' : 'bg-brand-50 text-brand-800 ring-1 ring-brand-200 ring-inset hover:bg-brand-100',
-                )}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <label className="relative ml-auto w-full pb-0.5 sm:w-64">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาไวน์ เลขที่ ลูกค้า …" className="pl-9" />
-          </label>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs font-medium text-ink-2">ประเภท</span>
-          <button
-            type="button"
-            onClick={() => setTypes(new Set(MOVE_TYPES))}
-            className={cn(
-              'h-8 rounded-full px-3 text-sm font-medium transition',
-              allTypes ? 'bg-brand-700 text-white' : 'bg-surface text-ink-2 ring-1 ring-line-strong ring-inset hover:bg-surface-2',
-            )}
-          >
-            ทั้งหมด
-          </button>
-          {MOVE_TYPES.map((t) => {
-            const M = TYPE_META[t]
-            const on = !allTypes && types.has(t)
-            return (
-              <button
-                key={t}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleType(t)}
-                className={cn(
-                  'flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition',
-                  on ? 'bg-brand-700 text-white' : 'bg-brand-50 text-brand-800 ring-1 ring-brand-200 ring-inset hover:bg-brand-100',
-                )}
-              >
-                <M.icon className="size-3.5" />
-                {M.label}
-              </button>
-            )
-          })}
-          <span className="mx-1 h-5 w-px bg-line" />
-          <Segmented
-            className="!mx-0 !px-0"
+        <div className="flex flex-wrap items-center gap-2">
+          <DateRangeButton value={range} onChange={setRange} presets={PRESETS} />
+          <Combobox
+            className="w-36"
             value={status}
             onChange={setStatus}
-            items={[
-              { value: 'all', label: 'ทุกสถานะ' },
-              { value: 'posted', label: 'บันทึกแล้ว' },
-              { value: 'void', label: 'ยกเลิก' },
+            options={[
+              { value: 'all' as const, label: 'ทุกสถานะ' },
+              { value: 'posted' as const, label: 'บันทึกแล้ว' },
+              { value: 'void' as const, label: 'ยกเลิก' },
             ]}
           />
+          {(!allTypes || status !== 'all' || q) && (
+            <button
+              type="button"
+              onClick={() => (setTypes(new Set(MOVE_TYPES)), setStatus('all'), setSearch(''))}
+              className="flex items-center gap-1 px-1 text-sm font-medium text-brand-700 hover:underline"
+            >
+              <X className="size-3.5" /> ล้างตัวกรอง
+            </button>
+          )}
+          <label className="relative ml-auto w-full sm:w-72">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ค้นหาไวน์ เลขที่ ลูกค้า …" className="pl-9" />
+            {search && (
+              <button type="button" aria-label="ล้างคำค้นหา" onClick={() => setSearch('')} className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted hover:bg-surface-2">
+                <X className="size-3.5" />
+              </button>
+            )}
+          </label>
         </div>
-        <FilterChips chips={chips} onClearAll={() => (setTypes(new Set(MOVE_TYPES)), setStatus('all'), setSearch(''))} />
+
+        <div className="no-scrollbar -mx-3 overflow-x-auto px-3" title="คลิก = ดูเฉพาะประเภทนั้น · Ctrl/⌘ + คลิก = เลือกหลายประเภท">
+          <div role="tablist" aria-label="ประเภท" className="inline-flex gap-1.5">
+            <TypeTab label="ทั้งหมด" count={searched.length} on={allTypes} onClick={() => setTypes(new Set(MOVE_TYPES))} />
+            {MOVE_TYPES.map((t) => (
+              <TypeTab
+                key={t}
+                icon={TYPE_META[t].icon}
+                label={TYPE_META[t].label}
+                count={counts[t]}
+                on={!allTypes && types.has(t)}
+                onClick={(e) => pickType(t, e.ctrlKey || e.metaKey)}
+              />
+            ))}
+          </div>
+        </div>
+
         {(days > 366 || truncated.length > 0) && (
           <p className="flex items-center gap-1.5 text-xs text-warning-700">
             <AlertTriangle className="size-3.5" />
@@ -381,6 +366,39 @@ export function HistoryPage({
         </Field>
       </Dialog>
     </div>
+  )
+}
+
+/** แท็บประเภท (หน้าตาเดียวกับแท็บคลังหน้าสต็อก) พร้อมจำนวนรายการ */
+function TypeTab({
+  label,
+  count,
+  on,
+  icon: Icon,
+  onClick,
+}: {
+  label: string
+  count: number
+  on: boolean
+  icon?: LucideIcon
+  onClick: (e: ReactMouseEvent) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={on}
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition',
+        on ? 'bg-brand-700 text-white shadow-sm' : 'bg-brand-50 text-brand-800 ring-1 ring-brand-200 ring-inset hover:bg-brand-100 hover:ring-brand-300',
+        !on && count === 0 && 'opacity-60',
+      )}
+    >
+      {Icon && <Icon className="size-3.5" />}
+      {label}
+      <span className={cn('rounded-full px-1.5 text-[11px] tabular-nums', on ? 'bg-white/20 text-white' : 'bg-white text-brand-700')}>{fmtInt(count)}</span>
+    </button>
   )
 }
 
