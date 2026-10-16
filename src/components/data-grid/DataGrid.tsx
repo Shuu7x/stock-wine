@@ -94,6 +94,8 @@ export type DataGridProps<R> = {
   search?: string
   /** ล้างคำค้นหาจากชิป (ไม่ส่ง = ไม่แสดงชิปค้นหา) */
   onClearSearch?: () => void
+  /** false = ปิดคัดลอก/วาง/ตัด (Ctrl+C/V/X) · ย้อนกลับ (Ctrl+Z/Y) · ลากคัดลอก · Ctrl+D */
+  clipboard?: boolean
   /** แถวที่ผ่านการค้นหา/กรองอยู่ (ทุกหน้า) · null = ไม่ได้กรอง — ใช้สรุปยอดตามตัวกรอง */
   onViewChange?: (ids: string[] | null) => void
   emptyState?: ReactNode
@@ -135,6 +137,7 @@ function DataGridTable<R>({
   search = '',
   onClearSearch,
   onViewChange,
+  clipboard = true,
   emptyState,
   pageSize: defaultPageSize = 50,
   pageSizeKey,
@@ -765,6 +768,11 @@ function DataGridTable<R>({
     if (e.target !== scrollRef.current || editing) return
     const mod = e.ctrlKey || e.metaKey
     const k = e.key.toLowerCase()
+    // ปิดคีย์ลัดคัดลอก/วาง/ย้อนกลับ (onCopy/onPaste ปิดแยกที่ตัวตาราง)
+    if (!clipboard && mod && ['z', 'y', 'd'].includes(k)) {
+      e.preventDefault()
+      return
+    }
     if (mod && k === 'z') {
       e.preventDefault()
       return e.shiftKey ? redo() : undo()
@@ -1093,9 +1101,9 @@ function DataGridTable<R>({
         aria-rowcount={fullIdx.length}
         aria-colcount={nCols}
         onKeyDown={onKeyDown}
-        onCopy={onCopy}
-        onCut={onCut}
-        onPaste={onPaste}
+        onCopy={clipboard ? onCopy : (e) => e.preventDefault()}
+        onCut={clipboard ? onCut : (e) => e.preventDefault()}
+        onPaste={clipboard ? onPaste : (e) => e.preventDefault()}
         onContextMenu={(e) => {
           if ((e.target as Element).closest('[data-grid-head]')) return
           e.preventDefault()
@@ -1231,7 +1239,7 @@ function DataGridTable<R>({
               className={cn('pointer-events-none absolute border-2 border-brand-600 bg-brand-600/[0.07]', overlayZ(range))}
               style={rect(range)}
             >
-              {editable && !editing && (
+              {editable && clipboard && !editing && (
                 <div
                   onPointerDown={onFillPointerDown}
                   title="ลากเพื่อคัดลอก"
@@ -1309,7 +1317,7 @@ function DataGridTable<R>({
             )}
           </span>
         )}
-        {!summary && editable && (
+        {!summary && editable && clipboard && (
           <span className="hidden 2xl:inline">
             ดับเบิลคลิก/Enter แก้ไข · Ctrl+C / Ctrl+V คัดลอกวางกับ Excel · ลากมุม ■ เพื่อคัดลอกค่า · Ctrl+Z ย้อนกลับ
           </span>
@@ -1371,12 +1379,12 @@ function DataGridTable<R>({
           y={menu.y}
           onClose={() => setMenu(null)}
           items={[
-            {
+            clipboard && {
               label: 'คัดลอก',
               hint: 'Ctrl+C',
               run: () => navigator.clipboard?.writeText(copyText()).then(() => toast.success('คัดลอกแล้ว')),
             },
-            editable && {
+            editable && clipboard && {
               label: 'วาง',
               hint: 'Ctrl+V',
               run: () =>
@@ -1386,7 +1394,7 @@ function DataGridTable<R>({
                   .catch(() => toast.info('เบราว์เซอร์ไม่อนุญาต ให้กด Ctrl+V แทน')),
             },
             editable && { label: 'ล้างค่าในเซลล์', hint: 'Delete', run: clearRange },
-            editable && range && range.bottom > range.top && { label: 'คัดลอกค่าบนสุดลงมา', hint: 'Ctrl+D', run: fillDown },
+            editable && clipboard && range && range.bottom > range.top && { label: 'คัดลอกค่าบนสุดลงมา', hint: 'Ctrl+D', run: fillDown },
             createRow && 'sep',
             createRow && { label: 'แทรกแถวด้านบน', run: () => insertRows('above') },
             createRow && { label: 'แทรกแถวด้านล่าง', run: () => insertRows('below') },
