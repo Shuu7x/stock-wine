@@ -355,7 +355,7 @@ export function ReceivePage() {
         description={
           <>
             กรอกได้หลายรายการในครั้งเดียว พิมพ์ชื่อไวน์เพื่อค้นหาของที่มีอยู่ ไม่เจอ = เพิ่มใหม่ ·{' '}
-            <Link to="/history" search={{ tab: 'receipts' }} className="text-brand-700 underline">
+            <Link to="/history" search={{ type: 'receipts', view: 'docs' }} className="text-brand-700 underline">
               ดูความเคลื่อนไหวการรับเข้า
             </Link>
           </>

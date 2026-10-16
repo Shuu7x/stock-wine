@@ -254,7 +254,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         description={
           <>
             ขายได้หลายรายการในใบเดียว ติ๊ก VAT ได้ทีละรายการ ·{' '}
-            <Link to="/history" search={{ tab: 'sales' }} className="text-brand-700 underline">
+            <Link to="/history" search={{ type: 'sales', view: 'docs' }} className="text-brand-700 underline">
               ดูความเคลื่อนไหวการขาย
             </Link>
           </>

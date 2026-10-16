@@ -188,7 +188,7 @@ export function AdjustPage({ prefillIds }: { prefillIds: string[] }) {
         description={
           <>
             กรอกจำนวนที่นับได้จริง ระบบคำนวณผลต่างให้ · แถวที่ยอดตรงหรือยังไม่กรอกจะไม่ถูกบันทึก ·{' '}
-            <Link to="/history" search={{ tab: 'adjustments' }} className="text-brand-700 underline">
+            <Link to="/history" search={{ type: 'adjustments', view: 'docs' }} className="text-brand-700 underline">
               ดูความเคลื่อนไหวการปรับยอด
             </Link>
           </>
