@@ -235,7 +235,12 @@ function DataGridTable<R>({
       return rows.map((_, i) => i)
     }
     const idToIdx = new Map(rows.map((r, i) => [getRowId(r), i]))
-    if (!snap.current || snap.current.key !== viewKey) {
+    // ชุดแถวเปลี่ยนยกชุด (เช่น สลับแท็บคลัง) = กรอง/เรียงใหม่ทั้งหมด
+    // แค่แก้/เพิ่ม/ลบไม่กี่แถว = คงตำแหน่งเดิม (แถวไม่กระโดดหนีขณะแก้)
+    const prev = snap.current
+    const kept = prev ? prev.ids.filter((id) => idToIdx.has(id)).length : 0
+    const replaced = !!prev && (prev.ids.length > 0 ? kept < prev.ids.length / 2 : rows.length > 0)
+    if (!prev || prev.key !== viewKey || replaced) {
       const q = search.trim().toLowerCase()
       let idx = rows.map((_, i) => i)
       for (const [key, allowed] of Object.entries(filters)) {
@@ -261,7 +266,7 @@ function DataGridTable<R>({
       if (cmp) idx.sort((a, b) => cmp(rows[a], rows[b]))
       snap.current = { key: viewKey, ids: idx.map((i) => getRowId(rows[i])), known: new Set(idToIdx.keys()) }
     } else {
-      const s = snap.current
+      const s = snap.current!
       const ids = s.ids.filter((id) => idToIdx.has(id))
       for (const r of rows) {
         const id = getRowId(r)
@@ -271,8 +276,10 @@ function DataGridTable<R>({
         }
       }
       s.ids = ids
+      // จำเฉพาะแถวที่มีอยู่ตอนนี้ — แถวที่หายไปแล้วกลับมาจะถูกนับเป็นแถวใหม่ (ไม่หาย)
+      s.known = new Set(idToIdx.keys())
     }
-    return snap.current.ids.map((id) => idToIdx.get(id)!)
+    return snap.current!.ids.map((id) => idToIdx.get(id)!)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, viewKey, viewActive])
 
@@ -327,7 +334,8 @@ function DataGridTable<R>({
     setChecked((p) => ([...p].every((id) => ids.has(id)) ? p : new Set([...p].filter((id) => ids.has(id)))))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows])
-  const viewIds = useMemo(() => fullIdx.map((i) => getRowId(rows[i])), [fullIdx, rows, getRowId])
+  // ติ๊ก "เลือกทั้งหมด" = เฉพาะแถวในหน้าที่แสดงอยู่
+  const viewIds = useMemo(() => viewIdx.map((i) => getRowId(rows[i])), [viewIdx, rows, getRowId])
   const allChecked = viewIds.length > 0 && viewIds.every((id) => checked.has(id))
   const someChecked = !allChecked && viewIds.some((id) => checked.has(id))
   const toggleRow = (id: string) =>
@@ -1110,7 +1118,8 @@ function DataGridTable<R>({
                     ref={(el) => {
                       if (el) el.indeterminate = someChecked
                     }}
-                    aria-label="เลือกทุกแถว"
+                    aria-label="เลือกทุกแถวในหน้านี้"
+                    title="เลือกทุกแถวในหน้านี้"
                     onPointerDown={(e) => e.stopPropagation()}
                     onChange={toggleAll}
                   />
