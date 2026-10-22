@@ -299,3 +299,8 @@ input[type='number']::-webkit-inner-spin-button {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* อิโมจิธงชาติ — ฟอนต์ธง (polyfill สำหรับ Windows) มาก่อน แล้วค่อยฟอนต์อิโมจิของระบบ */
+.flag-emoji {
+  font-family: 'Twemoji Country Flags', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}

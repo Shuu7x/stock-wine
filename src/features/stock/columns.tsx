@@ -2,6 +2,7 @@ import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { drinkStatus, fmtMaturity, fmtMoney, parseMaturity } from '@/lib/format'
 import type { LookupValue } from '@/features/settings/api/settings.api'
+import { flagOf } from '@/lib/flags'
 import { parseRating } from '@/lib/rating'
 import { RatingChips } from '@/components/ui/rating-chip'
 import type { StockItem, Store } from './api/stock.api'
@@ -81,6 +82,22 @@ const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
   burgundy: { bg: '#f4ecfa', fg: '#6a2c91', ring: '#dccaeb' },
   whisky: { bg: '#fcefe4', fg: '#a3500f', ring: '#f1d0b4' },
 }
+/** ชื่อประเทศพร้อมธงชาติ (ไม่รู้จักประเทศ = ชื่ออย่างเดียว) */
+export function CountryName({ country }: { country: string | null }) {
+  if (!country) return null
+  const flag = flagOf(country)
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      {flag && (
+        <span aria-hidden className="flag-emoji shrink-0 text-base leading-none">
+          {flag}
+        </span>
+      )}
+      <span className="truncate">{country}</span>
+    </span>
+  )
+}
+
 /** ขนาดขวด: Normal แสดงจางๆ · ขนาดอื่น (Mg. ฯลฯ) เด่นขึ้นให้สังเกตง่าย */
 export function SizeTag({ size }: { size: string | null }) {
   const s = size?.trim() || 'Normal'
@@ -148,8 +165,9 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     key: 'country',
     title: 'Country',
     subtitle: 'ประเทศ',
-    width: 120,
+    width: 140,
     options: lookups.countries,
+    render: (r) => <CountryName country={r.country} />,
   }
   const region: GridColumn<R> = {
     key: 'region',

@@ -8,6 +8,7 @@ import { installHandledErrorFilter, queryClient } from '@/lib/query-client'
 import { supabase } from '@/lib/supabase'
 import { routeTree } from './routeTree.gen'
 import { Loading } from '@/components/ui/loading'
+import { polyfillCountryFlagEmojis } from 'country-flag-emoji-polyfill'
 import './index.css'
 
 const router = createRouter({
@@ -30,6 +31,8 @@ async function enableMocking() {
 }
 
 installHandledErrorFilter()
+// Windows ไม่มีฟอนต์อิโมจิธงชาติ → ใช้ฟอนต์ธง (Twemoji) ที่เก็บในโปรเจกต์ · เครื่องที่มีอยู่แล้วไม่โหลด
+polyfillCountryFlagEmojis('Twemoji Country Flags', `${import.meta.env.BASE_URL}fonts/TwemojiCountryFlags.woff2`)
 // ขนาดตัวหนังสือที่ตั้งไว้ในเครื่องนี้ (ใช้ก่อน render ไม่ให้กะพริบ)
 applyFontScale(getFontScale())
 
