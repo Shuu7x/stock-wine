@@ -11,7 +11,7 @@ import { DateInput } from '@/components/ui/date-input'
 import { Dialog } from '@/components/ui/dialog'
 import { DocToolbar } from '@/components/ui/doc-toolbar'
 import { Button } from '@/components/ui/button'
-import { Field, Input } from '@/components/ui/field'
+import { Field, Textarea } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { Segmented } from '@/components/ui/segmented'
 import { useAppSettings } from '@/features/settings/api/settings.api'
@@ -272,20 +272,26 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-[160px_1fr_1.4fr_1fr]">
+      {/* หัวใบขาย: ซ้าย = วันที่ · ลูกค้า / คลัง · VAT · ขวา = ที่อยู่ · หมายเหตุ (กล่องสูงเท่ากันสองแถว) */}
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-4">
         <Field label="วันที่ขาย">
           <DateInput value={soldAt} max={todayIso()} onChange={setSoldAt} />
         </Field>
         <Field label="ลูกค้า">
           <SuggestInput value={customer} onChange={pickCustomer} suggestions={customerSuggestions} title="ลูกค้าประจำ" placeholder="ชื่อลูกค้า / บริษัท" />
         </Field>
-        <Field label="ที่อยู่ลูกค้า (แสดงในบิล)">
-          <Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด" />
+        <Field label="ที่อยู่ลูกค้า (แสดงในบิล)" className="xl:row-span-2 [&>textarea]:flex-1">
+          <Textarea
+            rows={3}
+            value={customerAddress}
+            onChange={(e) => setCustomerAddress(e.target.value)}
+            placeholder={'เลขที่ ถนน แขวง/ตำบล\nเขต/อำเภอ จังหวัด รหัสไปรษณีย์'}
+          />
         </Field>
-        <Field label="หมายเหตุ (แสดงในบิล)">
-          <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น เลขที่ออเดอร์" />
+        <Field label="หมายเหตุ (แสดงในบิล)" className="xl:row-span-2 [&>textarea]:flex-1">
+          <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น เลขที่ออเดอร์ · เงื่อนไขการส่ง" />
         </Field>
-        <Field label="ค้นหาไวน์จากคลัง" className="xl:col-span-2">
+        <Field label="ค้นหาไวน์จากคลัง">
           <Combobox
             value={scope}
             onChange={setScope}
@@ -295,10 +301,10 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
             ]}
           />
         </Field>
-        <div className="flex flex-col gap-1 xl:col-span-2">
+        <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-ink-2">ราคาที่กรอก (VAT {rate}%)</span>
           <Segmented
-            className="!mx-0 !px-0"
+            className="!mx-0 !px-0 [&_[role=tablist]]:flex [&_[role=tablist]]:w-full [&_button]:h-10 [&_button]:flex-1 [&_button]:justify-center"
             value={vatMode}
             onChange={changeVatMode}
             items={[
