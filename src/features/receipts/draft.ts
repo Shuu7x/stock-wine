@@ -14,6 +14,7 @@ export function newReceiveRow(storeId: number | null): ReceiveRow {
     qty: null,
     rating: null,
     wine_type: null,
+    bottle_size: 'Normal',
     region: null,
     maturity_from: null,
     maturity_to: null,

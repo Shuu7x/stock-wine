@@ -18,6 +18,7 @@ export type ReceiptLineInput = Pick<
   | 'vintage'
   | 'rating'
   | 'wine_type'
+  | 'bottle_size'
   | 'region'
   | 'maturity_from'
   | 'maturity_to'

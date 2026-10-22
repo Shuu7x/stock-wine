@@ -217,7 +217,7 @@ function postTransfer(email: string, a: { p_transferred_at: string; p_note: stri
     src.balance -= l.qty
     logs.push([b1, structuredClone(src), 'transfer_out'])
 
-    const key = stockIdentity({ store_id: l.to_store_id, wine_name: src.wine_name, vintage: src.vintage, rack: toRack })
+    const key = stockIdentity({ store_id: l.to_store_id, wine_name: src.wine_name, vintage: src.vintage, rack: toRack, bottle_size: src.bottle_size })
     let dst = items.find((s) => !s.deleted_at && stockIdentity(s) === key)
     const isNew = !dst
     if (!dst) {

@@ -21,7 +21,8 @@ export const stockIdentity = (r: {
   wine_name: string
   vintage: number | null
   rack: string | null
-}) => `${r.store_id}|${r.wine_name.trim().toLowerCase()}|${r.vintage ?? 0}|${(r.rack ?? '').trim().toLowerCase()}`
+  bottle_size?: string | null
+}) => `${r.store_id}|${r.wine_name.trim().toLowerCase()}|${r.vintage ?? 0}|${(r.rack ?? '').trim().toLowerCase()}|${(r.bottle_size?.trim() || 'Normal').toLowerCase()}`
 
 /** ตรวจ unique index stock_items_identity_uq บนชุดข้อมูลที่จะบันทึก */
 function assertUnique(items: StockItem[]) {

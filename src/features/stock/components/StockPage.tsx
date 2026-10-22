@@ -48,6 +48,7 @@ const EDITABLE: Array<keyof StockItemPatch> = [
   'wine_name',
   'vintage',
   'wine_type',
+  'bottle_size',
   'region',
   'rating',
   'maturity_from',
@@ -194,6 +195,7 @@ export function StockPage({
     const list: GridColumn<StockItem>[] = [
       c.wine,
       c.vintage,
+      c.bottleSize,
       c.wineType,
       c.country,
       c.region,
@@ -297,6 +299,7 @@ export function StockPage({
       const cols = (withStore: boolean): XlsxColumn<StockItem>[] => [
         { header: 'Name of wine', width: 40, value: (r) => r.wine_name },
         { header: 'Year', width: 8, value: (r) => r.vintage ?? 'NV', align: 'center' },
+        { header: 'Size', width: 9, value: (r) => r.bottle_size, align: 'center' },
         { header: 'Type', width: 12, value: (r) => r.wine_type },
         { header: 'Country', width: 14, value: (r) => r.country },
         { header: 'Region', width: 16, value: (r) => r.region },

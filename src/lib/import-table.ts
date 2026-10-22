@@ -79,6 +79,7 @@ const ALIASES: Record<string, string[]> = {
   vintage: ['year', 'vintage', 'ปี', 'ปีไวน์'],
   country: ['country', 'ประเทศ'],
   rating: ['rate', 'rating', 'score', 'คะแนน'],
+  bottle_size: ['size', 'bottlesize', 'ขนาด', 'ขนาดขวด'],
   wine_type: ['type', 'winetype', 'ประเภท', 'ประเภทไวน์', 'ชนิด'],
   region: ['region', 'appellation', 'แคว้น', 'ภูมิภาค', 'เขต'],
   maturity: ['maturity', 'drink', 'ช่วงดื่ม', 'ปีที่ดื่มได้'],

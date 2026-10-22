@@ -12,6 +12,7 @@ type LineInput = {
   vintage: number | null
   rating: string | null
   wine_type?: string | null
+  bottle_size?: string | null
   region?: string | null
   maturity_from: number | null
   maturity_to: number | null
@@ -78,6 +79,7 @@ function postReceipt(
         vintage: l.vintage,
         rating: blank(l.rating),
         wine_type: blank(l.wine_type),
+        bottle_size: blank(l.bottle_size ?? null) ?? 'Normal',
         region: blank(l.region),
         maturity_from: l.maturity_from,
         maturity_to: l.maturity_to,
@@ -121,6 +123,7 @@ function postReceipt(
       vintage: l.vintage,
       rating: blank(l.rating),
       wine_type: blank(l.wine_type),
+      bottle_size: blank(l.bottle_size ?? null) ?? 'Normal',
       region: blank(l.region),
       maturity_from: l.maturity_from,
       maturity_to: l.maturity_to,

@@ -36,6 +36,7 @@ type Row = {
 
 const CATEGORIES: Array<{ value: LookupCategory; label: string; valueTitle: string; field: keyof StockItem }> = [
   { value: 'wine_type', label: 'ประเภทไวน์', valueTitle: 'ประเภท', field: 'wine_type' },
+  { value: 'bottle_size', label: 'ขนาดขวด', valueTitle: 'ขนาด', field: 'bottle_size' },
   { value: 'country', label: 'ประเทศ', valueTitle: 'ประเทศ', field: 'country' },
   { value: 'region', label: 'แคว้น', valueTitle: 'แคว้น', field: 'region' },
   { value: 'supplier', label: 'ผู้ขาย (ซื้อจากใคร)', valueTitle: 'ชื่อผู้ขาย', field: 'supplier' },

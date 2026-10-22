@@ -40,6 +40,7 @@ export const FIELD_LABELS: Record<string, string> = {
   vintage: 'Year',
   rating: 'Rate',
   wine_type: 'ประเภท',
+  bottle_size: 'ขนาด',
   region: 'แคว้น',
   rating_rp: 'RP',
   rating_ws: 'WS',

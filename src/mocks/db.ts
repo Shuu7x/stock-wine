@@ -157,7 +157,11 @@ function seedLookups(): Tables<'lookup_values'>[] {
     parent: null,
     ...audit(),
   })
-  return [...COUNTRIES.map((v, i) => row('country', v, i)), ...WINE_TYPES.map((v, i) => row('wine_type', v, i))]
+  return [
+    ...COUNTRIES.map((v, i) => row('country', v, i)),
+    ...WINE_TYPES.map((v, i) => row('wine_type', v, i)),
+    ...['Normal', 'Mg.'].map((v, i) => row('bottle_size', v, i)),
+  ]
 }
 
 /** ประเภท + แคว้นของไวน์ตัวอย่าง */
@@ -228,6 +232,7 @@ function seedItem(s: (typeof SEED)[number]): Tables<'stock_items'> {
     balance: s[5],
     rating: seedRating(s[3], s[6], s[7]),
     wine_type: TYPE_REGION[s[3]]?.[0] ?? null,
+    bottle_size: 'Normal',
     region: TYPE_REGION[s[3]]?.[1] ?? null,
     maturity_from: s[8]?.[0] ?? null,
     maturity_to: s[8]?.[1] ?? null,
@@ -321,6 +326,12 @@ function load(): DB {
         })
         saved.seq.type_seed = 1
       }
+      // ขนาดขวด: ข้อมูลเดิมเป็น Normal · ตัวเลือกตั้งต้นในข้อมูลหลัก
+      for (const x of [...saved.stock_items, ...saved.receipt_lines] as Array<Record<string, unknown>>) x.bottle_size ??= 'Normal'
+      ;['Normal', 'Mg.'].forEach((value, i) => {
+        if (!saved.lookup_values.some((l) => l.category === 'bottle_size' && l.value === value))
+          saved.lookup_values.push({ id: crypto.randomUUID(), category: 'bottle_size', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, ...audit() })
+      })
       // ตัวอย่างไวน์ที่มีหลายคะแนน (เฉพาะที่ยังเป็นค่าตั้งต้น)
       if (!saved.seq.multi_seed) {
         for (const x of saved.stock_items) {
@@ -392,7 +403,7 @@ export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF' | 'BL', n: number
 // ─── เลียนแบบ trigger public.log_stock_item_change ───────────────────────────
 type StockItem = Tables<'stock_items'>
 const TRACKED = [
-  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'wine_type', 'region', 'rating', 'maturity_from',
+  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'wine_type', 'bottle_size', 'region', 'rating', 'maturity_from',
   'maturity_to', 'price_per_bottle', 'supplier', 'purchase_date', 'remark', 'balance', 'deleted_at',
 ] as const
 

@@ -14,6 +14,7 @@ export type WineFields = {
   wine_name: string | null
   vintage: number | null
   wine_type: string | null
+  bottle_size: string | null
   region: string | null
   rating: string | null
   maturity_from: number | null
@@ -58,6 +59,7 @@ export function buildLookups(items: StockItem[], configured: LookupValue[] = [])
   return {
     countries: mergeOptions(of('country'), items.map((i) => i.country)),
     wineTypes: mergeOptions(of('wine_type'), items.map((i) => i.wine_type)),
+    bottleSizes: mergeOptions(of('bottle_size'), ['Normal', ...items.map((i) => i.bottle_size)]),
     regions: mergeOptions(of('region'), items.map((i) => i.region)),
     regionsByCountry,
     suppliers: mergeOptions(of('supplier'), items.map((i) => i.supplier)),
@@ -79,6 +81,16 @@ const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
   burgundy: { bg: '#6a2c91', fg: '#ffffff', ring: '#4a1d66' },
   whisky: { bg: '#d2691e', fg: '#ffffff', ring: '#9c4a10' },
 }
+/** ขนาดขวด: Normal แสดงจางๆ · ขนาดอื่น (Mg. ฯลฯ) เด่นขึ้นให้สังเกตง่าย */
+export function SizeTag({ size }: { size: string | null }) {
+  const s = size?.trim() || 'Normal'
+  return s.toLowerCase() === 'normal' ? (
+    <span className="text-xs text-muted">Normal</span>
+  ) : (
+    <span className="inline-flex items-center rounded-md bg-gold-100 px-1.5 text-xs leading-5 font-bold text-gold-700 ring-1 ring-gold-500/40 ring-inset">{s}</span>
+  )
+}
+
 export function WineTypeTag({ type }: { type: string }) {
   const st = TYPE_STYLE[type.trim().toLowerCase()] ?? { bg: '#ece7e8', fg: '#4a3f42', ring: '#d8cdcf' }
   return (
@@ -146,6 +158,17 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     width: 140,
     // แคว้นของประเทศในแถวนั้นขึ้นก่อน
     options: (row) => (row.country ? (lookups.regionsByCountry.get(row.country) ?? lookups.regions) : lookups.regions),
+  }
+  const bottleSize: GridColumn<R> = {
+    key: 'bottle_size',
+    title: 'Size',
+    subtitle: 'ขนาด',
+    width: 96,
+    align: 'center',
+    options: lookups.bottleSizes,
+    // ว่าง = Normal
+    parse: (t) => t.trim() || 'Normal',
+    render: (r) => <SizeTag size={r.bottle_size} />,
   }
   const wineType: GridColumn<R> = {
     key: 'wine_type',
@@ -250,11 +273,13 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     subtitle: 'หมายเหตุ',
     width: 200,
   }
-  return { store, country, region, wineType, rack, wine, vintage, rating, maturity, price, supplier, purchaseDate, remark }
+  return { store, country, region, wineType, bottleSize, rack, wine, vintage, rating, maturity, price, supplier, purchaseDate, remark }
 }
 
-export function wineLabel(w: { wine_name: string | null; vintage: number | null }) {
-  return `${w.wine_name ?? ''} ${w.vintage ?? 'NV'}`.trim()
+export function wineLabel(w: { wine_name: string | null; vintage: number | null; bottle_size?: string | null }) {
+  // ขนาดพิเศษ (ไม่ใช่ Normal) ต่อท้ายชื่อ ให้แยกขวดใหญ่/เล็กออกจากกันได้
+  const size = w.bottle_size?.trim()
+  return `${w.wine_name ?? ''} ${w.vintage ?? 'NV'}${size && size.toLowerCase() !== 'normal' ? ` (${size})` : ''}`.trim()
 }
 
 /** คีย์ใช้จับคู่รายการในคลัง (ตรงกับ unique index stock_items_identity_uq) */
@@ -263,6 +288,8 @@ export function identityKey(w: {
   wine_name: string | null
   vintage: number | null
   rack: string | null
+  bottle_size?: string | null
 }) {
-  return `${w.store_id}|${(w.wine_name ?? '').trim().toLowerCase()}|${w.vintage ?? 0}|${(w.rack ?? '').trim().toLowerCase()}`
+  // ไวน์เดียวกันคนละขนาด = คนละรายการ (ตรงกับ unique index ในฐานข้อมูล)
+  return `${w.store_id}|${(w.wine_name ?? '').trim().toLowerCase()}|${w.vintage ?? 0}|${(w.rack ?? '').trim().toLowerCase()}|${(w.bottle_size?.trim() || 'Normal').toLowerCase()}`
 }
