@@ -13,7 +13,7 @@ type Audit = {
 type StoreRow = Audit & { id: number; code: string; name: string; sort_order: number; is_active: boolean }
 type StoreWrite = Partial<Pick<StoreRow, 'code' | 'name' | 'sort_order' | 'is_active'>>
 
-export type LookupCategory = 'country' | 'supplier' | 'rack'
+export type LookupCategory = 'country' | 'supplier' | 'rack' | 'region' | 'wine_type'
 
 type LookupValueRow = Audit & {
   id: string
@@ -36,6 +36,10 @@ type StockItemRow = Audit & {
   vintage: number | null
   /** คะแนน (ค่าเดียว) เช่น "100RP" */
   rating: string | null
+  /** ประเภทไวน์ เช่น Red, White, Champagne */
+  wine_type: string | null
+  /** แคว้น เช่น Bordeaux, Bourgogne */
+  region: string | null
   maturity_from: number | null
   maturity_to: number | null
   price_per_bottle: number | null
@@ -87,6 +91,10 @@ type ReceiptLineRow = Audit & {
   vintage: number | null
   /** คะแนน (ค่าเดียว) เช่น "100RP" */
   rating: string | null
+  /** ประเภทไวน์ เช่น Red, White, Champagne */
+  wine_type: string | null
+  /** แคว้น เช่น Bordeaux, Bourgogne */
+  region: string | null
   maturity_from: number | null
   maturity_to: number | null
   qty: number
@@ -284,6 +292,8 @@ type StockItemUpdate = Partial<
     | 'wine_name'
     | 'vintage'
     | 'rating'
+    | 'wine_type'
+    | 'region'
     | 'maturity_from'
     | 'maturity_to'
     | 'price_per_bottle'

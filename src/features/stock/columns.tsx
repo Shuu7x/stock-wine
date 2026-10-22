@@ -13,6 +13,8 @@ export type WineFields = {
   country: string | null
   wine_name: string | null
   vintage: number | null
+  wine_type: string | null
+  region: string | null
   rating: string | null
   maturity_from: number | null
   maturity_to: number | null
@@ -45,8 +47,16 @@ export function buildLookups(items: StockItem[], configured: LookupValue[] = [])
   for (const id of storeIds) {
     racksByStore.set(id, mergeOptions(of('rack', id), items.filter((i) => i.store_id === id).map((i) => i.rack)))
   }
+  // แคว้นแยกตามประเทศจากข้อมูลจริง (ข้อมูลหลักไม่ผูกประเทศ → ขึ้นทุกประเทศ)
+  const regionsByCountry = new Map<string, string[]>()
+  for (const country of new Set(items.map((i) => i.country).filter(Boolean) as string[])) {
+    regionsByCountry.set(country, mergeOptions(of('region'), items.filter((i) => i.country === country).map((i) => i.region)))
+  }
   return {
     countries: mergeOptions(of('country'), items.map((i) => i.country)),
+    wineTypes: mergeOptions(of('wine_type'), items.map((i) => i.wine_type)),
+    regions: mergeOptions(of('region'), items.map((i) => i.region)),
+    regionsByCountry,
     suppliers: mergeOptions(of('supplier'), items.map((i) => i.supplier)),
     allRacks: mergeOptions(of('rack'), items.map((i) => i.rack)),
     racksByStore,
@@ -56,6 +66,23 @@ export type Lookups = ReturnType<typeof buildLookups>
 
 export function storeName(stores: Store[], id: number | null | undefined) {
   return stores.find((s) => s.id === id)?.name ?? ''
+}
+
+/** สีจุดตามประเภทไวน์ (ประเภทอื่นที่เพิ่มเองเป็นสีเทา) */
+const TYPE_DOT: Record<string, string> = {
+  red: '#8c2c4b',
+  white: '#e2c766',
+  champagne: '#d9b04f',
+  burgundy: '#5c1430',
+  whisky: '#b5651d',
+}
+export function WineTypeTag({ type }: { type: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: TYPE_DOT[type.trim().toLowerCase()] ?? '#a8999d' }} />
+      {type}
+    </span>
+  )
 }
 
 const DRINK_LABEL = { ready: 'ดื่มได้', young: 'ยังไม่ถึง', past: 'เลยช่วง', unknown: '' } as const
@@ -105,6 +132,22 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     subtitle: 'ประเทศ',
     width: 120,
     options: lookups.countries,
+  }
+  const region: GridColumn<R> = {
+    key: 'region',
+    title: 'Region',
+    subtitle: 'แคว้น',
+    width: 140,
+    // แคว้นของประเทศในแถวนั้นขึ้นก่อน
+    options: (row) => (row.country ? (lookups.regionsByCountry.get(row.country) ?? lookups.regions) : lookups.regions),
+  }
+  const wineType: GridColumn<R> = {
+    key: 'wine_type',
+    title: 'Type',
+    subtitle: 'ประเภท',
+    width: 120,
+    options: lookups.wineTypes,
+    render: (r) => (r.wine_type ? <WineTypeTag type={r.wine_type} /> : null),
   }
   const rack: GridColumn<R> = {
     key: 'rack',
@@ -201,7 +244,7 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     subtitle: 'หมายเหตุ',
     width: 200,
   }
-  return { store, country, rack, wine, vintage, rating, maturity, price, supplier, purchaseDate, remark }
+  return { store, country, region, wineType, rack, wine, vintage, rating, maturity, price, supplier, purchaseDate, remark }
 }
 
 export function wineLabel(w: { wine_name: string | null; vintage: number | null }) {

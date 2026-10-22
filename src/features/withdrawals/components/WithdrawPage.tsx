@@ -233,7 +233,9 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
       // ข้อมูลไวน์ก่อน แล้วจึงคลัง / ชั้นวาง
       wine,
       lift(c.vintage),
+      lift(c.wineType),
       lift(c.country),
+      lift(c.region),
       lift(c.rating),
       lift(c.maturity),
       lift(c.store),

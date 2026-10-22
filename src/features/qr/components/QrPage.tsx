@@ -169,7 +169,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
           >
             {it.wine_name}
           </div>
-          {f.country && it.country && (
+          {f.country && (it.country || it.region) && (
             <div
               className="truncate"
               style={{
@@ -178,7 +178,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
                 marginTop: mm(0.3),
               }}
             >
-              {it.country}
+              {[it.country, it.region].filter(Boolean).join(" · ")}
             </div>
           )}
         </div>
@@ -396,7 +396,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
           (i) =>
             !q.trim() ||
             matchesWords(
-              `${i.wine_name} ${i.vintage ?? "nv"} ${i.country ?? ""} ${i.rack ?? ""}`,
+              `${i.wine_name} ${i.vintage ?? "nv"} ${i.country ?? ""} ${i.region ?? ""} ${i.wine_type ?? ""} ${i.rack ?? ""}`,
               q,
             ),
         )
@@ -755,7 +755,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
 }
 
 const FIELD_LABELS: Array<[keyof Fields, string]> = [
-  ["country", "ประเทศ"],
+  ["country", "ประเทศ · แคว้น"],
   ["place", "Rack"],
   ["rating", "คะแนน RP/WS"],
   ["maturity", "ช่วงดื่ม"],

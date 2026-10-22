@@ -56,7 +56,7 @@ export function ItemPage({ id }: { id: string }) {
         <div className="flex gap-4 bg-gradient-to-br from-brand-800 to-brand-900 p-5 text-white">
           <div className="min-w-0 flex-1">
             <div className="text-xs text-brand-200">
-              {it.country ?? '–'} · {storeName(stores, it.store_id)} · Rack {it.rack ?? '-'}
+              {[it.wine_type, it.country, it.region].filter(Boolean).join(' · ') || '–'} · {storeName(stores, it.store_id)} · Rack {it.rack ?? '-'}
             </div>
             <h1 className="mt-1 font-display text-2xl leading-tight font-bold sm:text-3xl">{it.wine_name}</h1>
             <div className="mt-1 text-lg text-gold-100">{it.vintage ?? 'NV'}</div>

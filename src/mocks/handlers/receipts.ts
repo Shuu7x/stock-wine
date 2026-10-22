@@ -11,6 +11,8 @@ type LineInput = {
   wine_name: string
   vintage: number | null
   rating: string | null
+  wine_type?: string | null
+  region?: string | null
   maturity_from: number | null
   maturity_to: number | null
   qty: number
@@ -75,6 +77,8 @@ function postReceipt(
         wine_name: l.wine_name.trim(),
         vintage: l.vintage,
         rating: blank(l.rating),
+        wine_type: blank(l.wine_type),
+        region: blank(l.region),
         maturity_from: l.maturity_from,
         maturity_to: l.maturity_to,
         price_per_bottle: l.price_per_bottle,
@@ -93,6 +97,8 @@ function postReceipt(
       item.balance += l.qty
       item.country = blank(l.country) ?? item.country
       item.rating = blank(l.rating) ?? item.rating
+      item.wine_type = blank(l.wine_type) ?? item.wine_type
+      item.region = blank(l.region) ?? item.region
       item.maturity_from = l.maturity_from ?? item.maturity_from
       item.maturity_to = l.maturity_to ?? item.maturity_to
       item.price_per_bottle = l.price_per_bottle ?? item.price_per_bottle
@@ -114,6 +120,8 @@ function postReceipt(
       wine_name: l.wine_name.trim(),
       vintage: l.vintage,
       rating: blank(l.rating),
+      wine_type: blank(l.wine_type),
+      region: blank(l.region),
       maturity_from: l.maturity_from,
       maturity_to: l.maturity_to,
       qty: l.qty,

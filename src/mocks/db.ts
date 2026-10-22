@@ -22,7 +22,7 @@ type DB = {
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
   receipt_attachments: Tables<'receipt_attachments'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -107,16 +107,47 @@ const COUNTRIES = [
   'New Zealand', 'Chile', 'Argentina', 'South Africa', 'Japan', 'Thailand',
 ]
 
+const WINE_TYPES = ['Red', 'White', 'Champagne', 'Burgundy', 'Whisky']
+
 function seedLookups(): Tables<'lookup_values'>[] {
-  return COUNTRIES.map((value, i) => ({
+  const row = (category: Tables<'lookup_values'>['category'], value: string, i: number): Tables<'lookup_values'> => ({
     id: crypto.randomUUID(),
-    category: 'country',
+    category,
     store_id: null,
     value,
     sort_order: i + 1,
     is_active: true,
     ...audit(),
-  }))
+  })
+  return [...COUNTRIES.map((v, i) => row('country', v, i)), ...WINE_TYPES.map((v, i) => row('wine_type', v, i))]
+}
+
+/** ประเภท + แคว้นของไวน์ตัวอย่าง */
+const TYPE_REGION: Record<string, [type: string | null, region: string]> = {
+  'Château Margaux': ['Red', 'Bordeaux'],
+  'Château Lafite Rothschild': ['Red', 'Bordeaux'],
+  'Château Mouton Rothschild': ['Red', 'Bordeaux'],
+  'Château Pichon Baron': ['Red', 'Bordeaux'],
+  'Château Lynch-Bages': ['Red', 'Bordeaux'],
+  'Château Palmer': ['Red', 'Bordeaux'],
+  'Château d’Yquem': ['White', 'Bordeaux'],
+  'Domaine Leflaive Puligny-Montrachet': ['Burgundy', 'Bourgogne'],
+  'Louis Roederer Cristal': ['Champagne', 'Champagne'],
+  'Dom Pérignon': ['Champagne', 'Champagne'],
+  'Moët & Chandon Brut Impérial': ['Champagne', 'Champagne'],
+  Sassicaia: ['Red', 'Toscana'],
+  Tignanello: ['Red', 'Toscana'],
+  'Antinori Solaia': ['Red', 'Toscana'],
+  'Gaja Barbaresco': ['Red', 'Piemonte'],
+  'Opus One': ['Red', 'Napa Valley'],
+  'Caymus Cabernet Sauvignon': ['Red', 'Napa Valley'],
+  'Penfolds Grange': ['Red', 'South Australia'],
+  'Penfolds Bin 389': ['Red', 'South Australia'],
+  'Vega Sicilia Único': ['Red', 'Ribera del Duero'],
+  Almaviva: ['Red', 'Maipo Valley'],
+  'Cloudy Bay Sauvignon Blanc': ['White', 'Marlborough'],
+  'Egon Müller Scharzhofberger Riesling Kabinett': ['White', 'Mosel'],
+  "Taylor's Vintage Port": [null, 'Douro'],
 }
 
 function seedSettings(): Tables<'app_settings'>[] {
@@ -158,6 +189,8 @@ function seedItem(s: (typeof SEED)[number]): Tables<'stock_items'> {
     vintage: s[4],
     balance: s[5],
     rating: seedRating(s[3], s[6], s[7]),
+    wine_type: TYPE_REGION[s[3]]?.[0] ?? null,
+    region: TYPE_REGION[s[3]]?.[1] ?? null,
     maturity_from: s[8]?.[0] ?? null,
     maturity_to: s[8]?.[1] ?? null,
     price_per_bottle: s[9],
@@ -187,7 +220,7 @@ function seed(): DB {
     lookup_values: seedLookups(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1 },
   }
 }
 
@@ -232,6 +265,19 @@ function load(): DB {
           if (sd && x.rating === ratingText(sd[6], sd[7])) x.rating = seedRating(sd[3], sd[6], sd[7])
         }
         saved.seq.ws_seed = 1
+      }
+      // เพิ่มประเภท/แคว้น (ข้อมูลเดิมยังไม่มีคอลัมน์นี้) · ประเภทไวน์ตั้งต้นในข้อมูลหลัก
+      if (!saved.seq.type_seed) {
+        for (const x of [...saved.stock_items, ...saved.receipt_lines] as Array<Record<string, unknown>>) {
+          const tr = TYPE_REGION[x.wine_name as string]
+          x.wine_type ??= tr?.[0] ?? null
+          x.region ??= tr?.[1] ?? null
+        }
+        WINE_TYPES.forEach((value, i) => {
+          if (!saved.lookup_values.some((l) => l.category === 'wine_type' && l.value === value))
+            saved.lookup_values.push({ id: crypto.randomUUID(), category: 'wine_type', store_id: null, value, sort_order: i + 1, is_active: true, ...audit() })
+        })
+        saved.seq.type_seed = 1
       }
       // ตัวอย่างไวน์ที่มีหลายคะแนน (เฉพาะที่ยังเป็นค่าตั้งต้น)
       if (!saved.seq.multi_seed) {
@@ -304,7 +350,7 @@ export function docNo(prefix: 'RC' | 'WD' | 'SO' | 'AJ' | 'TF' | 'BL', n: number
 // ─── เลียนแบบ trigger public.log_stock_item_change ───────────────────────────
 type StockItem = Tables<'stock_items'>
 const TRACKED = [
-  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'rating', 'maturity_from',
+  'store_id', 'rack', 'country', 'wine_name', 'vintage', 'wine_type', 'region', 'rating', 'maturity_from',
   'maturity_to', 'price_per_bottle', 'supplier', 'purchase_date', 'remark', 'balance', 'deleted_at',
 ] as const
 

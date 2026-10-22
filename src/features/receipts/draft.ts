@@ -13,6 +13,8 @@ export function newReceiveRow(storeId: number | null): ReceiveRow {
     vintage: null,
     qty: null,
     rating: null,
+    wine_type: null,
+    region: null,
     maturity_from: null,
     maturity_to: null,
     price_per_bottle: null,
@@ -31,6 +33,8 @@ export function isBlankRow(r: ReceiveRow) {
     !r.rack &&
     r.vintage == null &&
     !r.rating &&
+    !r.wine_type &&
+    !r.region &&
     r.maturity_from == null &&
     r.price_per_bottle == null &&
     !r.supplier &&

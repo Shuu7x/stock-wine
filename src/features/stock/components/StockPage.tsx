@@ -45,6 +45,8 @@ const EDITABLE: Array<keyof StockItemPatch> = [
   'country',
   'wine_name',
   'vintage',
+  'wine_type',
+  'region',
   'rating',
   'maturity_from',
   'maturity_to',
@@ -166,7 +168,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
     const list: GridColumn<StockItem>[] = [
       c.wine,
       c.vintage,
+      c.wineType,
       c.country,
+      c.region,
       c.rating,
       c.maturity,
       c.price,
@@ -267,7 +271,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
       const cols = (withStore: boolean): XlsxColumn<StockItem>[] => [
         { header: 'Name of wine', width: 40, value: (r) => r.wine_name },
         { header: 'Year', width: 8, value: (r) => r.vintage ?? 'NV', align: 'center' },
+        { header: 'Type', width: 12, value: (r) => r.wine_type },
         { header: 'Country', width: 14, value: (r) => r.country },
+        { header: 'Region', width: 16, value: (r) => r.region },
         { header: 'Rate', width: 18, value: (r) => r.rating, align: 'center' },
         { header: 'Maturity', width: 12, value: (r) => fmtMaturity(r.maturity_from, r.maturity_to) || null, align: 'center' },
         {

@@ -32,7 +32,7 @@ import {
 
 const START_ROWS = 10
 
-const UPDATABLE = ['country', 'rating', 'price_per_bottle', 'supplier', 'purchase_date', 'remark'] as const
+const UPDATABLE = ['country', 'region', 'wine_type', 'rating', 'price_per_bottle', 'supplier', 'purchase_date', 'remark'] as const
 
 function wineSuggest(items: StockItem[], stores: Store[]) {
   return (q: string, row: ReceiveRow): Suggestion<ReceiveRow>[] => {
@@ -59,6 +59,8 @@ function wineSuggest(items: StockItem[], stores: Store[]) {
         wine_name: i.wine_name,
         vintage: i.vintage,
         rating: i.rating,
+        wine_type: i.wine_type,
+        region: i.region,
         maturity_from: i.maturity_from,
         maturity_to: i.maturity_to,
         price_per_bottle: r.price_per_bottle ?? i.price_per_bottle,
@@ -82,6 +84,8 @@ function wineSuggest(items: StockItem[], stores: Store[]) {
           wine_name: i.wine_name,
           vintage: i.vintage,
           rating: i.rating,
+          wine_type: i.wine_type,
+          region: i.region,
           maturity_from: i.maturity_from,
           maturity_to: i.maturity_to,
           price_per_bottle: r.price_per_bottle ?? i.price_per_bottle,
@@ -269,7 +273,9 @@ export function ReceivePage() {
       // ข้อมูลไวน์ก่อน แล้วจึงคลัง / ชั้นวาง · จำนวนรับ
       wine,
       c.vintage,
+      c.wineType,
       c.country,
+      c.region,
       c.rating,
       c.maturity,
       c.price,
@@ -331,6 +337,8 @@ export function ReceivePage() {
       wine_name: r.wine_name!.trim(),
       vintage: r.vintage,
       rating: r.rating,
+      wine_type: r.wine_type,
+      region: r.region,
       maturity_from: r.maturity_from,
       maturity_to: r.maturity_to,
       qty: r.qty!,

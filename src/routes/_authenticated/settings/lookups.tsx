@@ -4,7 +4,7 @@ import { LookupsSettings } from '@/features/settings/components/LookupsSettings'
 
 export const Route = createFileRoute('/_authenticated/settings/lookups')({
   validateSearch: z.object({
-    tab: z.enum(['stores', 'country', 'supplier', 'rack']).default('stores').catch('stores'),
+    tab: z.enum(['stores', 'wine_type', 'country', 'region', 'supplier', 'rack']).default('stores').catch('stores'),
   }),
   component: MasterDataRoute,
 })
