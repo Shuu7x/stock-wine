@@ -213,7 +213,7 @@ export function StockPage({
       ...col,
       readOnly: col.readOnly === true ? true : ro,
     }))
-  }, [stores, lookups, tab, pendingSet, isLow, balanceLabel])
+  }, [stores, lookups, tab, pendingSet, isLow, balanceLabel, canEdit])
 
   // แถวที่ตารางกรองอยู่ (null = ไม่ได้กรอง) — การ์ดสรุปคิดตามนี้
   // เงื่อนไขค้นหา/กรองของตาราง (null = ไม่ได้กรอง) — การ์ดสรุปและตัวเลขที่แท็บคลังคิดตามนี้
