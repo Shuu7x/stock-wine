@@ -171,7 +171,7 @@ export function CardList<R>({
   const fields = card?.fields ?? columns.filter((c) => c !== titleCol).slice(0, 4).map((c) => c.key)
 
   return (
-    <div className="flex shrink-0 flex-col gap-3">
+    <div data-tour="grid" className="flex shrink-0 flex-col gap-3">
       {/* ค้นหา + เรียง/กรอง (เฉพาะตารางที่ไม่มีช่องค้นหาของหน้าเอง และไม่ใช่หน้าเอกสาร) */}
       {showSearch && (
         <div className="flex gap-2">

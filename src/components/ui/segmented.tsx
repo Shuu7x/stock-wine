@@ -6,14 +6,17 @@ export function Segmented<T extends string>({
   onChange,
   items,
   className,
+  tour,
 }: {
   value: T
   onChange: (v: T) => void
   items: Array<{ value: T; label: string; count?: string }>
   className?: string
+  /** จุดอ้างอิงของคำแนะนำการใช้งาน (data-tour) */
+  tour?: string
 }) {
   return (
-    <div className={cn('no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0', className)}>
+    <div data-tour={tour} className={cn('no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0', className)}>
       <div role="tablist" className="inline-flex gap-1.5">
         {items.map((it) => (
           <button

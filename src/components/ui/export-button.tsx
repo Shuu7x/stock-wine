@@ -18,7 +18,7 @@ export function ExportButton({
   label?: string
 }) {
   return (
-    <Button variant="excel" size={size} className={className} onClick={onClick} loading={loading} disabled={disabled}>
+    <Button data-tour="export" variant="excel" size={size} className={className} onClick={onClick} loading={loading} disabled={disabled}>
       {!loading && <FileSpreadsheet className="size-4" />}
       {label}
     </Button>

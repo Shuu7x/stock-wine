@@ -1,4 +1,8 @@
-import { Minus, Plus, RotateCcw, Type } from 'lucide-react'
+import { CircleHelp, Minus, Plus, RotateCcw, Type } from 'lucide-react'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { Switch } from '@/components/ui/switch'
+import { loadTourPrefs, saveTourPrefs } from '@/features/tour/tour'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/cn'
@@ -23,7 +27,7 @@ export function DisplaySettings() {
       <SettingsCard
         title="ขนาดตัวหนังสือ"
         icon={Type}
-        description="ปรับทั้งระบบ เห็นผลทันที · จำไว้เฉพาะเครื่องนี้ (แต่ละเครื่องตั้งต่างกันได้) · ไม่มีผลกับป้าย QR และบิลที่พิมพ์"
+        description="ปรับทั้งระบบ เห็นผลทันที · เฉพาะเครื่องนี้ · ไม่มีผลกับป้าย QR และบิล"
       >
         <div className="flex flex-col gap-5 px-5 py-5">
           {/* แถบเลื่อน */}
@@ -116,6 +120,40 @@ export function DisplaySettings() {
           </div>
         </div>
       </SettingsCard>
+
+      <TourSettings />
     </div>
+  )
+}
+
+/** คำแนะนำการใช้งาน (driver.js) — จำไว้เฉพาะเครื่องนี้ */
+function TourSettings() {
+  const [auto, setAuto] = useState(() => loadTourPrefs().auto)
+  return (
+    <SettingsCard title="คำแนะนำการใช้งาน" icon={CircleHelp} description="สอนวิธีใช้แต่ละหน้าแบบสั้นๆ · ดูซ้ำได้ทุกเมื่อที่ปุ่ม ? ข้างชื่อหน้า">
+      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+        <label className="flex flex-1 items-center gap-3 text-sm">
+          <Switch
+            checked={auto}
+            label="แสดงคำแนะนำเองเมื่อเปิดหน้าครั้งแรก"
+            onChange={(v) => {
+              setAuto(v)
+              saveTourPrefs({ auto: v })
+            }}
+          />
+          แสดงเองเมื่อเปิดหน้าครั้งแรก
+        </label>
+        <Button
+          size="sm"
+          onClick={() => {
+            saveTourPrefs({ auto: true, seen: [] })
+            setAuto(true)
+            toast.success('เริ่มใหม่แล้ว', { description: 'เปิดหน้าไหนก็จะแสดงคำแนะนำอีกครั้ง' })
+          }}
+        >
+          <RotateCcw className="size-4" /> ดูคำแนะนำใหม่ทุกหน้า
+        </Button>
+      </div>
+    </SettingsCard>
   )
 }

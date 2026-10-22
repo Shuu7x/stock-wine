@@ -140,6 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* เมนูล่าง (มือถือ/แท็บเล็ต) */}
       <nav
+        data-tour="nav"
         className="relative z-50 grid shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
         style={{ gridTemplateColumns: `repeat(${nav.length + 1}, minmax(0, 1fr))` }}
       >

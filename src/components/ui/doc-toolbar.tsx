@@ -42,7 +42,7 @@ export function DocToolbar({
       {children}
       <div className="ml-auto flex items-center gap-3">
         <span className="text-sm text-ink-2">{summary}</span>
-        <Button variant="primary" onClick={onSave} disabled={saveDisabled}>
+        <Button data-tour="save" variant="primary" onClick={onSave} disabled={saveDisabled}>
           <Save className="size-4" /> {saveLabel}
         </Button>
       </div>

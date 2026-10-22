@@ -253,7 +253,7 @@ export function SortingSettings() {
         </div>
 
         {/* ── ซ้าย: ประเทศ ── */}
-        <section className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'countries' && 'max-lg:hidden')}>
+        <section data-tour="sort-countries" className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'countries' && 'max-lg:hidden')}>
           <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
             <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">1</span>
             <div className="min-w-0 flex-1">
@@ -298,7 +298,7 @@ export function SortingSettings() {
         </section>
 
         {/* ── ขวา: แคว้นของประเทศที่เลือก ── */}
-        <section className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'regions' && 'max-lg:hidden')}>
+        <section data-tour="sort-regions" className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'regions' && 'max-lg:hidden')}>
           <header className="flex items-center gap-2 border-b border-line px-4 py-3">
             <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">2</span>
             <div className="min-w-0 flex-1">

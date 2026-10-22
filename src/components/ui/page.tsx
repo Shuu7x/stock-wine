@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from './loading'
+import { TourButton } from '@/features/tour/TourButton'
 
 export function PageHeader({
   title,
@@ -13,7 +14,10 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="font-display text-2xl font-bold text-brand-900 sm:text-[28px]">{title}</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="font-display text-2xl font-bold text-brand-900 sm:text-[28px]">{title}</h1>
+          <TourButton />
+        </div>
         {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

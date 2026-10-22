@@ -264,16 +264,16 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         title="ขายไวน์"
         description={
           <>
-            ขายได้หลายรายการในใบเดียว ติ๊ก VAT ได้ทีละรายการ ·{' '}
+            ขายหลายรายการในบิลเดียว ·{' '}
             <Link to="/history" search={{ type: 'sales', view: 'docs' }} className="text-brand-700 underline">
-              ดูความเคลื่อนไหวการขาย
+              ดูประวัติ
             </Link>
           </>
         }
       />
 
       {/* หัวใบขาย: ซ้าย = วันที่ · ลูกค้า / คลัง · VAT · ขวา = ที่อยู่ · หมายเหตุ (กล่องสูงเท่ากันสองแถว) */}
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-4">
         <Field label="วันที่ขาย">
           <DateInput value={soldAt} max={todayIso()} onChange={setSoldAt} />
         </Field>

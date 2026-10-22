@@ -88,6 +88,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
   return (
     <aside
+      data-tour="nav"
       className={cn(
         'scroll-dark relative z-20 hidden shrink-0 flex-col bg-brand-900 text-brand-100 transition-[width] duration-200 lg:flex',
         collapsed ? 'w-[72px]' : 'w-60',

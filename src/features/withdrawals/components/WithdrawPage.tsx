@@ -299,15 +299,15 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         title="เบิกไวน์"
         description={
           <>
-            เบิกออกไปดื่ม เลือกไวน์จากสต็อกได้หลายรายการ ·{' '}
+            นำไวน์ออกจากสต็อก ทำได้หลายรายการในครั้งเดียว ·{' '}
             <Link to="/history" search={{ type: 'withdrawals', view: 'docs' }} className="text-brand-700 underline">
-              ดูความเคลื่อนไหวการเบิก
+              ดูประวัติ
             </Link>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
+      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
         <Field label="วันที่เบิก">
           <DateInput value={withdrawDate} max={todayIso()} onChange={(v) => v && setWithdrawDate(v)} />
         </Field>
@@ -354,7 +354,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
           <span className="text-sm text-ink-2">
             <b className="tabular-nums">{filled.length}</b> รายการ · <b className="tabular-nums">{fmtInt(totalQty)}</b> ขวด
           </span>
-          <Button variant="primary" onClick={trySave} disabled={!filled.length}>
+          <Button data-tour="save" variant="primary" onClick={trySave} disabled={!filled.length}>
             <Save className="size-4" /> บันทึกการเบิก
           </Button>
         </div>

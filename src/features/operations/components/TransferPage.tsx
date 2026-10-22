@@ -207,15 +207,15 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
         title="โอนย้ายไวน์"
         description={
           <>
-            ย้ายไวน์ข้ามคลังหรือเปลี่ยน rack ยอดต้นทางลด ปลายทางเพิ่มในใบเดียว ·{' '}
+            ย้ายไวน์ไปคลังหรือชั้นวางอื่น ·{' '}
             <Link to="/history" search={{ type: 'transfers', view: 'docs' }} className="text-brand-700 underline">
-              ดูความเคลื่อนไหวการโอนย้าย
+              ดูประวัติ
             </Link>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_240px_1fr]">
+      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_240px_1fr]">
         <Field label="วันที่โอนย้าย">
           <DateInput value={transferredAt} max={todayIso()} onChange={setTransferredAt} />
         </Field>

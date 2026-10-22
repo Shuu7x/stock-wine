@@ -1074,7 +1074,7 @@ function DataGridTable<R>({
   }
 
   return (
-    <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface', className)}>
+    <div data-tour="grid" className={cn('flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface', className)}>
       <FilterChips chips={chips} onClearAll={clearAll} className="shrink-0 border-b border-line bg-surface-2 px-3 py-1.5" />
       <div
         ref={scrollRef}

@@ -187,7 +187,7 @@ export function HistoryPage({
     <div className="flex h-full min-h-0 flex-col gap-3">
       <PageHeader
         title="ความเคลื่อนไหว"
-        description="ทุกความเคลื่อนไหวของสต็อกในช่วงวันที่ที่เลือก · กรองตามประเภท · จัดกลุ่มดูยอด · เปิดเอกสารเพื่อยกเลิก/พิมพ์บิล · ส่งออก Excel พร้อมสรุปแบบ pivot"
+        description="ทุกการเข้า-ออกของสต็อก · กรอง จัดกลุ่ม เปิดเอกสาร ส่งออก Excel"
         actions={
           <ExportButton
             loading={exporting}
@@ -205,7 +205,7 @@ export function HistoryPage({
       />
 
       {/* ── ตัวกรอง ── */}
-      <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
+      <div data-tour="filters" className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangeButton value={range} onChange={setRange} presets={DATE_PRESETS} />
           <Combobox

@@ -45,6 +45,7 @@ export function UsersSettings({ tab, onTab }: { tab: UsersTab; onTab: (t: UsersT
   return (
     <div className="flex flex-col gap-4">
       <Segmented
+        tour="tabs"
         value={tab}
         onChange={onTab}
         items={[
@@ -420,7 +421,7 @@ function UsersList({ roles }: { roles: Role[] }) {
     >
       <div className="flex flex-col gap-3 px-4 pb-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
+          <Button data-tour="add-user" size="sm" variant="primary" onClick={() => setAdding(true)}>
             <UserPlus className="size-4" /> เพิ่มผู้ใช้
           </Button>
           {picked.length > 0 && (

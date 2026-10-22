@@ -281,6 +281,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
 
   const tabs = (
     <Segmented
+      tour="tabs"
       value={tab}
       onChange={onTab}
       items={[
