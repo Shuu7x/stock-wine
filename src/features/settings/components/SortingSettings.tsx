@@ -26,7 +26,6 @@ const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
 
 /**
  * ความสูงที่พอดีจอ: จากขอบบนขององค์ประกอบถึงขอบล่างของพื้นที่เลื่อน (<main>)
- * ใช้เฉพาะจอกว้าง (lg) — จอเล็กแผงเรียงต่อกันลงมาตามปกติ
  */
 function useFitHeight(min = 420) {
   const [el, setEl] = useState<HTMLElement | null>(null)
@@ -35,9 +34,7 @@ function useFitHeight(min = 420) {
     if (!el) return
     const main = el.closest('main')
     if (!main) return
-    const mq = window.matchMedia('(min-width: 1024px)')
     const fit = () => {
-      if (!mq.matches) return setHeight(undefined)
       const top = el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
       // padding ล่างของ main + ของกรอบเนื้อหาตั้งค่า (pb-4)
       let gap = parseFloat(getComputedStyle(main).paddingBottom) + 16
@@ -51,10 +48,8 @@ function useFitHeight(min = 420) {
     const ro = new ResizeObserver(fit)
     if (el.parentElement) ro.observe(el.parentElement)
     ro.observe(main)
-    mq.addEventListener('change', fit)
     return () => {
       ro.disconnect()
-      mq.removeEventListener('change', fit)
     }
   }, [el, min])
   return [setEl, height] as const
@@ -131,6 +126,12 @@ export function SortingSettings() {
   const [groups, setGroups] = useState<Group[]>([])
   const [orphans, setOrphans] = useState<Entry[]>([])
   const [picked, setPicked] = useState<string | null>(null)
+  // มือถือแสดงทีละแผง — แตะประเทศแล้วไปแท็บแคว้นของประเทศนั้น
+  const [pane, setPane] = useState<'countries' | 'regions'>('countries')
+  const pick = (value: string) => {
+    setPicked(value)
+    setPane('regions')
+  }
   const reset = () => (setGroups(initial.groups), setOrphans(initial.orphans))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reset, [initial])
@@ -225,14 +226,42 @@ export function SortingSettings() {
         </div>
       </SettingsCard>
 
-      <div ref={fitRef} style={{ height: fitHeight }} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div ref={fitRef} style={{ height: fitHeight }} className="flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-4">
+        {/* ── แท็บ (มือถือ) ── */}
+        <div role="tablist" aria-label="ประเทศ / แคว้น" className="flex shrink-0 gap-1 rounded-xl bg-surface-3 p-1 lg:hidden">
+          {(
+            [
+              ['countries', 'ประเทศ', fmtInt(groups.length)],
+              ['regions', picked === NONE ? 'ยังไม่ระบุประเทศ' : current ? `แคว้นของ ${current.country.value}` : 'แคว้น', picked ? fmtInt(regions.length) : null],
+            ] as const
+          ).map(([key, label, n]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={pane === key}
+              onClick={() => setPane(key)}
+              className={cn(
+                'flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium',
+                pane === key ? 'bg-surface text-brand-800 shadow-sm' : 'text-ink-2',
+              )}
+            >
+              <span className="truncate">{label}</span>
+              {n != null && <span className="rounded-full bg-surface-3 px-1.5 text-[11px] text-ink-2 tabular-nums">{n}</span>}
+            </button>
+          ))}
+        </div>
+
         {/* ── ซ้าย: ประเทศ ── */}
-        <section className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
+        <section className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'countries' && 'max-lg:hidden')}>
           <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
             <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">1</span>
             <div className="min-w-0 flex-1">
               <h2 className="font-semibold">ลำดับประเทศ</h2>
-              <p className="text-xs text-muted">ลากเพื่อเลื่อน · คลิกเพื่อดูแคว้นทางขวา</p>
+              <p className="text-xs text-muted">
+                <span className="lg:hidden">กดลูกศรเพื่อเลื่อน · แตะเพื่อดูแคว้น</span>
+                <span className="max-lg:hidden">ลากเพื่อเลื่อน · คลิกเพื่อดูแคว้นทางขวา</span>
+              </p>
             </div>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" onClick={() => sortCountries('count')} title="ประเทศที่มีไวน์มากที่สุดขึ้นก่อน">
@@ -247,7 +276,7 @@ export function SortingSettings() {
             items={groups.map((g) => g.country)}
             onReorder={(from, to) => setGroups((gs) => move(gs, from, to))}
             selected={picked}
-            onSelect={setPicked}
+            onSelect={pick}
             meta={(e) => {
               const g = groups.find((x) => x.country.value === e.value)!
               return `${fmtInt(g.regions.length)} แคว้น · ${fmtInt(e.count)} รายการ`
@@ -256,7 +285,7 @@ export function SortingSettings() {
           {orphans.length > 0 && (
             <button
               type="button"
-              onClick={() => setPicked(NONE)}
+              onClick={() => pick(NONE)}
               className={cn(
                 'flex items-center gap-2 border-t border-line px-4 py-2.5 text-left text-sm',
                 picked === NONE ? 'bg-warning-100 font-semibold text-warning-700' : 'text-warning-700 hover:bg-warning-100/50',
@@ -269,14 +298,17 @@ export function SortingSettings() {
         </section>
 
         {/* ── ขวา: แคว้นของประเทศที่เลือก ── */}
-        <section className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
+        <section className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-surface', pane !== 'regions' && 'max-lg:hidden')}>
           <header className="flex items-center gap-2 border-b border-line px-4 py-3">
             <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">2</span>
             <div className="min-w-0 flex-1">
               <h2 className="truncate font-semibold">
-                {picked === NONE ? 'แคว้นที่ยังไม่ระบุประเทศ' : current ? `แคว้นของ ${current.country.value}` : 'เลือกประเทศทางซ้าย'}
+                {picked === NONE ? 'แคว้นที่ยังไม่ระบุประเทศ' : current ? `แคว้นของ ${current.country.value}` : <><span className="lg:hidden">เลือกประเทศก่อน</span><span className="max-lg:hidden">เลือกประเทศทางซ้าย</span></>}
               </h2>
-              <p className="text-xs text-muted">ลากเพื่อเลื่อน · เปลี่ยนประเทศของแคว้นได้ที่ช่อง "ย้ายไป"</p>
+              <p className="text-xs text-muted">
+                <span className="lg:hidden">กดลูกศรเพื่อเลื่อน</span>
+                <span className="max-lg:hidden">ลากเพื่อเลื่อน</span> · เปลี่ยนประเทศของแคว้นได้ที่ช่อง "ย้ายไป"
+              </p>
             </div>
           </header>
           {picked && regions.length > 0 ? (
@@ -291,7 +323,7 @@ export function SortingSettings() {
                   value={picked}
                   onChange={(ev) => moveRegionTo(e.value, ev.target.value)}
                   onClick={(ev) => ev.stopPropagation()}
-                  className="h-8 max-w-36 rounded-md border border-line-strong bg-surface px-2 text-xs text-ink-2 outline-none focus:border-brand-600"
+                  className="h-8 max-w-28 rounded-md border sm:max-w-36 border-line-strong bg-surface px-2 text-xs text-ink-2 outline-none focus:border-brand-600"
                 >
                   {picked === NONE && <option value={NONE}>ย้ายไป…</option>}
                   {groups.map((g) => (
@@ -306,7 +338,7 @@ export function SortingSettings() {
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted">
               <MapPin className="size-8 text-line-strong" />
-              {picked ? 'ประเทศนี้ยังไม่มีแคว้น — ใส่แคว้นในคอลัมน์ Region หน้าสต็อก หรือเพิ่มที่ ข้อมูลหลัก › แคว้น' : 'คลิกประเทศทางซ้ายเพื่อดูแคว้น'}
+              {picked ? 'ประเทศนี้ยังไม่มีแคว้น — ใส่แคว้นในคอลัมน์ Region หน้าสต็อก หรือเพิ่มที่ ข้อมูลหลัก › แคว้น' : <><span className="lg:hidden">แตะประเทศในแท็บ "ประเทศ" เพื่อดูแคว้น</span><span className="max-lg:hidden">คลิกประเทศทางซ้ายเพื่อดูแคว้น</span></>}
             </div>
           )}
         </section>
@@ -358,7 +390,7 @@ function SortableList({
   const [at, setAt] = useState<number | null>(null)
   const end = () => (setFrom(null), setAt(null))
   return (
-    <ol className="min-h-0 flex-1 overflow-auto p-2 max-lg:max-h-[60dvh]" onDragEnd={end}>
+    <ol className="min-h-0 flex-1 overflow-auto p-2" onDragEnd={end}>
       {items.map((e, i) => {
         const on = selected === e.value
         return (
@@ -389,12 +421,12 @@ function SortableList({
           >
             {at === i && from != null && <span className="pointer-events-none absolute inset-x-1 -top-[3px] h-0.5 rounded bg-brand-600" />}
             {at === i + 1 && i === items.length - 1 && from != null && <span className="pointer-events-none absolute inset-x-1 -bottom-[3px] h-0.5 rounded bg-brand-600" />}
-            <GripVertical className="size-4 shrink-0 text-muted group-hover:text-brand-700" aria-hidden />
+            <GripVertical className="size-4 shrink-0 text-muted group-hover:text-brand-700 max-lg:hidden" aria-hidden />
             <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold tabular-nums', on ? 'bg-brand-700 text-white' : 'bg-surface-3 text-ink-2')}>
               {i + 1}
             </span>
-            {Icon && <Icon className="size-3.5 shrink-0 text-brand-600" aria-hidden />}
-            <span className="min-w-0 flex-1">
+            {Icon && <Icon className="size-3.5 shrink-0 text-brand-600 max-sm:hidden" aria-hidden />}
+            <span className="min-w-[4.5rem] flex-1">
               <span className={cn('block truncate text-sm', on && 'font-semibold text-brand-900')}>
                 {e.value}
                 {!e.id && <span className="ml-2 rounded bg-gold-100 px-1.5 text-[11px] font-normal text-gold-700">ใหม่จากสต็อก</span>}
