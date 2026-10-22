@@ -73,13 +73,13 @@ export function storeName(stores: Store[], id: number | null | undefined) {
   return stores.find((s) => s.id === id)?.name ?? ''
 }
 
-/** ชิปประเภทไวน์ — สีต่างกันชัด (โทนสีต่างตระกูล + ตัวอักษรตัดกัน) · ประเภทที่เพิ่มเองเป็นสีเทา */
+/** ชิปประเภทไวน์ — โทนอ่อนแบบเดียวกับชิปคอลัมน์อื่น (พื้นจาง · ตัวอักษรเข้ม) แต่ละประเภทคนละสี · ที่เพิ่มเองเป็นสีเทา */
 const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
-  red: { bg: '#c62828', fg: '#ffffff', ring: '#8e1b1b' },
-  white: { bg: '#fbf3c8', fg: '#5c4a00', ring: '#d9c56a' },
-  champagne: { bg: '#e8b923', fg: '#3d2c00', ring: '#b88d0f' },
-  burgundy: { bg: '#6a2c91', fg: '#ffffff', ring: '#4a1d66' },
-  whisky: { bg: '#d2691e', fg: '#ffffff', ring: '#9c4a10' },
+  red: { bg: '#fdecec', fg: '#b42323', ring: '#f3c6c6' },
+  white: { bg: '#f3f6e2', fg: '#5b6812', ring: '#dbe3ad' },
+  champagne: { bg: '#fdf3d7', fg: '#8f6400', ring: '#f0d690' },
+  burgundy: { bg: '#f4ecfa', fg: '#6a2c91', ring: '#dccaeb' },
+  whisky: { bg: '#fcefe4', fg: '#a3500f', ring: '#f1d0b4' },
 }
 /** ขนาดขวด: Normal แสดงจางๆ · ขนาดอื่น (Mg. ฯลฯ) เด่นขึ้นให้สังเกตง่าย */
 export function SizeTag({ size }: { size: string | null }) {
@@ -92,7 +92,7 @@ export function SizeTag({ size }: { size: string | null }) {
 }
 
 export function WineTypeTag({ type }: { type: string }) {
-  const st = TYPE_STYLE[type.trim().toLowerCase()] ?? { bg: '#ece7e8', fg: '#4a3f42', ring: '#d8cdcf' }
+  const st = TYPE_STYLE[type.trim().toLowerCase()] ?? { bg: '#f3f0f0', fg: '#5a4f52', ring: '#e0d8d9' }
   return (
     <span
       className="inline-flex items-center rounded-full px-2 py-px text-xs leading-5 font-semibold"
