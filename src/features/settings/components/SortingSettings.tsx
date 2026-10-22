@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ArrowDownUp, ChevronDown, ChevronRight, ChevronUp, Globe2, GripVertical, MapPin, Save, Undo2 } from 'lucide-react'
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { ArrowDownUp, ChevronDown, ChevronUp, GripVertical, MapPin, Save, Undo2 } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
@@ -81,10 +81,7 @@ function buildTree(lookups: LookupValue[], items: StockItem[]): { groups: Group[
   return { groups, orphans }
 }
 
-type Drag = { kind: 'country'; from: number } | { kind: 'region'; group: string; from: number }
-type Drop = { kind: 'country'; at: number } | { kind: 'region'; group: string; at: number }
-
-/** การเรียงลำดับ: ลากเพื่อจัดลำดับประเทศ และแคว้นใต้แต่ละประเทศ */
+/** การเรียงลำดับ: 2 แผง — ซ้ายจัดลำดับประเทศ · ขวาจัดลำดับแคว้นของประเทศที่เลือก */
 export function SortingSettings() {
   const lookupsQ = useQuery(lookupValuesOptions())
   const itemsQ = useQuery(stockItemsOptions())
@@ -97,12 +94,14 @@ export function SortingSettings() {
   const initial = useMemo(() => buildTree(lookups, items), [lookups, items])
   const [groups, setGroups] = useState<Group[]>([])
   const [orphans, setOrphans] = useState<Entry[]>([])
+  const [picked, setPicked] = useState<string | null>(null)
   const reset = () => (setGroups(initial.groups), setOrphans(initial.orphans))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reset, [initial])
-  const [open, setOpen] = useState<Set<string>>(new Set())
-  const [drag, setDrag] = useState<Drag | null>(null)
-  const [drop, setDrop] = useState<Drop | null>(null)
+  // เปิดหน้ามา: เลือกประเทศแรกไว้ให้
+  useEffect(() => {
+    if (!picked && initial.groups[0]) setPicked(initial.groups[0].country.value)
+  }, [initial, picked])
 
   const sig = (gs: Group[], os: Entry[]) =>
     JSON.stringify([gs.map((g) => [g.country.value, g.regions.map((r) => r.value)]), os.map((o) => o.value)])
@@ -111,55 +110,25 @@ export function SortingSettings() {
     groups.some((g) => !g.country.id || g.regions.some((r) => !r.id)) ||
     orphans.some((o) => !o.id)
 
-  const regionsOf = (group: string) => (group === NONE ? orphans : (groups.find((g) => g.country.value === group)?.regions ?? []))
-  function setRegions(group: string, list: Entry[]) {
-    if (group === NONE) setOrphans(list)
-    else setGroups((gs) => gs.map((g) => (g.country.value === group ? { ...g, regions: list } : g)))
-  }
+  const current = picked === NONE ? null : groups.find((g) => g.country.value === picked)
+  const regions = picked === NONE ? orphans : (current?.regions ?? [])
+  const setRegionsOf = (group: string, list: Entry[]) =>
+    group === NONE ? setOrphans(list) : setGroups((gs) => gs.map((g) => (g.country.value === group ? { ...g, regions: list } : g)))
 
-  function moveCountry(from: number, to: number) {
-    if (from === to || from + 1 === to) return
-    setGroups((gs) => {
-      const next = [...gs]
-      const [g] = next.splice(from, 1)
-      next.splice(to > from ? to - 1 : to, 0, g)
-      return next
-    })
-  }
-  function moveRegion(fromGroup: string, from: number, toGroup: string, to: number) {
-    const src = [...regionsOf(fromGroup)]
-    const [r] = src.splice(from, 1)
+  /** ย้ายแคว้นไปประเทศอื่น (ต่อท้ายแคว้นของประเทศนั้น) */
+  function moveRegionTo(value: string, toGroup: string) {
+    if (!picked || toGroup === picked) return
+    const r = regions.find((x) => x.value === value)
     if (!r) return
-    if (fromGroup === toGroup) {
-      src.splice(to > from ? to - 1 : to, 0, r)
-      setRegions(fromGroup, src)
-      return
-    }
-    // ย้ายแคว้นไปประเทศอื่น = เปลี่ยนประเทศของแคว้นนี้
-    const dst = [...regionsOf(toGroup)]
-    dst.splice(to, 0, r)
-    setRegions(fromGroup, src)
-    setRegions(toGroup, dst)
-    setOpen((o) => new Set(o).add(toGroup))
-  }
-
-  // ── ลากวาง (HTML5 drag & drop · เมาส์) ──
-  const overHalf = (e: DragEvent<HTMLElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    return e.clientY > r.top + r.height / 2
-  }
-  function onDropHere() {
-    if (drag && drop) {
-      if (drag.kind === 'country' && drop.kind === 'country') moveCountry(drag.from, drop.at)
-      if (drag.kind === 'region' && drop.kind === 'region') moveRegion(drag.group, drag.from, drop.group, drop.at)
-    }
-    setDrag(null)
-    setDrop(null)
+    setRegionsOf(picked, regions.filter((x) => x.value !== value))
+    const dst = toGroup === NONE ? orphans : (groups.find((g) => g.country.value === toGroup)?.regions ?? [])
+    setRegionsOf(toGroup, [...dst, r])
+    toast.success(`ย้าย ${value} ไป ${toGroup === NONE ? 'ยังไม่ระบุประเทศ' : toGroup} แล้ว`, { description: 'กดบันทึกลำดับเพื่อใช้งาน' })
   }
 
   async function save() {
     const rows: LookupWrite[] = []
-    const keep = (id: string | null) => (id ? lookups.find((l) => l.id === id)?.is_active ?? true : true)
+    const keep = (id: string | null) => (id ? (lookups.find((l) => l.id === id)?.is_active ?? true) : true)
     groups.forEach((g, i) =>
       rows.push({ ...(g.country.id ? { id: g.country.id } : {}), category: 'country', store_id: null, value: g.country.value, sort_order: i + 1, is_active: keep(g.country.id), parent: null }),
     )
@@ -177,213 +146,235 @@ export function SortingSettings() {
 
   if (lookupsQ.isLoading || itemsQ.isLoading) return <Loading screen />
 
-  const allOpen = open.size >= groups.length
+  const sortCountries = (by: 'count' | 'name') =>
+    setGroups((gs) =>
+      [...gs].sort((a, b) => (by === 'count' ? b.country.count - a.country.count || a.country.value.localeCompare(b.country.value) : a.country.value.localeCompare(b.country.value))),
+    )
+
   return (
     <div className="flex flex-col gap-4">
       <SettingsCard
         title="เรียงหน้าสต็อกตามประเทศ / แคว้น"
         icon={ArrowDownUp}
-        description="เปิดแล้วหน้าสต็อกและไฟล์ Excel เรียงตามลำดับประเทศด้านล่าง ประเทศเดียวกันเรียงตามลำดับแคว้น แล้วตามชื่อไวน์ · กดหัวคอลัมน์เพื่อเรียงแบบอื่นได้เหมือนเดิม"
+        description="เปิดแล้วหน้าสต็อกและไฟล์ Excel เรียง ประเทศ → แคว้น → ชื่อไวน์ ตามลำดับด้านล่าง · กดหัวคอลัมน์เพื่อเรียงแบบอื่นได้เหมือนเดิม"
       >
-        <div className="flex items-center gap-3 px-5 pt-3 pb-4">
-          <Switch
-            checked={settings.stock_sort_by_origin}
-            onChange={async (v) => {
-              await saveSetting.mutateAsync({ stock_sort_by_origin: v })
-              toast.success(v ? 'หน้าสต็อกเรียงตามประเทศ / แคว้นแล้ว' : 'เลิกเรียงตามประเทศ / แคว้น')
-            }}
-            label="เรียงหน้าสต็อกตามลำดับนี้"
-            states={['เปิด', 'ปิด']}
-            disabled={saveSetting.isPending}
-          />
-          <span className="text-sm text-ink-2">เรียงหน้าสต็อกตามลำดับนี้</span>
+        <div className="flex flex-col gap-3 px-5 pt-3 pb-4">
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={settings.stock_sort_by_origin}
+              onChange={async (v) => {
+                await saveSetting.mutateAsync({ stock_sort_by_origin: v })
+                toast.success(v ? 'หน้าสต็อกเรียงตามประเทศ / แคว้นแล้ว' : 'เลิกเรียงตามประเทศ / แคว้น')
+              }}
+              label="เรียงหน้าสต็อกตามลำดับนี้"
+              states={['เปิด', 'ปิด']}
+              disabled={saveSetting.isPending}
+            />
+            <span className="text-sm text-ink-2">เรียงหน้าสต็อกตามลำดับนี้</span>
+          </div>
+          {/* ตัวอย่างลำดับที่จะเห็นในหน้าสต็อก */}
+          <div className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-2">
+            <span className="font-medium text-ink">ลำดับในหน้าสต็อก: </span>
+            {groups.slice(0, 4).map((g, i) => (
+              <span key={g.country.value}>
+                {i > 0 && <span className="text-muted"> · </span>}
+                <b className="text-brand-800">{g.country.value}</b>
+                {g.regions.length > 0 && <span className="text-muted"> ({g.regions.slice(0, 3).map((r) => r.value).join(' › ')}{g.regions.length > 3 ? ' …' : ''})</span>}
+              </span>
+            ))}
+            {groups.length > 4 && <span className="text-muted"> · และอีก {groups.length - 4} ประเทศ</span>}
+          </div>
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        title="ลำดับประเทศ และแคว้นของแต่ละประเทศ"
-        icon={Globe2}
-        description="ลาก ⠿ เพื่อเลื่อนตำแหน่ง · กดชื่อประเทศเพื่อดูแคว้นของประเทศนั้น · ลากแคว้นไปวางใต้ประเทศอื่นเพื่อย้ายประเทศของแคว้น"
-        footer={
-          <div className="flex w-full flex-wrap items-center gap-2">
-            <button type="button" className="text-sm font-medium text-brand-700 hover:underline" onClick={() => setOpen(allOpen ? new Set() : new Set([...groups.map((g) => g.country.value), NONE]))}>
-              {allOpen ? 'ยุบทั้งหมด' : 'แสดงแคว้นทุกประเทศ'}
-            </button>
-            {dirty && (
-              <>
-                <span className="ml-auto text-sm text-ink-2">มีการเปลี่ยนลำดับที่ยังไม่บันทึก</span>
-                <Button size="sm" variant="ghost" onClick={reset}>
-                  <Undo2 className="size-4" /> ยกเลิก
-                </Button>
-                <Button size="sm" variant="primary" loading={saveLookups.isPending} onClick={save}>
-                  <Save className="size-4" /> บันทึกลำดับ
-                </Button>
-              </>
-            )}
-          </div>
-        }
-      >
-        <ol className="border-t border-line" onDragEnd={() => (setDrag(null), setDrop(null))}>
-          {groups.map((g, gi) => {
-            const isOpen = open.has(g.country.value)
-            const dropLine = drop?.kind === 'country' && drag?.kind === 'country' && (drop.at === gi || (drop.at === groups.length && gi === groups.length - 1))
-            return (
-              <li key={g.country.value} className="border-b border-line last:border-b-0">
-                <div
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = 'move'
-                    setDrag({ kind: 'country', from: gi })
-                  }}
-                  onDragOver={(e) => {
-                    if (drag?.kind === 'country') {
-                      e.preventDefault()
-                      setDrop({ kind: 'country', at: overHalf(e) ? gi + 1 : gi })
-                    } else if (drag?.kind === 'region') {
-                      // วางแคว้นบนหัวประเทศ = ไปต่อท้ายแคว้นของประเทศนั้น
-                      e.preventDefault()
-                      setDrop({ kind: 'region', group: g.country.value, at: g.regions.length })
-                    }
-                  }}
-                  onDrop={(e) => (e.preventDefault(), onDropHere())}
-                  className={cn(
-                    'relative flex cursor-grab items-center gap-2 px-3 py-2 active:cursor-grabbing',
-                    drag?.kind === 'country' && drag.from === gi && 'opacity-40',
-                    drop?.kind === 'region' && drop.group === g.country.value && drag?.kind === 'region' && 'bg-brand-50 ring-2 ring-brand-300 ring-inset',
-                  )}
-                >
-                  {dropLine && (
-                    <span className={cn('pointer-events-none absolute inset-x-2 h-0.5 rounded bg-brand-600', drop.at === gi ? '-top-px' : '-bottom-px')} />
-                  )}
-                  <GripVertical className="size-4 shrink-0 text-muted" aria-hidden />
-                  <span className="w-6 shrink-0 text-right text-xs text-muted tabular-nums">{gi + 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => setOpen((o) => (o.has(g.country.value) ? (o.delete(g.country.value), new Set(o)) : new Set(o).add(g.country.value)))}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm font-medium hover:text-brand-700"
-                  >
-                    {isOpen ? <ChevronDown className="size-4 shrink-0 text-brand-700" /> : <ChevronRight className="size-4 shrink-0 text-muted" />}
-                    <span className="truncate">{g.country.value}</span>
-                    {!g.country.id && <span className="rounded bg-gold-100 px-1.5 text-[11px] font-normal text-gold-700">ใหม่จากสต็อก</span>}
-                    <span className="text-xs font-normal text-muted">· {fmtInt(g.regions.length)} แคว้น</span>
-                  </button>
-                  <span className="hidden shrink-0 text-xs text-muted tabular-nums sm:inline">{fmtInt(g.country.count)} รายการ</span>
-                  <Arrows disabledUp={gi === 0} disabledDown={gi === groups.length - 1} label={g.country.value} onUp={() => moveCountry(gi, gi - 1)} onDown={() => moveCountry(gi, gi + 2)} />
-                </div>
-                {isOpen && (
-                  <RegionList
-                    group={g.country.value}
-                    regions={g.regions}
-                    drag={drag}
-                    drop={drop}
-                    setDrag={setDrag}
-                    setDrop={setDrop}
-                    onDrop={onDropHere}
-                    onMove={(from, to) => moveRegion(g.country.value, from, g.country.value, to)}
-                    empty="ยังไม่มีแคว้น — ลากแคว้นมาวางที่ชื่อประเทศนี้ หรือเพิ่มที่ ข้อมูลหลัก › แคว้น"
-                  />
-                )}
-              </li>
-            )
-          })}
-          {/* แคว้นที่ยังไม่รู้ว่าอยู่ประเทศไหน */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        {/* ── ซ้าย: ประเทศ ── */}
+        <section className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
+          <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
+            <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">1</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold">ลำดับประเทศ</h2>
+              <p className="text-xs text-muted">ลากเพื่อเลื่อน · คลิกเพื่อดูแคว้นทางขวา</p>
+            </div>
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" onClick={() => sortCountries('count')} title="ประเทศที่มีไวน์มากที่สุดขึ้นก่อน">
+                ไวน์มากก่อน
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => sortCountries('name')} title="เรียงตามตัวอักษร">
+                ก → ฮ
+              </Button>
+            </div>
+          </header>
+          <SortableList
+            items={groups.map((g) => g.country)}
+            onReorder={(from, to) => setGroups((gs) => move(gs, from, to))}
+            selected={picked}
+            onSelect={setPicked}
+            meta={(e) => {
+              const g = groups.find((x) => x.country.value === e.value)!
+              return `${fmtInt(g.regions.length)} แคว้น · ${fmtInt(e.count)} รายการ`
+            }}
+          />
           {orphans.length > 0 && (
-            <li className="border-t-2 border-line-strong bg-surface-2/60">
-              <button
-                type="button"
-                onClick={() => setOpen((o) => (o.has(NONE) ? (o.delete(NONE), new Set(o)) : new Set(o).add(NONE)))}
-                className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm font-medium text-warning-700"
-              >
-                {open.has(NONE) ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-                ยังไม่ระบุประเทศ · {fmtInt(orphans.length)} แคว้น
-                <span className="text-xs font-normal text-muted">— ลากไปวางที่ชื่อประเทศเพื่อระบุ</span>
-              </button>
-              {open.has(NONE) && (
-                <RegionList group={NONE} regions={orphans} drag={drag} drop={drop} setDrag={setDrag} setDrop={setDrop} onDrop={onDropHere} onMove={(from, to) => moveRegion(NONE, from, NONE, to)} empty="" />
+            <button
+              type="button"
+              onClick={() => setPicked(NONE)}
+              className={cn(
+                'flex items-center gap-2 border-t border-line px-4 py-2.5 text-left text-sm',
+                picked === NONE ? 'bg-warning-100 font-semibold text-warning-700' : 'text-warning-700 hover:bg-warning-100/50',
               )}
-            </li>
+            >
+              <MapPin className="size-4" /> ยังไม่ระบุประเทศ
+              <span className="ml-auto text-xs">{fmtInt(orphans.length)} แคว้น</span>
+            </button>
           )}
-        </ol>
-      </SettingsCard>
+        </section>
+
+        {/* ── ขวา: แคว้นของประเทศที่เลือก ── */}
+        <section className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
+          <header className="flex items-center gap-2 border-b border-line px-4 py-3">
+            <span className="flex size-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">2</span>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate font-semibold">
+                {picked === NONE ? 'แคว้นที่ยังไม่ระบุประเทศ' : current ? `แคว้นของ ${current.country.value}` : 'เลือกประเทศทางซ้าย'}
+              </h2>
+              <p className="text-xs text-muted">ลากเพื่อเลื่อน · เปลี่ยนประเทศของแคว้นได้ที่ช่อง "ย้ายไป"</p>
+            </div>
+          </header>
+          {picked && regions.length > 0 ? (
+            <SortableList
+              items={regions}
+              onReorder={(from, to) => setRegionsOf(picked, move(regions, from, to))}
+              icon={MapPin}
+              meta={(e) => `${fmtInt(e.count)} รายการ`}
+              trailing={(e) => (
+                <select
+                  aria-label={`ย้าย ${e.value} ไปประเทศอื่น`}
+                  value={picked}
+                  onChange={(ev) => moveRegionTo(e.value, ev.target.value)}
+                  onClick={(ev) => ev.stopPropagation()}
+                  className="h-8 max-w-36 rounded-md border border-line-strong bg-surface px-2 text-xs text-ink-2 outline-none focus:border-brand-600"
+                >
+                  {picked === NONE && <option value={NONE}>ย้ายไป…</option>}
+                  {groups.map((g) => (
+                    <option key={g.country.value} value={g.country.value}>
+                      {g.country.value === picked ? `ย้ายไป… (${g.country.value})` : g.country.value}
+                    </option>
+                  ))}
+                  {picked !== NONE && <option value={NONE}>ยังไม่ระบุประเทศ</option>}
+                </select>
+              )}
+            />
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-10 text-center text-sm text-muted">
+              <MapPin className="size-8 text-line-strong" />
+              {picked ? 'ประเทศนี้ยังไม่มีแคว้น — ใส่แคว้นในคอลัมน์ Region หน้าสต็อก หรือเพิ่มที่ ข้อมูลหลัก › แคว้น' : 'คลิกประเทศทางซ้ายเพื่อดูแคว้น'}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {dirty && (
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 rounded-xl border border-brand-200 bg-surface/95 px-4 py-3 shadow-lg backdrop-blur">
+          <span className="mr-auto text-sm text-ink-2">มีการเปลี่ยนลำดับที่ยังไม่บันทึก</span>
+          <Button variant="ghost" onClick={reset}>
+            <Undo2 className="size-4" /> ยกเลิก
+          </Button>
+          <Button variant="primary" loading={saveLookups.isPending} onClick={save}>
+            <Save className="size-4" /> บันทึกลำดับ
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-function RegionList({
-  group,
-  regions,
-  drag,
-  drop,
-  setDrag,
-  setDrop,
-  onDrop,
-  onMove,
-  empty,
+/** ย้ายสมาชิกตำแหน่ง from ไปแทรกก่อนตำแหน่ง to (to = ความยาว = ท้ายสุด) */
+function move<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from + 1 === to) return list
+  const next = [...list]
+  const [x] = next.splice(from, 1)
+  next.splice(to > from ? to - 1 : to, 0, x)
+  return next
+}
+
+/** รายการที่ลากเรียงได้ (เมาส์) + ปุ่มขึ้น/ลง (มือถือ/คีย์บอร์ด) */
+function SortableList({
+  items,
+  onReorder,
+  selected,
+  onSelect,
+  meta,
+  icon: Icon,
+  trailing,
 }: {
-  group: string
-  regions: Entry[]
-  drag: Drag | null
-  drop: Drop | null
-  setDrag: (d: Drag | null) => void
-  setDrop: (d: Drop | null) => void
-  onDrop: () => void
-  onMove: (from: number, to: number) => void
-  empty: string
+  items: Entry[]
+  onReorder: (from: number, to: number) => void
+  selected?: string | null
+  onSelect?: (value: string) => void
+  meta: (e: Entry) => string
+  icon?: typeof MapPin
+  trailing?: (e: Entry) => ReactNode
 }) {
-  if (!regions.length) return <p className="px-12 pb-3 text-xs text-muted">{empty}</p>
+  const [from, setFrom] = useState<number | null>(null)
+  const [at, setAt] = useState<number | null>(null)
+  const end = () => (setFrom(null), setAt(null))
   return (
-    <ol className="pb-2">
-      {regions.map((r, ri) => {
-        const line = drag?.kind === 'region' && drop?.kind === 'region' && drop.group === group && (drop.at === ri || (drop.at === regions.length && ri === regions.length - 1))
+    <ol className="min-h-0 flex-1 overflow-auto p-2" onDragEnd={end}>
+      {items.map((e, i) => {
+        const on = selected === e.value
         return (
           <li
-            key={r.value}
+            key={e.value}
             draggable
-            onDragStart={(e) => {
-              e.stopPropagation()
-              e.dataTransfer.effectAllowed = 'move'
-              setDrag({ kind: 'region', group, from: ri })
+            onDragStart={(ev) => {
+              ev.dataTransfer.effectAllowed = 'move'
+              setFrom(i)
             }}
-            onDragOver={(e) => {
-              if (drag?.kind !== 'region') return
-              e.preventDefault()
-              e.stopPropagation()
-              const r2 = e.currentTarget.getBoundingClientRect()
-              setDrop({ kind: 'region', group, at: e.clientY > r2.top + r2.height / 2 ? ri + 1 : ri })
+            onDragOver={(ev) => {
+              if (from == null) return
+              ev.preventDefault()
+              const r = ev.currentTarget.getBoundingClientRect()
+              setAt(ev.clientY > r.top + r.height / 2 ? i + 1 : i)
             }}
-            onDrop={(e) => (e.preventDefault(), e.stopPropagation(), onDrop())}
+            onDrop={(ev) => {
+              ev.preventDefault()
+              if (from != null && at != null) onReorder(from, at)
+              end()
+            }}
+            onClick={() => onSelect?.(e.value)}
             className={cn(
-              'relative ml-10 mr-3 flex cursor-grab items-center gap-2 rounded-md px-2 py-1.5 hover:bg-surface-2 active:cursor-grabbing',
-              drag?.kind === 'region' && drag.group === group && drag.from === ri && 'opacity-40',
+              'group relative mb-1 flex cursor-grab items-center gap-2.5 rounded-lg border px-2.5 py-2 transition active:cursor-grabbing',
+              on ? 'border-brand-300 bg-brand-50 shadow-sm' : 'border-line bg-surface hover:border-brand-200 hover:bg-surface-2',
+              from === i && 'opacity-40',
             )}
           >
-            {line && <span className={cn('pointer-events-none absolute inset-x-1 h-0.5 rounded bg-brand-600', drop!.at === ri ? '-top-px' : '-bottom-px')} />}
-            <GripVertical className="size-3.5 shrink-0 text-muted" aria-hidden />
-            <MapPin className="size-3.5 shrink-0 text-brand-600" aria-hidden />
-            <span className="w-5 shrink-0 text-right text-xs text-muted tabular-nums">{ri + 1}</span>
-            <span className="min-w-0 flex-1 truncate text-sm">
-              {r.value}
-              {!r.id && <span className="ml-2 rounded bg-gold-100 px-1.5 text-[11px] text-gold-700">ใหม่จากสต็อก</span>}
+            {at === i && from != null && <span className="pointer-events-none absolute inset-x-1 -top-[3px] h-0.5 rounded bg-brand-600" />}
+            {at === i + 1 && i === items.length - 1 && from != null && <span className="pointer-events-none absolute inset-x-1 -bottom-[3px] h-0.5 rounded bg-brand-600" />}
+            <GripVertical className="size-4 shrink-0 text-muted group-hover:text-brand-700" aria-hidden />
+            <span className={cn('flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold tabular-nums', on ? 'bg-brand-700 text-white' : 'bg-surface-3 text-ink-2')}>
+              {i + 1}
             </span>
-            <span className="hidden shrink-0 text-xs text-muted tabular-nums sm:inline">{fmtInt(r.count)} รายการ</span>
-            <Arrows disabledUp={ri === 0} disabledDown={ri === regions.length - 1} label={r.value} onUp={() => onMove(ri, ri - 1)} onDown={() => onMove(ri, ri + 2)} />
+            {Icon && <Icon className="size-3.5 shrink-0 text-brand-600" aria-hidden />}
+            <span className="min-w-0 flex-1">
+              <span className={cn('block truncate text-sm', on && 'font-semibold text-brand-900')}>
+                {e.value}
+                {!e.id && <span className="ml-2 rounded bg-gold-100 px-1.5 text-[11px] font-normal text-gold-700">ใหม่จากสต็อก</span>}
+              </span>
+              <span className="block text-[11px] text-muted">{meta(e)}</span>
+            </span>
+            {trailing?.(e)}
+            <span className="flex shrink-0" onClick={(ev) => ev.stopPropagation()}>
+              <button type="button" aria-label={`เลื่อน ${e.value} ขึ้น`} disabled={i === 0} onClick={() => onReorder(i, i - 1)} className="rounded p-1 text-ink-2 hover:bg-surface-3 disabled:opacity-25">
+                <ChevronUp className="size-4" />
+              </button>
+              <button type="button" aria-label={`เลื่อน ${e.value} ลง`} disabled={i === items.length - 1} onClick={() => onReorder(i, i + 2)} className="rounded p-1 text-ink-2 hover:bg-surface-3 disabled:opacity-25">
+                <ChevronDown className="size-4" />
+              </button>
+            </span>
           </li>
         )
       })}
     </ol>
-  )
-}
-
-/** ปุ่มขึ้น/ลง (ใช้แทนการลากบนมือถือ / คีย์บอร์ด) */
-function Arrows({ disabledUp, disabledDown, label, onUp, onDown }: { disabledUp: boolean; disabledDown: boolean; label: string; onUp: () => void; onDown: () => void }) {
-  return (
-    <span className="flex shrink-0">
-      <button type="button" aria-label={`เลื่อน ${label} ขึ้น`} disabled={disabledUp} onClick={onUp} className="rounded p-1 text-ink-2 hover:bg-surface-2 disabled:opacity-30">
-        <ChevronUp className="size-4" />
-      </button>
-      <button type="button" aria-label={`เลื่อน ${label} ลง`} disabled={disabledDown} onClick={onDown} className="rounded p-1 text-ink-2 hover:bg-surface-2 disabled:opacity-30">
-        <ChevronDown className="size-4" />
-      </button>
-    </span>
   )
 }
