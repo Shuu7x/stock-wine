@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Lock, Plus, Save, ShieldCheck, Trash2, Undo2, Users } from 'lucide-react'
+import { Lock, Plus, Save, ShieldCheck, Trash2, Undo2, UserPlus, Users } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { DataGrid } from '@/components/data-grid/DataGrid'
@@ -10,16 +10,19 @@ import { Combobox } from '@/components/ui/combobox'
 import { Dialog } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/field'
 import { Loading } from '@/components/ui/loading'
+import { Segmented } from '@/components/ui/segmented'
 import { useSessionEmail } from '@/features/auth/api/auth.api'
 import { env } from '@/lib/env'
 import { cn } from '@/lib/cn'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDateTime, fmtInt } from '@/lib/format'
 import { PERMISSIONS } from '@/lib/permissions'
 import {
   profilesOptions,
   rolesOptions,
   useCreateRole,
+  useCreateUser,
   useDeleteRole,
+  useDeleteUser,
   useSaveRolePermissions,
   useUpdateProfile,
   type Role,
@@ -29,16 +32,27 @@ import { SettingsCard } from './SettingsLayout'
 const GROUPS = [...new Set(PERMISSIONS.map((p) => p.group))]
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'บันทึกไม่สำเร็จ')
 
-/** ผู้ใช้และสิทธิ์: ตารางบทบาท × สิทธิ์ + ผู้ใช้แต่ละคนเลือกบทบาท */
-export function UsersSettings() {
+export const USERS_TABS = ['users', 'roles'] as const
+export type UsersTab = (typeof USERS_TABS)[number]
+
+/** ผู้ใช้และสิทธิ์: แท็บ ผู้ใช้งาน (ตาราง เพิ่ม/แก้/ลบ) · บทบาทและสิทธิ์ (ตารางบทบาท × สิทธิ์) */
+export function UsersSettings({ tab, onTab }: { tab: UsersTab; onTab: (t: UsersTab) => void }) {
   const rolesQ = useQuery(rolesOptions())
   const profilesQ = useQuery(profilesOptions())
   if (rolesQ.isLoading || profilesQ.isLoading) return <Loading screen />
   const roles = rolesQ.data ?? []
+  const profiles = profilesQ.data ?? []
   return (
     <div className="flex flex-col gap-4">
-      <RolesMatrix roles={roles} usersByRole={countBy(profilesQ.data ?? [])} />
-      <UsersList roles={roles} />
+      <Segmented
+        value={tab}
+        onChange={onTab}
+        items={[
+          { value: 'users' as UsersTab, label: 'ผู้ใช้งาน', count: fmtInt(profiles.length) },
+          { value: 'roles' as UsersTab, label: 'บทบาทและสิทธิ์', count: fmtInt(roles.length) },
+        ]}
+      />
+      {tab === 'roles' ? <RolesMatrix roles={roles} usersByRole={countBy(profiles)} /> : <UsersList roles={roles} />}
     </div>
   )
 }
@@ -268,7 +282,10 @@ const INACTIVE = 'ปิดใช้งาน'
 function UsersList({ roles }: { roles: Role[] }) {
   const profilesQ = useQuery(profilesOptions())
   const update = useUpdateProfile()
+  const remove = useDeleteUser()
   const me = useSessionEmail()
+  const [adding, setAdding] = useState(false)
+  const [deleting, setDeleting] = useState<UserRow[] | null>(null)
   const original = useMemo(() => new Map((profilesQ.data ?? []).map((p) => [p.user_id, p])), [profilesQ.data])
   const toRows = useCallback(
     () =>
@@ -343,6 +360,24 @@ function UsersList({ roles }: { roles: Role[] }) {
     [roles, me],
   )
 
+  const [picked, setPicked] = useState<string[]>([])
+  function askDelete(ids: string[]) {
+    const targets = rows.filter((r) => ids.includes(r._id))
+    if (targets.some((r) => r.email.toLowerCase() === me?.toLowerCase())) return toast.error('ลบบัญชีของตัวเองไม่ได้')
+    if (targets.length) setDeleting(targets)
+  }
+  async function confirmDelete() {
+    if (!deleting) return
+    try {
+      for (const r of deleting) await remove.mutateAsync(r._id)
+      toast.success(`ลบผู้ใช้แล้ว ${deleting.length} คน`)
+      setDeleting(null)
+      setPicked([])
+    } catch (e) {
+      toast.error(errMsg(e))
+    }
+  }
+
   async function save() {
     if (!adminsLeft) return toast.error('ต้องมีผู้ดูแลระบบที่ใช้งานได้อย่างน้อย 1 คน')
     try {
@@ -383,13 +418,26 @@ function UsersList({ roles }: { roles: Role[] }) {
         ) : undefined
       }
     >
-      <div className="px-4 pb-4">
+      <div className="flex flex-col gap-3 px-4 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
+            <UserPlus className="size-4" /> เพิ่มผู้ใช้
+          </Button>
+          {picked.length > 0 && (
+            <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => askDelete(picked)}>
+              <Trash2 className="size-4" /> ลบผู้ใช้ที่เลือก ({picked.length})
+            </Button>
+          )}
+          <span className="ml-auto hidden text-xs text-muted sm:inline">ดับเบิลคลิกเพื่อแก้ชื่อ / บทบาท / สถานะ · ติ๊กแถวแล้วกดลบ</span>
+        </div>
         <DataGrid
           className="h-[min(420px,60dvh)]"
           rows={rows}
           columns={columns}
           getRowId={(r) => r._id}
           onRowsChange={setRows}
+          onSelectionChange={setPicked}
+          onDeleteRows={(ids) => askDelete(ids)}
           cellChanged={(r, key) => changedFields(r).includes(key)}
           cellError={(r, key) => (key === 'role_key' || key === 'is_active') && !adminsLeft && original.get(r._id)?.role_key === 'admin' ? 'ต้องมีผู้ดูแลระบบที่ใช้งานได้อย่างน้อย 1 คน' : null}
           rowClassName={(r) => (r.is_active ? undefined : 'text-muted')}
@@ -398,6 +446,89 @@ function UsersList({ roles }: { roles: Role[] }) {
           emptyState="ยังไม่มีผู้ใช้"
         />
       </div>
+      <AddUserDialog open={adding} onClose={() => setAdding(false)} roles={roles} />
+      <Dialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        title={`ลบผู้ใช้ ${deleting?.length ?? 0} คน?`}
+        description="ผู้ใช้จะเข้าสู่ระบบไม่ได้อีก · เอกสารที่เคยบันทึกยังอยู่ครบ (มีอีเมลผู้บันทึก) · ถ้าแค่ต้องการพักการใช้งาน ให้เปลี่ยนสถานะเป็น ปิดใช้งาน แทน"
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>ไม่ลบ</Button>
+            <Button variant="danger" loading={remove.isPending} onClick={confirmDelete}>
+              <Trash2 className="size-4" /> ลบผู้ใช้
+            </Button>
+          </>
+        }
+      >
+        <ul className="list-disc pl-5 text-sm">
+          {deleting?.map((r) => (
+            <li key={r._id}>
+              {r.email}
+              {r.display_name ? ` (${r.display_name})` : ''}
+            </li>
+          ))}
+        </ul>
+      </Dialog>
     </SettingsCard>
+  )
+}
+
+function AddUserDialog({ open, onClose, roles }: { open: boolean; onClose: () => void; roles: Role[] }) {
+  const create = useCreateUser()
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [role, setRole] = useState('staff')
+  const [password, setPassword] = useState('')
+  useEffect(() => {
+    if (open) (setEmail(''), setName(''), setRole(roles.some((r) => r.key === 'staff') ? 'staff' : (roles[0]?.key ?? 'viewer')), setPassword(''))
+  }, [open, roles])
+  const emailOk = /^\S+@\S+\.\S+$/.test(email.trim())
+  const pwOk = password.length >= 8
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="เพิ่มผู้ใช้"
+      description="ตั้งรหัสผ่านเริ่มต้นให้ แล้วแจ้งผู้ใช้ — เปลี่ยนรหัสเองได้ที่ ตั้งค่า › บัญชีของฉัน"
+      footer={
+        <>
+          <Button onClick={onClose}>ยกเลิก</Button>
+          <Button
+            variant="primary"
+            loading={create.isPending}
+            disabled={!emailOk || !pwOk}
+            onClick={async () => {
+              try {
+                const r = await create.mutateAsync({ email, password, displayName: name, roleKey: role })
+                toast.success(`เพิ่มผู้ใช้ ${email.trim()} แล้ว`, {
+                  description: r.needsConfirm && !env.VITE_ENABLE_MOCK ? 'ผู้ใช้ต้องกดยืนยันอีเมลก่อนเข้าสู่ระบบครั้งแรก' : undefined,
+                })
+                onClose()
+              } catch (e) {
+                toast.error(errMsg(e))
+              }
+            }}
+          >
+            <UserPlus className="size-4" /> เพิ่มผู้ใช้
+          </Button>
+        </>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="อีเมล" error={email && !emailOk ? 'รูปแบบอีเมลไม่ถูกต้อง' : undefined} className="sm:col-span-2">
+          <Input autoFocus type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
+        </Field>
+        <Field label="ชื่อที่แสดง">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น สมชาย (หน้าร้าน)" />
+        </Field>
+        <Field label="บทบาท">
+          <Combobox value={role} onChange={setRole} options={roles.map((r) => ({ value: r.key, label: r.name }))} />
+        </Field>
+        <Field label="รหัสผ่านเริ่มต้น" error={password && !pwOk ? 'อย่างน้อย 8 ตัวอักษร' : undefined} className="sm:col-span-2">
+          <Input type="text" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="อย่างน้อย 8 ตัวอักษร" />
+        </Field>
+      </div>
+    </Dialog>
   )
 }

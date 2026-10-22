@@ -32,6 +32,20 @@ function checkAdmins(next: Profile[]) {
 
 export const accessHandlers = [
   http.post(rest('rpc/my_access'), rpc((req) => accessOf(emailOf(req)))),
+  // เลียนแบบ public.delete_user
+  http.post(
+    rest('rpc/delete_user'),
+    rpc<{ p_user_id: string }>((req, a) => {
+      if (!accessOf(emailOf(req)).permissions.includes('users.manage')) throw new PgError('ไม่มีสิทธิ์จัดการผู้ใช้', '42501')
+      const target = db.profiles.find((p) => p.user_id === a.p_user_id)
+      if (!target) throw new PgError('ไม่พบผู้ใช้นี้')
+      if (target.email?.toLowerCase() === emailOf(req).toLowerCase()) throw new PgError('ลบบัญชีของตัวเองไม่ได้')
+      checkAdmins(db.profiles.filter((p) => p !== target))
+      db.profiles = db.profiles.filter((p) => p !== target)
+      persist()
+      return null
+    }),
+  ),
 
   // ── roles ──
   http.get(rest('roles'), ({ request }) => respondList(request, requireAuth(request) ? db.roles : [])),

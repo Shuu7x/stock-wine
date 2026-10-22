@@ -451,6 +451,7 @@ export type Database = {
       void_receipt: { Args: { p_id: string; p_reason: string | null }; Returns: ReceiptRow }
       void_withdrawal: { Args: { p_id: string; p_reason: string | null }; Returns: WithdrawalRow }
       my_access: { Args: Record<string, never>; Returns: MyAccess }
+      delete_user: { Args: { p_user_id: string }; Returns: undefined }
     }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }
