@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Printer } from 'lucide-react'
+import { Printer, FileText, ReceiptText } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
-import { Segmented } from '@/components/ui/segmented'
+import { cn } from '@/lib/cn'
 import { useAppSettings } from '@/features/settings/api/settings.api'
 import { storesOptions } from '@/features/stock/api/stock.api'
 import { fmtMoney } from '@/lib/format'
@@ -66,15 +66,30 @@ export function BillDialog({ billIds, onClose }: { billIds: string[] | null; onC
         }
         footer={
           <>
-            <Segmented
-              className="!mx-0 mr-auto !px-0"
-              value={current}
-              onChange={setPaper}
-              items={[
-                { value: 'a4', label: 'A4' },
-                { value: '80mm', label: 'ใบเสร็จม้วน 80 มม.' },
-              ]}
-            />
+            {/* เลือกกระดาษ — สูงเท่าปุ่มอื่น (h-10) */}
+            <div role="radiogroup" aria-label="กระดาษ" className="mr-auto flex h-10 rounded-lg border border-line-strong bg-surface p-0.5">
+              {(
+                [
+                  { value: 'a4', label: 'A4', icon: FileText },
+                  { value: '80mm', label: 'ม้วน 80 มม.', icon: ReceiptText },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={current === o.value}
+                  onClick={() => setPaper(o.value)}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-md px-3 text-sm font-medium transition',
+                    current === o.value ? 'bg-brand-700 text-white shadow-sm' : 'text-ink-2 hover:bg-surface-2',
+                  )}
+                >
+                  <o.icon className="size-4" />
+                  {o.label}
+                </button>
+              ))}
+            </div>
             <Button onClick={onClose}>ปิด</Button>
             <Button variant="primary" disabled={!docs.length} onClick={() => window.print()}>
               <Printer className="size-4" /> พิมพ์{docs.length > 1 ? ` ${docs.length} ใบ` : 'บิล'}
