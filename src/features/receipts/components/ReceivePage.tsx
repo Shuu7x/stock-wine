@@ -374,7 +374,7 @@ export function ReceivePage() {
         }
       />
 
-      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[160px_minmax(0,1fr)_170px_220px]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[160px_minmax(0,1fr)_170px_220px]">
         <Field label="วันที่รับเข้า">
           <DateInput value={receivedAt} max={todayIso()} onChange={setReceivedAt} />
         </Field>
@@ -445,7 +445,7 @@ export function ReceivePage() {
         <Button size="sm" variant="ghost" onClick={reset} disabled={!filled.length}>
           <Eraser className="size-4" /> ล้างทั้งหมด
         </Button>
-        <Button data-tour="import" size="sm" variant="ghost" onClick={() => importInput.current?.click()} loading={importing}>
+        <Button size="sm" variant="ghost" onClick={() => importInput.current?.click()} loading={importing}>
           {!importing && <FileUp className="size-4" />} นำเข้าไฟล์
         </Button>
         <input
@@ -466,7 +466,7 @@ export function ReceivePage() {
           <span className="text-sm text-ink-2">
             <b className="tabular-nums">{filled.length}</b> รายการ · <b className="tabular-nums">{fmtInt(totals.qty)}</b> ขวด
           </span>
-          <Button data-tour="save" variant="primary" onClick={trySave} disabled={!filled.length}>
+          <Button variant="primary" onClick={trySave} disabled={!filled.length}>
             <Save className="size-4" /> บันทึกรับเข้า
           </Button>
         </div>

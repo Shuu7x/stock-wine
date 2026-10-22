@@ -63,7 +63,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     id: 'display',
     to: '/settings/display',
     label: 'การแสดงผล',
-    description: 'ขนาดตัวหนังสือ และคำแนะนำการใช้งาน',
+    description: 'ขนาดตัวหนังสือทั้งระบบ (เฉพาะเครื่องนี้)',
     icon: Type,
     group: 'ส่วนตัว',
   },

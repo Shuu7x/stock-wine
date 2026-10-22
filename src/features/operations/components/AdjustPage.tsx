@@ -195,7 +195,7 @@ export function AdjustPage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-[160px_1fr_auto]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-[160px_1fr_auto]">
         <Field label="วันที่ปรับยอด">
           <DateInput value={adjustedAt} max={todayIso()} onChange={setAdjustedAt} />
         </Field>

@@ -307,7 +307,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
         <Field label="วันที่เบิก">
           <DateInput value={withdrawDate} max={todayIso()} onChange={(v) => v && setWithdrawDate(v)} />
         </Field>
@@ -354,7 +354,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
           <span className="text-sm text-ink-2">
             <b className="tabular-nums">{filled.length}</b> รายการ · <b className="tabular-nums">{fmtInt(totalQty)}</b> ขวด
           </span>
-          <Button data-tour="save" variant="primary" onClick={trySave} disabled={!filled.length}>
+          <Button variant="primary" onClick={trySave} disabled={!filled.length}>
             <Save className="size-4" /> บันทึกการเบิก
           </Button>
         </div>

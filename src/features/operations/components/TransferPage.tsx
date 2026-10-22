@@ -215,7 +215,7 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_240px_1fr]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_240px_1fr]">
         <Field label="วันที่โอนย้าย">
           <DateInput value={transferredAt} max={todayIso()} onChange={setTransferredAt} />
         </Field>

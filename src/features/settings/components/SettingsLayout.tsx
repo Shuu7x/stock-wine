@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { permForPath, useAccess } from '@/lib/permissions'
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS } from '../registry'
-import { TourButton } from '@/features/tour/TourButton'
 
 /** หน้าตั้งค่า: จอใหญ่มีเมนูซ้าย · มือถือมีแถบเมนูแนวนอนเลื่อนได้ */
 export function SettingsLayout({ children }: { children: ReactNode }) {
@@ -26,10 +25,7 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
         )}
         <div className="min-w-0">
           <div className="text-xs font-medium text-muted">ตั้งค่า</div>
-          <div className="flex items-center gap-1">
-            <h1 className="font-display text-2xl leading-tight font-bold text-brand-900">{current?.label ?? 'ตั้งค่า'}</h1>
-            <TourButton />
-          </div>
+          <h1 className="font-display text-2xl leading-tight font-bold text-brand-900">{current?.label ?? 'ตั้งค่า'}</h1>
           {current && <p className="text-sm text-muted">{current.description}</p>}
         </div>
       </div>
@@ -114,7 +110,7 @@ export function SettingsCard({
 }) {
   const Icon = icon
   return (
-    <section data-card={title} className={cn('overflow-hidden rounded-xl border border-line bg-surface', className)}>
+    <section className={cn('overflow-hidden rounded-xl border border-line bg-surface', className)}>
       <header className="flex items-start gap-3 px-5 pt-4 pb-3">
         {Icon && (
           <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">

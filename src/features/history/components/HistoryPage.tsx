@@ -205,7 +205,7 @@ export function HistoryPage({
       />
 
       {/* ── ตัวกรอง ── */}
-      <div data-tour="filters" className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
+      <div className="flex shrink-0 flex-col gap-3 rounded-xl border border-line bg-surface p-3">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangeButton value={range} onChange={setRange} presets={DATE_PRESETS} />
           <Combobox

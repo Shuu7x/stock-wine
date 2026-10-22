@@ -373,7 +373,6 @@ export function StockPage({
       />
 
       <Segmented
-        tour="tabs"
         value={tab}
         onChange={onTabChange}
         items={[
@@ -384,7 +383,7 @@ export function StockPage({
         ]}
       />
 
-      <div data-tour="stats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat
           loading={itemsQ.isLoading}
           label="รายการที่มีของ"
@@ -397,7 +396,7 @@ export function StockPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <label data-tour="search" className="relative min-w-[200px] flex-1 sm:max-w-sm">
+        <label className="relative min-w-[200px] flex-1 sm:max-w-sm">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
           <Input
             value={search}

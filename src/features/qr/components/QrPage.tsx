@@ -454,7 +454,7 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
         title="ป้าย QR "
         description="พิมพ์ป้ายแปะขวด · สแกนแล้วเปิดไวน์ในระบบ"
         actions={
-          <Button data-tour="print" variant="primary" onClick={print} disabled={!tags.length}>
+          <Button variant="primary" onClick={print} disabled={!tags.length}>
             <Printer className="size-4" /> พิมพ์ {tags.length} ป้าย ({pageCount}{" "}
             แผ่น)
           </Button>
@@ -463,7 +463,6 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
 
       {/* จอเล็ก: สลับระหว่างเลือกไวน์กับตัวอย่าง ให้แต่ละมุมมองได้ความสูงเต็มจอ */}
       <Segmented
-        tour="qr-view"
         className="shrink-0 xl:hidden"
         value={view}
         onChange={setView}
@@ -479,7 +478,6 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
 
       {/* ── ตั้งค่าป้าย (มือถือแสดงเฉพาะตอนดูตัวอย่าง) ── */}
       <div
-        data-tour="qr-options"
         className={cn(
           "flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-2.5",
           view !== "preview" && "max-xl:hidden",
@@ -548,7 +546,6 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
       <div className="grid min-h-[420px] flex-1 grid-cols-1 gap-4 xl:grid-cols-[minmax(340px,420px)_1fr]">
         {/* ── เลือกไวน์ ── */}
         <section
-          data-tour="qr-pick"
           className={cn(
             "flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface",
             view !== "pick" && "max-xl:hidden",
@@ -717,7 +714,6 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
 
         {/* ── ตัวอย่าง ── */}
         <section
-          data-tour="qr-preview"
           className={cn(
             "flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface",
             view !== "preview" && "max-xl:hidden",

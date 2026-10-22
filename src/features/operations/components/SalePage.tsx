@@ -273,7 +273,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
       />
 
       {/* หัวใบขาย: ซ้าย = วันที่ · ลูกค้า / คลัง · VAT · ขวา = ที่อยู่ · หมายเหตุ (กล่องสูงเท่ากันสองแถว) */}
-      <div data-tour="doc-head" className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-4">
         <Field label="วันที่ขาย">
           <DateInput value={soldAt} max={todayIso()} onChange={setSoldAt} />
         </Field>
