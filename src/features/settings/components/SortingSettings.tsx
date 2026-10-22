@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDownUp, ChevronDown, ChevronUp, GripVertical, MapPin, Save, Undo2 } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Loading } from '@/components/ui/loading'
@@ -23,6 +23,42 @@ type Entry = { value: string; id: string | null; count: number }
 type Group = { country: Entry; regions: Entry[] }
 const NONE = '__none__'
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
+
+/**
+ * ความสูงที่พอดีจอ: จากขอบบนขององค์ประกอบถึงขอบล่างของพื้นที่เลื่อน (<main>)
+ * ใช้เฉพาะจอกว้าง (lg) — จอเล็กแผงเรียงต่อกันลงมาตามปกติ
+ */
+function useFitHeight(min = 420) {
+  const [el, setEl] = useState<HTMLElement | null>(null)
+  const [height, setHeight] = useState<number>()
+  useLayoutEffect(() => {
+    if (!el) return
+    const main = el.closest('main')
+    if (!main) return
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const fit = () => {
+      if (!mq.matches) return setHeight(undefined)
+      const top = el.getBoundingClientRect().top - main.getBoundingClientRect().top + main.scrollTop
+      // padding ล่างของ main + ของกรอบเนื้อหาตั้งค่า (pb-4)
+      let gap = parseFloat(getComputedStyle(main).paddingBottom) + 16
+      // แถบ "ยังไม่บันทึก" ใต้แผง — เผื่อที่ให้ด้วย ไม่ให้บังรายการ
+      const bar = el.nextElementSibling as HTMLElement | null
+      if (bar) gap += bar.offsetHeight + 16
+      setHeight(Math.max(min, main.clientHeight - top - gap))
+    }
+    fit()
+    // การ์ดด้านบนสูงขึ้น/ลดลงได้ (ข้อความสรุปตัดบรรทัด) · แถบบันทึกโผล่/หาย → คำนวณใหม่
+    const ro = new ResizeObserver(fit)
+    if (el.parentElement) ro.observe(el.parentElement)
+    ro.observe(main)
+    mq.addEventListener('change', fit)
+    return () => {
+      ro.disconnect()
+      mq.removeEventListener('change', fit)
+    }
+  }, [el, min])
+  return [setEl, height] as const
+}
 
 /** จัดกลุ่มแคว้นใต้ประเทศ: ประเทศของแคว้นจากข้อมูลหลัก (parent) หรือประเทศที่พบมากที่สุดในสต็อก */
 function buildTree(lookups: LookupValue[], items: StockItem[]): { groups: Group[]; orphans: Entry[] } {
@@ -144,6 +180,8 @@ export function SortingSettings() {
     })
   }
 
+  const [fitRef, fitHeight] = useFitHeight()
+
   if (lookupsQ.isLoading || itemsQ.isLoading) return <Loading screen />
 
   const sortCountries = (by: 'count' | 'name') =>
@@ -187,7 +225,7 @@ export function SortingSettings() {
         </div>
       </SettingsCard>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div ref={fitRef} style={{ height: fitHeight }} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         {/* ── ซ้าย: ประเทศ ── */}
         <section className="flex flex-col overflow-hidden rounded-xl border border-line bg-surface">
           <header className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
@@ -320,7 +358,7 @@ function SortableList({
   const [at, setAt] = useState<number | null>(null)
   const end = () => (setFrom(null), setAt(null))
   return (
-    <ol className="min-h-0 flex-1 overflow-auto p-2" onDragEnd={end}>
+    <ol className="min-h-0 flex-1 overflow-auto p-2 max-lg:max-h-[60dvh]" onDragEnd={end}>
       {items.map((e, i) => {
         const on = selected === e.value
         return (
