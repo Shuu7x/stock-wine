@@ -8,7 +8,7 @@ import { ArrowLeftRight, ClipboardCheck, GlassWater, PackagePlus, ShoppingBag, t
 import { useMemo } from 'react'
 import { adjustmentsListOptions, salesListOptions, transfersListOptions } from '@/features/operations/api/operations.api'
 import { receiptsListOptions } from '@/features/receipts/api/receipts.api'
-import type { Store } from '@/features/stock/api/stock.api'
+import { stockItemsOptions, type Store } from '@/features/stock/api/stock.api'
 import { storeName } from '@/features/stock/columns'
 import { withdrawalsListOptions } from '@/features/withdrawals/api/withdrawals.api'
 import { exportXlsx, type XlsxColumn, type XlsxSheet } from '@/lib/export-xlsx'
@@ -45,6 +45,8 @@ export type MovementRow = {
   doc_no: string | null
   wine: string
   vintage: string
+  /** ขนาดขวด เช่น Normal · Mg. */
+  size: string
   store: string
   rack: string | null
   qty_in: number
@@ -56,8 +58,14 @@ export type MovementRow = {
   /** ลูกค้า / ผู้ขาย / ผู้เบิก */
   party: string | null
   remark: string | null
+  /** หมายเหตุของทั้งเอกสาร */
+  note: string | null
   by: string | null
 }
+
+/** ไวน์ + ปี (+ ขนาดเมื่อไม่ใช่ Normal) — ใช้จัดกลุ่ม/สรุป ให้ขวดใหญ่ไม่รวมกับขวดปกติ */
+export const wineKey = (r: Pick<MovementRow, 'wine' | 'vintage' | 'size'>) =>
+  `${r.wine} ${r.vintage}${r.size.toLowerCase() !== 'normal' ? ` (${r.size})` : ''}`
 
 const ALL = 1000 // เอกสารต่อประเภทต่อครั้ง
 export const MOVE_LIMIT = ALL
@@ -68,13 +76,14 @@ const byNo = <T extends { line_no: number }>(ls: T[]) => [...ls].sort((a, b) => 
 const localDate = (iso: string) => new Date(iso).toLocaleDateString('sv-SE')
 const nv = (v: number | null) => (v == null ? 'NV' : String(v))
 
-function rowsOfDoc(type: DocType, raw: RawDoc, stores: Store[]): MovementRow[] {
+function rowsOfDoc(type: DocType, raw: RawDoc, stores: Store[], sizeOf: (stockItemId: string | null | undefined) => string): MovementRow[] {
   const sn = (id: number) => storeName(stores, id)
   const head = (d: { id: string; doc_no: string; status: 'posted' | 'void'; created_by_email: string | null }) => ({
     status: d.status,
     doc_type: type,
     doc_id: d.id,
     doc_no: d.doc_no,
+    note: (d as { note?: string | null }).note ?? null,
     by: d.created_by_email,
   })
   const d = raw as Record<string, any>
@@ -82,33 +91,33 @@ function rowsOfDoc(type: DocType, raw: RawDoc, stores: Store[]): MovementRow[] {
     case 'receipts':
       return byNo(d.receipt_lines as any[]).map((l) => ({
         ...head(d as any), _id: l.id, type, kind: l.is_new_item ? 'รับเข้า (ใหม่)' : 'รับเข้า', date: d.received_at,
-        wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.store_id), rack: l.rack,
+        wine: l.wine_name, vintage: nv(l.vintage), size: l.bottle_size ?? sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack,
         qty_in: l.qty, qty_out: 0, net: l.qty, amount: l.price_per_bottle == null ? null : l.qty * l.price_per_bottle,
         party: l.supplier ?? d.supplier, remark: l.remark,
       }))
     case 'sales':
       return byNo(d.sale_lines as any[]).map((l) => ({
         ...head(d as any), _id: l.id, type, kind: 'ขาย', date: d.sold_at,
-        wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.store_id), rack: l.rack,
+        wine: l.wine_name, vintage: nv(l.vintage), size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack,
         qty_in: 0, qty_out: l.qty, net: -l.qty, amount: l.line_total, party: d.customer, remark: l.remark,
       }))
     case 'withdrawals':
       return byNo(d.withdrawal_lines as any[]).map((l) => ({
         ...head(d as any), _id: l.id, type, kind: 'เบิก', date: l.withdraw_date ?? localDate(d.created_at),
-        wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.store_id), rack: l.rack,
+        wine: l.wine_name, vintage: nv(l.vintage), size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack,
         qty_in: 0, qty_out: l.qty, net: -l.qty, amount: null, party: d.note, remark: l.remark,
       }))
     case 'transfers':
       return byNo(d.transfer_lines as any[]).flatMap((l) => [
         {
           ...head(d as any), _id: `${l.id}:out`, type, kind: 'โอนออก', date: d.transferred_at,
-          wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.from_store_id), rack: l.from_rack,
+          wine: l.wine_name, vintage: nv(l.vintage), size: sizeOf(l.from_stock_item_id), store: sn(l.from_store_id), rack: l.from_rack,
           qty_in: 0, qty_out: l.qty, net: -l.qty, amount: null, party: null,
           remark: [`ไป ${sn(l.to_store_id)} · ${l.to_rack ?? '-'}`, l.remark].filter(Boolean).join(' · '),
         },
         {
           ...head(d as any), _id: `${l.id}:in`, type, kind: 'โอนเข้า', date: d.transferred_at,
-          wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.to_store_id), rack: l.to_rack,
+          wine: l.wine_name, vintage: nv(l.vintage), size: sizeOf(l.from_stock_item_id), store: sn(l.to_store_id), rack: l.to_rack,
           qty_in: l.qty, qty_out: 0, net: l.qty, amount: null, party: null,
           remark: [`จาก ${sn(l.from_store_id)} · ${l.from_rack ?? '-'}`, l.remark].filter(Boolean).join(' · '),
         },
@@ -116,7 +125,7 @@ function rowsOfDoc(type: DocType, raw: RawDoc, stores: Store[]): MovementRow[] {
     case 'adjustments':
       return byNo(d.stock_adjustment_lines as any[]).map((l) => ({
         ...head(d as any), _id: l.id, type, kind: l.diff >= 0 ? 'ปรับยอด (+)' : 'ปรับยอด (−)', date: d.adjusted_at,
-        wine: l.wine_name, vintage: nv(l.vintage), store: sn(l.store_id), rack: l.rack,
+        wine: l.wine_name, vintage: nv(l.vintage), size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack,
         qty_in: Math.max(0, l.diff), qty_out: Math.max(0, -l.diff), net: l.diff, amount: null, party: null,
         remark: [l.reason, `${l.balance_before} → ${l.balance_after}`, l.remark].filter(Boolean).join(' · '),
       }))
@@ -141,11 +150,16 @@ export function useMovements(types: ReadonlySet<MoveType>, f: MoveFilter, stores
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [types, q.receipts.data, q.sales.data, q.withdrawals.data, q.transfers.data, q.adjustments.data])
 
+  // ขนาดขวดของบรรทัดเอกสารที่ไม่ได้เก็บขนาดไว้ (ขาย · เบิก · โอน · ปรับยอด) → จากรายการสต็อก (รวมที่ลบแล้ว)
+  const itemsQ = useQuery(stockItemsOptions(true))
+  const sizeById = useMemo(() => new Map((itemsQ.data ?? []).map((i) => [i.id, i.bottle_size])), [itemsQ.data])
+
   const rows = useMemo(() => {
+    const sizeOf = (id: string | null | undefined) => (id && sizeById.get(id)) || 'Normal'
     const out: MovementRow[] = []
-    for (const t of DOC_TYPES) for (const d of docs[t]) out.push(...rowsOfDoc(t, d, stores))
+    for (const t of DOC_TYPES) for (const d of docs[t]) out.push(...rowsOfDoc(t, d, stores, sizeOf))
     return out.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1))
-  }, [docs, stores])
+  }, [docs, stores, sizeById])
 
   const loading = DOC_TYPES.some((t) => types.has(t) && q[t].isLoading)
   /** ประเภทที่เอกสารเกินจำนวนที่ดึง (ควรแคบช่วงวันที่) */
@@ -156,7 +170,7 @@ export function useMovements(types: ReadonlySet<MoveType>, f: MoveFilter, stores
 // ─── จัดกลุ่ม ───────────────────────────────────────────────────────────────
 export const GROUP_BY = {
   kind: { label: 'ประเภท', key: (r: MovementRow) => r.kind },
-  wine: { label: 'ไวน์', key: (r: MovementRow) => `${r.wine} ${r.vintage}` },
+  wine: { label: 'ไวน์', key: (r: MovementRow) => wineKey(r) },
   store: { label: 'คลัง', key: (r: MovementRow) => r.store },
   place: { label: 'คลัง · ชั้น', key: (r: MovementRow) => `${r.store} · ${r.rack ?? '-'}` },
   month: { label: 'เดือน', key: (r: MovementRow) => r.date.slice(0, 7) },
@@ -257,6 +271,45 @@ function pivotSheet(name: string, title: string, subtitle: string, rows: Movemen
   }
 }
 
+/** แผ่น "เอกสาร" — เหมือนมุมมองเอกสารบนจอ: 1 แถว = 1 เอกสาร */
+function docsSheet(rows: MovementRow[], subtitle: string): XlsxSheet<DocSum> {
+  const m = new Map<string, DocSum>()
+  for (const r of rows) {
+    if (!r.doc_id) continue
+    const k = `${r.type}:${r.doc_id}`
+    const d = m.get(k) ?? { ...r, lines: new Set<string>(), qty_in: 0, qty_out: 0, net: 0, amount: null }
+    // โอนย้าย 1 บรรทัด = โอนออก + โอนเข้า → นับบรรทัดเดียว
+    d.lines.add(r._id.replace(/:(in|out)$/, ''))
+    d.qty_in += r.qty_in
+    d.qty_out += r.qty_out
+    d.net += r.net
+    if (r.amount != null) d.amount = (d.amount ?? 0) + r.amount
+    m.set(k, d)
+  }
+  const docs = [...m.values()].sort((a, b) => (a.date === b.date ? (a.doc_no ?? '').localeCompare(b.doc_no ?? '') : a.date < b.date ? 1 : -1))
+  return {
+    name: 'เอกสาร',
+    title: 'รายการเอกสาร',
+    subtitle,
+    rows: docs,
+    columns: [
+      { header: 'เลขที่เอกสาร', width: 15, value: (d) => d.doc_no },
+      { header: 'ประเภท', width: 12, value: (d) => TYPE_META[d.type].label },
+      { header: 'วันที่', width: 12, value: (d) => new Date(`${d.date}T00:00:00`), align: 'center' },
+      { header: 'สถานะ', width: 11, value: (d) => (d.status === 'void' ? 'ยกเลิก' : 'บันทึกแล้ว') },
+      { header: 'ลูกค้า / ผู้ขาย / ผู้เบิก', width: 22, value: (d) => d.party },
+      { header: 'หมายเหตุเอกสาร', width: 30, value: (d) => d.note },
+      { header: 'จำนวนรายการ', width: 12, value: (d) => d.lines.size, numFmt: '#,##0', align: 'right', total: 'sum' },
+      { header: 'เข้า (ขวด)', width: 10, value: (d) => d.qty_in || null, numFmt: '#,##0', align: 'right', total: 'sum' },
+      { header: 'ออก (ขวด)', width: 10, value: (d) => d.qty_out || null, numFmt: '#,##0', align: 'right', total: 'sum' },
+      { header: 'สุทธิ (ขวด)', width: 11, value: (d) => d.net, numFmt: '#,##0;[Red]-#,##0', align: 'right', total: 'sum' },
+      { header: 'ยอดเงิน', width: 14, value: (d) => d.amount, numFmt: '#,##0.00', align: 'right', total: 'sum' },
+      { header: 'ผู้ทำรายการ', width: 22, value: (d) => d.by },
+    ],
+  }
+}
+type DocSum = MovementRow & { lines: Set<string> }
+
 export async function exportMovements(rows: MovementRow[], f: MoveFilter, typesLabel: string) {
   const range = `ช่วง ${fmtDate(f.from)} – ${fmtDate(f.to)} · ${typesLabel}`
   const posted = rows.filter((r) => r.status === 'posted')
@@ -270,6 +323,7 @@ export async function exportMovements(rows: MovementRow[], f: MoveFilter, typesL
     { header: 'สถานะ', width: 11, value: (r) => (r.status === 'void' ? 'ยกเลิก' : 'บันทึกแล้ว') },
     { header: 'ไวน์', width: 34, value: (r) => r.wine },
     { header: 'ปี', width: 7, value: (r) => r.vintage, align: 'center' },
+    { header: 'ขนาด', width: 8, value: (r) => r.size, align: 'center' },
     { header: 'คลัง', width: 18, value: (r) => r.store },
     { header: 'ชั้นวาง', width: 10, value: (r) => r.rack },
     { header: 'เข้า (ขวด)', width: 10, value: (r) => r.qty_in || null, numFmt: '#,##0', align: 'right', total: 'sum' },
@@ -278,6 +332,7 @@ export async function exportMovements(rows: MovementRow[], f: MoveFilter, typesL
     { header: 'ยอดเงิน', width: 14, value: (r) => r.amount, numFmt: '#,##0.00', align: 'right', total: 'sum' },
     { header: 'ลูกค้า / ผู้ขาย / ผู้เบิก', width: 22, value: (r) => r.party },
     { header: 'หมายเหตุ', width: 36, value: (r) => r.remark },
+    { header: 'หมายเหตุเอกสาร', width: 30, value: (r) => r.note },
     { header: 'ผู้ทำรายการ', width: 22, value: (r) => r.by },
   ]
   const salesRows = posted.filter((r) => r.type === 'sales')
@@ -285,8 +340,9 @@ export async function exportMovements(rows: MovementRow[], f: MoveFilter, typesL
     fileName: `ความเคลื่อนไหว-${f.from}-ถึง-${f.to}.xlsx`,
     sheets: [
       { name: 'ข้อมูล', title: 'ความเคลื่อนไหวของสต็อก (ทุกรายการ)', subtitle: `${range} · ทำ PivotTable เพิ่มเองได้จากแผ่นนี้`, columns: dataCols, rows },
+      docsSheet(rows, range),
       pivotSheet('สรุปตามเดือน', 'สรุปตามเดือน × ประเภท (ขวด)', note, posted, 'เดือน', (r) => r.date.slice(0, 7), true),
-      pivotSheet('สรุปตามไวน์', 'สรุปตามไวน์ × ประเภท (ขวด)', note, posted, 'ไวน์', (r) => `${r.wine} ${r.vintage}`),
+      pivotSheet('สรุปตามไวน์', 'สรุปตามไวน์ × ประเภท (ขวด)', note, posted, 'ไวน์', wineKey),
       pivotSheet('สรุปตามคลัง-ชั้น', 'สรุปตามคลัง · ชั้นวาง × ประเภท (ขวด)', note, posted, 'คลัง · ชั้นวาง', (r) => `${r.store} · ${r.rack ?? '-'}`),
       pivotSheet('สรุปตามลูกค้า', 'ยอดขายตามลูกค้า', note, salesRows, 'ลูกค้า', (r) => r.party ?? '(ไม่ระบุ)'),
     ],

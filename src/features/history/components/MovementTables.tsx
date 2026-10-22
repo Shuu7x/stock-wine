@@ -3,10 +3,11 @@ import { DataGrid } from '@/components/data-grid/DataGrid'
 import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { ExportButton } from '@/components/ui/export-button'
-import type { Store } from '@/features/stock/api/stock.api'
+import { useQuery } from '@tanstack/react-query'
+import { stockItemsOptions, type Store } from '@/features/stock/api/stock.api'
 import { storeName } from '@/features/stock/columns'
 import { exportXlsx, type XlsxColumn, type XlsxValue } from '@/lib/export-xlsx'
-import { fmtDate, fmtDateTime, fmtInt, fmtMoney } from '@/lib/format'
+import { fmtDate, fmtDateTime, fmtInt, fmtMaturity, fmtMoney } from '@/lib/format'
 
 /**
  * ตารางแบบอ่านอย่างเดียว ใช้ได้ทั้งในหน้าจอ (DataGrid: กรอง/เรียง/ค้นหา) และ Excel
@@ -83,7 +84,7 @@ type Line = { _id: string; status: 'posted' | 'void' } & Record<string, unknown>
 
 
 /** บรรทัดของเอกสาร (หลายใบรวมกัน) → แถวตาราง */
-function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]): Line[] {
+function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[], sizeOf: (stockItemId: string | null | undefined) => string): Line[] {
   const byNo = (ls: Array<Record<string, any>>) => [...ls].sort((a, b) => a.line_no - b.line_no)
   const sn = (id: number | null) => (id == null ? '' : storeName(stores, id))
   switch (tab) {
@@ -94,13 +95,15 @@ function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]
           wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
           price: l.price_per_bottle, value: l.price_per_bottle == null ? null : l.qty * l.price_per_bottle,
           kind: l.is_new_item ? 'ใหม่' : 'เพิ่มยอด', remark: l.remark, note: d.note,
+          size: l.bottle_size ?? sizeOf(l.stock_item_id), wine_type: l.wine_type, country: l.country, region: l.region, rating: l.rating,
+          maturity: fmtMaturity(l.maturity_from, l.maturity_to) || null,
         })),
       )
     case 'sales':
       return docs.flatMap((d) =>
         byNo(d.sale_lines).map((l) => ({
           _id: l.id, status: d.status, date: d.sold_at, doc_no: d.doc_no, customer: d.customer,
-          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack, qty: l.qty,
           price: l.unit_price, before: l.amount_before_vat, vat: l.vat_amount, total: l.line_total,
           cost: l.cost_per_bottle, remark: l.remark,
         })),
@@ -109,7 +112,7 @@ function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]
       return docs.flatMap((d) =>
         byNo(d.withdrawal_lines).map((l) => ({
           _id: l.id, status: d.status, date: l.withdraw_date, doc_no: d.doc_no,
-          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack, qty: l.qty,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack, qty: l.qty,
           remark: l.remark, note: d.note,
         })),
       )
@@ -117,7 +120,7 @@ function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]
       return docs.flatMap((d) =>
         byNo(d.transfer_lines).map((l) => ({
           _id: l.id, status: d.status, date: d.transferred_at, doc_no: d.doc_no,
-          wine: l.wine_name, vintage: l.vintage ?? 'NV', from: `${sn(l.from_store_id)} · ${l.from_rack ?? '-'}`,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', size: sizeOf(l.from_stock_item_id), from: `${sn(l.from_store_id)} · ${l.from_rack ?? '-'}`,
           to: `${sn(l.to_store_id)} · ${l.to_rack ?? '-'}`, qty: l.qty, remark: l.remark, note: d.note,
         })),
       )
@@ -125,7 +128,7 @@ function docLines(tab: DocTab, docs: Array<Record<string, any>>, stores: Store[]
       return docs.flatMap((d) =>
         byNo(d.stock_adjustment_lines).map((l) => ({
           _id: l.id, status: d.status, date: d.adjusted_at, doc_no: d.doc_no,
-          wine: l.wine_name, vintage: l.vintage ?? 'NV', store: sn(l.store_id), rack: l.rack,
+          wine: l.wine_name, vintage: l.vintage ?? 'NV', size: sizeOf(l.stock_item_id), store: sn(l.store_id), rack: l.rack,
           before: l.balance_before, after: l.balance_after, diff: l.diff, reason: l.reason, remark: l.remark, note: d.note,
         })),
       )
@@ -143,6 +146,7 @@ function lineDefs(tab: DocTab): Def<Line>[] {
   const wine: Def<Line>[] = [
     { key: 'wine', title: 'Name of wine', width: 260, value: v('wine') },
     { key: 'vintage', title: 'Year', width: 70, value: v('vintage') },
+    { key: 'size', title: 'Size', width: 80, value: v('size') },
   ]
   const place: Def<Line>[] = [
     { key: 'store', title: 'Store', width: 150, value: v('store') },
@@ -151,7 +155,13 @@ function lineDefs(tab: DocTab): Def<Line>[] {
   switch (tab) {
     case 'receipts':
       return [
-        ...head, ...wine, ...place,
+        ...head, ...wine,
+        { key: 'wine_type', title: 'Type', width: 100, value: v('wine_type') },
+        { key: 'country', title: 'Country', width: 110, value: v('country') },
+        { key: 'region', title: 'Region', width: 130, value: v('region') },
+        { key: 'rating', title: 'Rate', width: 120, value: v('rating') },
+        { key: 'maturity', title: 'Maturity', width: 100, value: v('maturity') },
+        ...place,
         { key: 'qty', title: 'จำนวน (ขวด)', width: 100, kind: 'int', value: v('qty'), total: true },
         { key: 'price', title: 'Price/Btl.', width: 110, kind: 'money', value: v('price') },
         { key: 'value', title: 'มูลค่า', width: 120, kind: 'money', value: v('value'), total: true },
@@ -234,7 +244,12 @@ function perBottle(tab: DocTab, lines: Line[]): Line[] {
 
 /** รายละเอียดเอกสาร มุมมอง "รายขวด": แยกทีละขวด เห็นที่เก็บของแต่ละขวด กรอง/เรียง/ส่งออกได้ */
 export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<string, any>; stores: Store[] }) {
-  const lines = useMemo(() => perBottle(tab, docLines(tab, [doc], stores)), [tab, doc, stores])
+  // ขนาดขวดของบรรทัดที่ไม่ได้เก็บขนาดไว้ → จากรายการสต็อก (รวมที่ลบแล้ว)
+  const itemsQ = useQuery(stockItemsOptions(true))
+  const lines = useMemo(() => {
+    const size = new Map((itemsQ.data ?? []).map((i) => [i.id, i.bottle_size]))
+    return perBottle(tab, docLines(tab, [doc], stores, (id) => (id && size.get(id)) || 'Normal'))
+  }, [tab, doc, stores, itemsQ.data])
   // หัวเอกสาร (วันที่ เลขที่ สถานะ ลูกค้า) เหมือนกันทุกบรรทัด — ไม่ต้องซ้ำในตาราง · ยอดก่อน/หลังปรับยอดเป็นของทั้งบรรทัด
   const defs = useMemo<Def<Line>[]>(
     () => [

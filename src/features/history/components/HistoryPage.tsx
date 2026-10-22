@@ -38,6 +38,7 @@ import { useVoidReceipt } from '@/features/receipts/api/receipts.api'
 import { ReceiptFiles } from '@/features/receipts/components/ReceiptFiles'
 import { storesOptions, type Store } from '@/features/stock/api/stock.api'
 import { useVoidWithdrawal } from '@/features/withdrawals/api/withdrawals.api'
+import { SizeTag } from '@/features/stock/columns'
 import { cn } from '@/lib/cn'
 import { fmtDate, fmtDateTime, fmtInt, fmtMoney } from '@/lib/format'
 import {
@@ -452,6 +453,7 @@ function RowsTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (t: DocType 
       },
       { key: 'wine', title: 'Name of wine', width: 260, readOnly: true, frozen: true },
       { key: 'vintage', title: 'Year', width: 70, readOnly: true, align: 'center' },
+      { key: 'size', title: 'Size', subtitle: 'ขนาด', width: 80, readOnly: true, align: 'center', render: (r) => <SizeTag size={r.size} /> },
       { key: 'store', title: 'Store', width: 150, readOnly: true },
       { key: 'rack', title: 'Wine racks', width: 100, readOnly: true },
       { key: 'qty_in', title: 'เข้า', subtitle: 'ขวด', width: 70, readOnly: true, type: 'number', align: 'right', format: (v) => (v ? fmtInt(v as number) : '') },
