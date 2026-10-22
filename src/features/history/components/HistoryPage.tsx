@@ -479,6 +479,8 @@ function RowsTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (t: DocType 
       columns={columns}
       getRowId={(r) => r._id}
       pageSizeKey="history-moves"
+      // ค้นหาที่แถบตัวกรองของหน้าแล้ว — การ์ดมือถือไม่ต้องมีช่องค้นหาซ้ำ
+      search=""
       rowClassName={(r) => (r.status === 'void' ? 'text-muted' : undefined)}
       card={{
         noun: 'รายการ',

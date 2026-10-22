@@ -68,18 +68,21 @@ export function storeName(stores: Store[], id: number | null | undefined) {
   return stores.find((s) => s.id === id)?.name ?? ''
 }
 
-/** สีจุดตามประเภทไวน์ (ประเภทอื่นที่เพิ่มเองเป็นสีเทา) */
-const TYPE_DOT: Record<string, string> = {
-  red: '#8c2c4b',
-  white: '#e2c766',
-  champagne: '#d9b04f',
-  burgundy: '#5c1430',
-  whisky: '#b5651d',
+/** ชิปประเภทไวน์ — สีต่างกันชัด (โทนสีต่างตระกูล + ตัวอักษรตัดกัน) · ประเภทที่เพิ่มเองเป็นสีเทา */
+const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
+  red: { bg: '#c62828', fg: '#ffffff', ring: '#8e1b1b' },
+  white: { bg: '#fbf3c8', fg: '#5c4a00', ring: '#d9c56a' },
+  champagne: { bg: '#e8b923', fg: '#3d2c00', ring: '#b88d0f' },
+  burgundy: { bg: '#6a2c91', fg: '#ffffff', ring: '#4a1d66' },
+  whisky: { bg: '#d2691e', fg: '#ffffff', ring: '#9c4a10' },
 }
 export function WineTypeTag({ type }: { type: string }) {
+  const st = TYPE_STYLE[type.trim().toLowerCase()] ?? { bg: '#ece7e8', fg: '#4a3f42', ring: '#d8cdcf' }
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className="size-2.5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: TYPE_DOT[type.trim().toLowerCase()] ?? '#a8999d' }} />
+    <span
+      className="inline-flex items-center rounded-full px-2 py-px text-xs leading-5 font-semibold"
+      style={{ background: st.bg, color: st.fg, boxShadow: `inset 0 0 0 1px ${st.ring}` }}
+    >
       {type}
     </span>
   )

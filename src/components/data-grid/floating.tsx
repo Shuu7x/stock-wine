@@ -42,7 +42,7 @@ export function Floating({
         width: w,
         maxHeight: h,
         ...(placeAbove ? { bottom: vh - r.top + 2 } : { top: r.bottom + 2 }),
-        zIndex: 60,
+        zIndex: 85, // เหนือ dialog (80) และ drawer (75) · ใต้ภาพเต็มจอ (90)
       })
     }
     update()

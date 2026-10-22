@@ -45,7 +45,8 @@ export function CardList<R>({
 }: DataGridProps<R>) {
   // ไม่ใช้ className ของตาราง (มักเป็น flex-1/ความสูงขั้นต่ำ) — การ์ดสูงตามเนื้อหา ให้หน้าเลื่อนทั้งหน้าแทน
   const editable = !!onRowsChange
-  const isBlank = (r: R) => (card?.isBlank ? card.isBlank(r) : defaultIsBlank(columns, r))
+  // ตารางอ่านอย่างเดียว (ทุกคอลัมน์ readOnly) ไม่มีแถวว่างให้ซ่อน
+  const isBlank = (r: R) => (card?.isBlank ? card.isBlank(r) : editable && defaultIsBlank(columns, r))
   const titleCol = columns.find((c) => c.suggest) ?? columns[0]
 
   const [q, setQ] = useState('')
