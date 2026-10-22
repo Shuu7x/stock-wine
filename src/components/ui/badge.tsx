@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold'
+type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'violet'
 
 const tones: Record<Tone, string> = {
   neutral: 'bg-surface-3 text-ink-2',
@@ -11,6 +11,7 @@ const tones: Record<Tone, string> = {
   danger: 'bg-danger-50 text-danger-700',
   info: 'bg-info-50 text-info-600',
   gold: 'bg-gold-100 text-gold-700',
+  violet: 'bg-[#f2edfb] text-[#6a3fb0]',
 }
 
 export function Badge({ tone = 'neutral', children, className }: { tone?: Tone; children: ReactNode; className?: string }) {

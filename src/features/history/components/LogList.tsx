@@ -12,20 +12,20 @@ import { fmtDate, fmtInt, fmtMoney } from '@/lib/format'
 import { logsListOptions, type StockItemLog } from '../api/logs.api'
 import { Loading } from '@/components/ui/loading'
 
-type Tone = 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'brand' | 'neutral'
+type Tone = 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'brand' | 'neutral' | 'violet'
 
 export const ACTIONS: Record<StockAction, { label: string; tone: Tone }> = {
   create: { label: 'เพิ่มใหม่', tone: 'success' },
   update: { label: 'แก้ไข', tone: 'warning' },
   delete: { label: 'ลบ', tone: 'danger' },
   restore: { label: 'กู้คืน', tone: 'info' },
-  receive: { label: 'รับเข้า', tone: 'gold' },
-  withdraw: { label: 'เบิก', tone: 'brand' },
+  receive: { label: 'รับเข้า', tone: 'success' },
+  withdraw: { label: 'เบิก', tone: 'gold' },
   void_receipt: { label: 'ยกเลิกรับเข้า', tone: 'neutral' },
   void_withdrawal: { label: 'ยกเลิกเบิก', tone: 'neutral' },
   sale: { label: 'ขาย', tone: 'brand' },
   void_sale: { label: 'ยกเลิกขาย', tone: 'neutral' },
-  adjust: { label: 'ปรับยอด', tone: 'warning' },
+  adjust: { label: 'ปรับยอด', tone: 'violet' },
   void_adjustment: { label: 'ยกเลิกปรับยอด', tone: 'neutral' },
   transfer_out: { label: 'โอนออก', tone: 'info' },
   transfer_in: { label: 'โอนเข้า', tone: 'info' },
@@ -153,6 +153,7 @@ const DOT: Record<Tone, string> = {
   gold: 'var(--color-gold-500)',
   brand: 'var(--color-brand-700)',
   neutral: 'var(--color-muted)',
+  violet: '#6a3fb0',
 }
 
 /** หัวข้อวันที่ของกลุ่มประวัติ */

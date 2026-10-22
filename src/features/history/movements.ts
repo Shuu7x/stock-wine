@@ -21,13 +21,14 @@ export type DocType = (typeof DOC_TYPES)[number]
 export const MOVE_TYPES = DOC_TYPES
 export type MoveType = (typeof MOVE_TYPES)[number]
 
-type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold'
+type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'gold' | 'violet'
 export const TYPE_META: Record<MoveType, { label: string; icon: LucideIcon; tone: Tone }> = {
-  receipts: { label: 'รับเข้า', icon: PackagePlus, tone: 'gold' },
+  // สีต่างกันทุกประเภท: เข้า = เขียว · ขาย = ไวน์ · เบิก = ทอง · โอน = ฟ้า · ปรับยอด = ม่วง
+  receipts: { label: 'รับเข้า', icon: PackagePlus, tone: 'success' },
   sales: { label: 'ขาย', icon: ShoppingBag, tone: 'brand' },
-  withdrawals: { label: 'เบิก', icon: GlassWater, tone: 'brand' },
+  withdrawals: { label: 'เบิก', icon: GlassWater, tone: 'gold' },
   transfers: { label: 'โอนย้าย', icon: ArrowLeftRight, tone: 'info' },
-  adjustments: { label: 'ปรับยอด', icon: ClipboardCheck, tone: 'warning' },
+  adjustments: { label: 'ปรับยอด', icon: ClipboardCheck, tone: 'violet' },
 }
 
 /** หนึ่งความเคลื่อนไหว (บรรทัดเอกสาร · โอนย้ายแยกเป็นโอนออก/โอนเข้า) */
