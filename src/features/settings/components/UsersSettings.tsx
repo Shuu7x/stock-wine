@@ -1,17 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { Lock, Plus, Save, ShieldCheck, Trash2, Undo2, Users } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { DataGrid } from '@/components/data-grid/DataGrid'
+import type { GridColumn } from '@/components/data-grid/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
 import { Dialog } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/field'
 import { Loading } from '@/components/ui/loading'
-import { Switch } from '@/components/ui/switch'
 import { useSessionEmail } from '@/features/auth/api/auth.api'
 import { env } from '@/lib/env'
 import { cn } from '@/lib/cn'
+import { fmtDateTime } from '@/lib/format'
 import { PERMISSIONS } from '@/lib/permissions'
 import {
   profilesOptions,
@@ -258,17 +260,101 @@ function AddRoleDialog({ open, onClose, roles }: { open: boolean; onClose: () =>
   )
 }
 
-// ─── ผู้ใช้ ──────────────────────────────────────────────────────────────────
+// ─── ผู้ใช้ (ตารางแบบหน้าอื่น: แก้หลายแถวแล้วบันทึกทีเดียว) ──────────────────────────
+type UserRow = { _id: string; email: string; display_name: string | null; role_key: string; is_active: boolean; created_at: string }
+const ACTIVE = 'ใช้งาน'
+const INACTIVE = 'ปิดใช้งาน'
+
 function UsersList({ roles }: { roles: Role[] }) {
   const profilesQ = useQuery(profilesOptions())
   const update = useUpdateProfile()
   const me = useSessionEmail()
-  const profiles = useMemo(() => profilesQ.data ?? [], [profilesQ.data])
+  const original = useMemo(() => new Map((profilesQ.data ?? []).map((p) => [p.user_id, p])), [profilesQ.data])
+  const toRows = useCallback(
+    () =>
+      (profilesQ.data ?? []).map<UserRow>((p) => ({
+        _id: p.user_id,
+        email: p.email ?? '',
+        display_name: p.display_name,
+        role_key: p.role_key,
+        is_active: p.is_active,
+        created_at: p.created_at,
+      })),
+    [profilesQ.data],
+  )
+  const [rows, setRows] = useState<UserRow[]>([])
+  useEffect(() => setRows(toRows()), [toRows])
 
-  async function change(userId: string, patch: { role_key?: string; is_active?: boolean }, msg: string) {
+  const changedFields = useCallback(
+    (r: UserRow): string[] => {
+      const o = original.get(r._id)
+      if (!o) return []
+      const out: string[] = []
+      if ((r.display_name ?? '').trim() !== (o.display_name ?? '')) out.push('display_name')
+      if (r.role_key !== o.role_key) out.push('role_key')
+      if (r.is_active !== o.is_active) out.push('is_active')
+      return out
+    },
+    [original],
+  )
+  const changed = rows.filter((r) => changedFields(r).length)
+  const adminsLeft = rows.filter((r) => r.role_key === 'admin' && r.is_active).length
+
+  const roleName = (key: string) => roles.find((r) => r.key === key)?.name ?? key
+  const columns = useMemo<GridColumn<UserRow>[]>(
+    () => [
+      {
+        key: 'email',
+        title: 'อีเมล',
+        width: 240,
+        readOnly: true,
+        frozen: true,
+        render: (r) => (
+          <span className="flex items-center gap-2">
+            {r.email}
+            {r.email.toLowerCase() === me?.toLowerCase() && <Badge tone="brand">คุณ</Badge>}
+          </span>
+        ),
+      },
+      { key: 'display_name', title: 'ชื่อที่แสดง', width: 200, placeholder: 'เช่น สมชาย (หน้าร้าน)' },
+      {
+        key: 'role_key',
+        title: 'บทบาท',
+        width: 170,
+        type: 'select',
+        options: roles.map((r) => r.name),
+        get: (r) => roleName(r.role_key),
+        set: (r, v) => ({ ...r, role_key: roles.find((x) => x.name === v)?.key ?? r.role_key }),
+        render: (r) => <Badge tone={r.role_key === 'admin' ? 'brand' : r.role_key === 'viewer' ? 'neutral' : 'info'}>{roleName(r.role_key)}</Badge>,
+      },
+      {
+        key: 'is_active',
+        title: 'สถานะ',
+        width: 130,
+        type: 'select',
+        options: [ACTIVE, INACTIVE],
+        get: (r) => (r.is_active ? ACTIVE : INACTIVE),
+        set: (r, v) => ({ ...r, is_active: v !== INACTIVE }),
+        render: (r) => (r.is_active ? <Badge tone="success">{ACTIVE}</Badge> : <Badge>{INACTIVE}</Badge>),
+      },
+      { key: 'created_at', title: 'เพิ่มเมื่อ', width: 150, readOnly: true, format: (v) => fmtDateTime(String(v)) },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roles, me],
+  )
+
+  async function save() {
+    if (!adminsLeft) return toast.error('ต้องมีผู้ดูแลระบบที่ใช้งานได้อย่างน้อย 1 คน')
     try {
-      await update.mutateAsync({ userId, patch })
-      toast.success(msg)
+      // ลดสิทธิ์ผู้ดูแลทีหลัง — กันกรณีเปลี่ยนผู้ดูแลคนหนึ่งเป็นอีกคนในรอบเดียว
+      const order = [...changed].sort((a, b) => Number(a.role_key !== 'admin') - Number(b.role_key !== 'admin'))
+      for (const r of order) {
+        await update.mutateAsync({
+          userId: r._id,
+          patch: { display_name: r.display_name?.trim() || null, role_key: r.role_key, is_active: r.is_active },
+        })
+      }
+      toast.success(`บันทึกผู้ใช้แล้ว ${changed.length} คน`)
     } catch (e) {
       toast.error(errMsg(e))
     }
@@ -280,42 +366,38 @@ function UsersList({ roles }: { roles: Role[] }) {
       icon={Users}
       description={
         env.VITE_ENABLE_MOCK
-          ? 'โหมดทดลอง: login ด้วยอีเมลใหม่ (รหัส “password”) จะขึ้นในรายการนี้เป็น "ดูอย่างเดียว" · ผู้ใช้ตัวอย่าง manager@ / staff@ / viewer@wine.local'
-          : 'เพิ่มผู้ใช้ด้วยการเชิญทางอีเมลที่ Supabase › Authentication — ผู้ใช้ใหม่ขึ้นในรายการนี้เป็น "ดูอย่างเดียว" แล้วค่อยเลือกบทบาทให้'
+          ? 'โหมดทดลอง: login ด้วยอีเมลใหม่ (รหัส “password”) จะขึ้นในตารางนี้เป็น "ดูอย่างเดียว" · ผู้ใช้ตัวอย่าง manager@ / staff@ / viewer@wine.local'
+          : 'เพิ่มผู้ใช้ด้วยการเชิญทางอีเมลที่ Supabase › Authentication — ผู้ใช้ใหม่ขึ้นในตารางนี้เป็น "ดูอย่างเดียว" แล้วค่อยเลือกบทบาทให้'
+      }
+      footer={
+        changed.length > 0 ? (
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <span className="mr-auto text-sm text-ink-2">แก้ {changed.length} คน · ดับเบิลคลิกเซลล์เพื่อแก้</span>
+            <Button size="sm" variant="ghost" onClick={() => setRows(toRows())}>
+              <Undo2 className="size-4" /> ยกเลิกทั้งหมด
+            </Button>
+            <Button size="sm" variant="primary" loading={update.isPending} onClick={save}>
+              <Save className="size-4" /> บันทึก
+            </Button>
+          </div>
+        ) : undefined
       }
     >
-      <ul className="divide-y divide-line border-t border-line">
-        {profiles.map((p) => {
-          const self = p.email?.toLowerCase() === me?.toLowerCase()
-          return (
-            <li key={p.user_id} className={cn('flex flex-wrap items-center gap-3 px-4 py-3', !p.is_active && 'opacity-60')}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-800 uppercase">
-                {(p.display_name || p.email || '?').slice(0, 1)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 truncate font-medium">
-                  {p.display_name || p.email?.split('@')[0]}
-                  {self && <Badge tone="brand">คุณ</Badge>}
-                  {!p.is_active && <Badge>ปิดการใช้งาน</Badge>}
-                </div>
-                <div className="truncate text-xs text-muted">{p.email}</div>
-              </div>
-              <Combobox
-                className="w-44"
-                value={p.role_key}
-                onChange={(v) => v !== p.role_key && change(p.user_id, { role_key: v }, `${p.email}: ${roles.find((r) => r.key === v)?.name}`)}
-                options={roles.map((r) => ({ value: r.key, label: r.name }))}
-              />
-              <Switch
-                checked={p.is_active}
-                onChange={(v) => change(p.user_id, { is_active: v }, v ? `เปิดใช้งาน ${p.email}` : `ปิดใช้งาน ${p.email}`)}
-                label={`ใช้งาน ${p.email}`}
-                states={['ใช้งาน', 'ปิด']}
-              />
-            </li>
-          )
-        })}
-      </ul>
+      <div className="px-4 pb-4">
+        <DataGrid
+          className="h-[min(420px,60dvh)]"
+          rows={rows}
+          columns={columns}
+          getRowId={(r) => r._id}
+          onRowsChange={setRows}
+          cellChanged={(r, key) => changedFields(r).includes(key)}
+          cellError={(r, key) => (key === 'role_key' || key === 'is_active') && !adminsLeft && original.get(r._id)?.role_key === 'admin' ? 'ต้องมีผู้ดูแลระบบที่ใช้งานได้อย่างน้อย 1 คน' : null}
+          rowClassName={(r) => (r.is_active ? undefined : 'text-muted')}
+          pageSizeKey="settings-users"
+          card={{ noun: 'ผู้ใช้', title: (r) => r.display_name || r.email, subtitle: (r) => r.email, fields: ['role_key', 'is_active'] }}
+          emptyState="ยังไม่มีผู้ใช้"
+        />
+      </div>
     </SettingsCard>
   )
 }
