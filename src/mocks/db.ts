@@ -154,6 +154,7 @@ function seedLookups(): Tables<'lookup_values'>[] {
     value,
     sort_order: i + 1,
     is_active: true,
+    parent: null,
     ...audit(),
   })
   return [...COUNTRIES.map((v, i) => row('country', v, i)), ...WINE_TYPES.map((v, i) => row('wine_type', v, i))]
@@ -316,7 +317,7 @@ function load(): DB {
         }
         WINE_TYPES.forEach((value, i) => {
           if (!saved.lookup_values.some((l) => l.category === 'wine_type' && l.value === value))
-            saved.lookup_values.push({ id: crypto.randomUUID(), category: 'wine_type', store_id: null, value, sort_order: i + 1, is_active: true, ...audit() })
+            saved.lookup_values.push({ id: crypto.randomUUID(), category: 'wine_type', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, ...audit() })
         })
         saved.seq.type_seed = 1
       }

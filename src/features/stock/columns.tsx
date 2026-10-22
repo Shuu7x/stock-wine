@@ -49,8 +49,11 @@ export function buildLookups(items: StockItem[], configured: LookupValue[] = [])
   }
   // แคว้นแยกตามประเทศจากข้อมูลจริง (ข้อมูลหลักไม่ผูกประเทศ → ขึ้นทุกประเทศ)
   const regionsByCountry = new Map<string, string[]>()
-  for (const country of new Set(items.map((i) => i.country).filter(Boolean) as string[])) {
-    regionsByCountry.set(country, mergeOptions(of('region'), items.filter((i) => i.country === country).map((i) => i.region)))
+  const countriesSeen = new Set([...(items.map((i) => i.country).filter(Boolean) as string[]), ...(of('region').map((l) => l.parent).filter(Boolean) as string[])])
+  for (const country of countriesSeen) {
+    // แคว้นของประเทศนี้ในข้อมูลหลัก + ที่พบในสต็อก · แคว้นที่ยังไม่ระบุประเทศขึ้นทุกประเทศ
+    const configured = of('region').filter((l) => !l.parent || l.parent.trim().toLowerCase() === country.trim().toLowerCase())
+    regionsByCountry.set(country, mergeOptions(configured, items.filter((i) => i.country === country).map((i) => i.region)))
   }
   return {
     countries: mergeOptions(of('country'), items.map((i) => i.country)),

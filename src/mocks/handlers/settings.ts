@@ -121,6 +121,7 @@ export const settingsHandlers = [
             value: String(b.value ?? '').trim(),
             sort_order: b.sort_order ?? 0,
             is_active: b.is_active ?? true,
+            parent: b.parent ?? null,
             ...auditNow(),
           }
           next.push(row)

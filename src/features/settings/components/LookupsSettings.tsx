@@ -30,6 +30,8 @@ type Row = {
   value: string | null
   sort_order: number | null
   is_active: boolean
+  /** แคว้น: ประเทศของแคว้น */
+  parent: string | null
 }
 
 const CATEGORIES: Array<{ value: LookupCategory; label: string; valueTitle: string; field: keyof StockItem }> = [
@@ -54,6 +56,7 @@ const toRow = (l: LookupValue): Row => ({
   value: l.value,
   sort_order: l.sort_order,
   is_active: l.is_active,
+  parent: l.parent ?? null,
 })
 
 export type MasterTab = 'stores' | LookupCategory
@@ -82,8 +85,8 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       if (!r.id) return []
       const o = original.get(r.id)
       if (!o) return []
-      return (['value', 'sort_order', 'is_active'] as const).filter((k) =>
-        k === 'value' ? (r.value ?? '').trim() !== o.value : r[k] !== o[k],
+      return (['value', 'sort_order', 'is_active', 'parent'] as const).filter((k) =>
+        k === 'value' ? (r.value ?? '').trim() !== o.value : k === 'parent' ? (r.parent ?? null) !== (o.parent ?? null) : r[k] !== o[k],
       )
     },
     [original],
@@ -124,11 +127,12 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
   // ค่าที่มีในสต็อกแต่ยังไม่อยู่ในรายการ
   const missing = useMemo(() => {
     const have = new Set(rows.filter((r) => r.category === category).map(keyOf))
-    const out = new Map<string, { value: string; store_id: number | null }>()
+    const out = new Map<string, { value: string; store_id: number | null; parent: string | null }>()
     for (const it of items) {
       const v = (it[cat.field] as string | null)?.trim()
       if (!v) continue
-      const entry = { category, store_id: category === 'rack' ? it.store_id : null, value: v }
+      // แคว้นจากสต็อก: ใช้ประเทศของไวน์นั้นเป็นประเทศของแคว้น
+      const entry = { category, store_id: category === 'rack' ? it.store_id : null, value: v, parent: category === 'region' ? (it.country ?? null) : null }
       const k = keyOf(entry)
       if (!have.has(k) && !out.has(k)) out.set(k, entry)
     }
@@ -136,9 +140,17 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
   }, [rows, items, category, cat.field])
 
   const shown = useMemo(() => rows.filter((r) => r.category === category), [rows, category])
+  // ตัวเลือกประเทศของแคว้น: ประเทศในข้อมูลหลัก + ที่มีในสต็อก
+  const countryOptions = useMemo(
+    () =>
+      [...new Set([...rows.filter((r) => r.category === 'country' && r.is_active).map((r) => r.value?.trim() ?? ''), ...items.map((i) => i.country?.trim() ?? '')])]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [rows, items],
+  )
 
   const newRow = useCallback(
-    (value: string | null = null, store_id: number | null = null): Row => {
+    (value: string | null = null, store_id: number | null = null, parent: string | null = null): Row => {
       const inCat = rows.filter((r) => r.category === category)
       return {
         _id: crypto.randomUUID(),
@@ -148,6 +160,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         value,
         sort_order: Math.max(0, ...inCat.map((r) => r.sort_order ?? 0)) + 1,
         is_active: true,
+        parent,
       }
     },
     [rows, category, stores],
@@ -192,6 +205,16 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         format: (v) => (v == null ? '' : fmtInt(v as number)),
       },
     ]
+    if (category === 'region') {
+      list.splice(1, 0, {
+        key: 'parent',
+        title: 'ประเทศ',
+        subtitle: 'แคว้นนี้อยู่ประเทศไหน',
+        width: 170,
+        options: countryOptions,
+        parse: (t) => t.trim() || null,
+      })
+    }
     if (category === 'rack') {
       list.splice(0, 0, {
         key: 'store_id',
@@ -211,7 +234,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       })
     }
     return list
-  }, [cat.valueTitle, category, stores, usage])
+  }, [cat.valueTitle, category, stores, usage, countryOptions])
 
   function onRowsChange(next: Row[]) {
     setRows((all) => [...all.filter((r) => r.category !== category), ...next])
@@ -235,6 +258,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         id: r.id!,
         category: r.category,
         store_id: r.store_id,
+        parent: r.category === 'region' ? r.parent?.trim() || null : null,
         value: r.value!.trim(),
         sort_order: r.sort_order ?? 0,
         is_active: r.is_active,
@@ -242,6 +266,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       ...inserts.map((r) => ({
         category: r.category,
         store_id: r.store_id,
+        parent: r.category === 'region' ? r.parent?.trim() || null : null,
         value: r.value!.trim(),
         sort_order: r.sort_order ?? 0,
         is_active: r.is_active,
@@ -289,7 +314,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
             onClick={() => {
               setRows((all) => {
                 let order = Math.max(0, ...all.filter((r) => r.category === category).map((r) => r.sort_order ?? 0))
-                return [...all, ...missing.map((m) => ({ ...newRow(m.value, m.store_id), sort_order: ++order }))]
+                return [...all, ...missing.map((m) => ({ ...newRow(m.value, m.store_id, m.parent), sort_order: ++order }))]
               })
               toast.success(`เพิ่ม ${missing.length} ค่าจากข้อมูลสต็อก — ตรวจแล้วกดบันทึก`)
             }}
