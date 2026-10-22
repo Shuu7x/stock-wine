@@ -43,9 +43,9 @@ import { loadDraft, saveDraft } from "@/lib/use-local-draft";
  * ขนาดป้ายข้อมูล (มม.) — ตัดแปะบนป้ายสวมคอขวดที่มีรูอยู่แล้ว ใต้ส่วนรู
  */
 const SIZES = {
-  s: { label: "เล็ก 38×44", w: 38, h: 44 },
-  m: { label: "มาตรฐาน 48×55", w: 48, h: 55 },
-  l: { label: "ใหญ่ 62×70", w: 62, h: 70 },
+  s: { label: "เล็ก 35×35", w: 35, h: 35 },
+  m: { label: "มาตรฐาน 40×40", w: 40, h: 40 },
+  l: { label: "ใหญ่ 50×50", w: 50, h: 50 },
 } as const;
 type SizeKey = keyof typeof SIZES;
 
@@ -59,8 +59,44 @@ type Fields = {
   maturity: boolean;
   price: boolean;
 };
-/** color = ชื่อสีไวน์ ราคาสีแดง · mono = ขาวดำ ประหยัดหมึก */
-type TagStyle = "color" | "mono";
+/** สีป้าย: แถบหัว · ตัวอักษร · เส้นขอบ · ป้ายชั้นวาง (mono = ขาวดำ ประหยัดหมึก) */
+const THEMES = {
+  color: {
+    label: "สีไวน์",
+    head: "linear-gradient(160deg, var(--color-brand-600), var(--color-brand-900) 75%)",
+    headInk: "#fff",
+    sub: "var(--color-gold-100)",
+    border: "var(--color-gold-500)",
+    accent: "var(--color-brand-700)",
+    chip: "var(--color-brand-700)",
+    chipInk: "#fff",
+    swatch: "linear-gradient(135deg, #c1647f, #631a33)",
+  },
+  yellow: {
+    label: "สีเหลือง",
+    head: "linear-gradient(160deg, #f8d66d, #e3a91c 75%)",
+    headInk: "#2e2000",
+    sub: "#5a4100",
+    border: "#a5700a",
+    accent: "#94600a",
+    chip: "#e3a91c",
+    chipInk: "#2e2000",
+    swatch: "linear-gradient(135deg, #f8d66d, #d4950f)",
+  },
+  green: {
+    label: "สีเขียว",
+    head: "linear-gradient(160deg, #2f8c58, #14482b 75%)",
+    headInk: "#fff",
+    sub: "#d5efdd",
+    border: "var(--color-gold-500)",
+    accent: "#1f6b3d",
+    chip: "#1f6b3d",
+    chipInk: "#fff",
+    swatch: "linear-gradient(135deg, #43a96d, #14482b)",
+  },
+} as const;
+type ThemeKey = keyof typeof THEMES;
+type TagStyle = ThemeKey | "mono";
 type Options = { size: SizeKey; style: TagStyle; fields: Fields };
 const OPTIONS_KEY = "stock-wine:qr-options:v3";
 const DEFAULT_OPTIONS: Options = {
@@ -88,12 +124,13 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
   const s = SIZES[opt.size];
   const f = opt.fields;
   const mono = opt.style === "mono";
-  // หน่วยขนาดตามความกว้างป้าย: ป้ายมาตรฐาน (48 มม.) = 1
-  const u = s.w / 48;
+  // หน่วยขนาดตามความกว้างป้าย: ป้ายมาตรฐาน 4×4 ซม. (40 มม.) = 1
+  const u = s.w / 40;
   const mm = (n: number) => `${(n * u).toFixed(2)}mm`;
   const maturity = fmtMaturity(it.maturity_from, it.maturity_to);
   const rating = it.rating ?? "";
-  const accent = mono ? "#111" : "var(--color-brand-700)";
+  const t = mono ? null : THEMES[opt.style as ThemeKey] ?? THEMES.color;
+  const accent = t ? t.accent : "#111";
   const showPrice = f.price && it.price_per_bottle != null;
   const showRack = f.place && !!it.rack;
 
@@ -106,7 +143,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
       <div
         className="flex h-full flex-col"
         style={{
-          padding: `${mm(3)} ${mm(3)} ${mm(2.6)}`,
+          padding: `${mm(2.2)} ${mm(2.2)} ${mm(1.8)}`,
           color: "#111",
           fontFamily: "var(--font-doc)",
         }}
@@ -115,21 +152,20 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
         <div
           className="text-center"
           style={
-            mono
+            !t
               ? undefined
               : {
-                  background:
-                    "linear-gradient(160deg, var(--color-brand-600), var(--color-brand-900) 75%)",
-                  color: "#fff",
-                  margin: `-${mm(3)} -${mm(3)} 0`,
-                  padding: `${mm(2.4)} ${mm(3)} ${mm(1.8)}`,
-                  borderBottom: `${mm(0.7)} solid var(--color-gold-500)`,
+                  background: t.head,
+                  color: t.headInk,
+                  margin: `-${mm(2.2)} -${mm(2.2)} 0`,
+                  padding: `${mm(1.7)} ${mm(2.2)} ${mm(1.3)}`,
+                  borderBottom: `${mm(0.6)} solid ${t.border}`,
                 }
           }
         >
           <div
             className="line-clamp-2 leading-[1.15] font-bold"
-            style={{ fontSize: mm(3.8), color: mono ? "#111" : "#fff" }}
+            style={{ fontSize: mm(3.1), color: t ? t.headInk : "#111" }}
           >
             {it.wine_name}
           </div>
@@ -137,9 +173,9 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
             <div
               className="truncate"
               style={{
-                fontSize: mm(2.3),
-                color: mono ? "#555" : "var(--color-gold-100)",
-                marginTop: mm(0.5),
+                fontSize: mm(1.9),
+                color: t ? t.sub : "#555",
+                marginTop: mm(0.3),
               }}
             >
               {it.country}
@@ -150,15 +186,15 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
           <div
             style={{
               borderTop: "0.2mm solid #999",
-              margin: `${mm(1.6)} ${mm(4)} ${mm(1.4)}`,
+              margin: `${mm(1.1)} ${mm(3)} ${mm(1)}`,
             }}
           />
         )}
 
         {/* Vintage / Rating / Maturity */}
         <div
-          className="leading-[1.4] font-bold"
-          style={{ fontSize: mm(2.6), marginTop: mono ? 0 : mm(1.8) }}
+          className="leading-[1.3] font-bold"
+          style={{ fontSize: mm(2.15), marginTop: mono ? 0 : mm(1.2) }}
         >
           {(
             [
@@ -179,22 +215,22 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
         {/* Rack · ราคา | QR */}
         <div
           className="mt-auto flex items-end justify-between"
-          style={{ gap: mm(1.5), paddingTop: mm(1.2) }}
+          style={{ gap: mm(1.2), paddingTop: mm(0.8) }}
         >
           <div className="min-w-0 leading-[1.25]">
             {showRack && (
               <div
                 className="w-fit font-bold"
                 style={
-                  mono
-                    ? { fontSize: mm(3) }
+                  !t
+                    ? { fontSize: mm(2.5) }
                     : {
-                        fontSize: mm(2.7),
-                        background: "var(--color-brand-700)",
-                        color: "#fff",
-                        borderRadius: mm(0.8),
-                        padding: `0 ${mm(1.2)}`,
-                        marginBottom: mm(0.5),
+                        fontSize: mm(2.2),
+                        background: t.chip,
+                        color: t.chipInk,
+                        borderRadius: mm(0.7),
+                        padding: `0 ${mm(1)}`,
+                        marginBottom: mm(0.4),
                       }
                 }
               >
@@ -205,7 +241,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
               <div
                 className="font-bold whitespace-nowrap"
                 style={{
-                  fontSize: mm(3),
+                  fontSize: mm(2.5),
                   color: mono ? "#111" : "var(--color-danger-600)",
                 }}
               >
@@ -215,16 +251,16 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
             <div
               className="font-mono"
               style={{
-                fontSize: mm(1.4),
+                fontSize: mm(1.2),
                 color: "#888",
                 letterSpacing: "0.05em",
-                marginTop: mm(0.4),
+                marginTop: mm(0.3),
               }}
             >
               {it.id.slice(0, 8).toUpperCase()}
             </div>
           </div>
-          <div className="shrink-0" style={{ width: mm(15), height: mm(15) }}>
+          <div className="shrink-0" style={{ width: mm(12.5), height: mm(12.5) }}>
             <QrCode
               value={itemUrl(it.id)}
               margin={0}
@@ -307,6 +343,9 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
     return {
       ...DEFAULT_OPTIONS,
       ...saved,
+      // ค่าที่จำไว้จากรุ่นก่อนอาจไม่มีแล้ว
+      size: saved?.size && saved.size in SIZES ? saved.size : DEFAULT_OPTIONS.size,
+      style: saved?.style && (saved.style === "mono" || saved.style in THEMES) ? saved.style : DEFAULT_OPTIONS.style,
       fields: { ...DEFAULT_OPTIONS.fields, ...saved?.fields },
     };
   });
@@ -477,13 +516,16 @@ export function QrPage({ prefillIds }: { prefillIds: string[] }) {
           value={opt.style}
           onChange={(v) => setOpt((o) => ({ ...o, style: v }))}
           items={[
-            {
-              value: "color",
-              title: "สีไวน์",
+            ...(Object.keys(THEMES) as ThemeKey[]).map((k) => ({
+              value: k as TagStyle,
+              title: THEMES[k].label,
               icon: (
-                <span className="size-3.5 shrink-0 rounded-full bg-gradient-to-br from-brand-400 to-brand-800 ring-2 ring-white" />
+                <span
+                  className="size-3.5 shrink-0 rounded-full ring-2 ring-white"
+                  style={{ background: THEMES[k].swatch }}
+                />
               ),
-            },
+            })),
             {
               value: "mono",
               title: "ขาวดำ",
