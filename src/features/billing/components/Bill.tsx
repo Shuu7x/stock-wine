@@ -12,6 +12,7 @@ export type BillDoc = {
   doc_no: string
   sold_at: string
   customer: string | null
+  customer_address?: string | null
   note: string | null
   status: 'posted' | 'void'
   vat_mode: VatMode
@@ -138,7 +139,7 @@ function BillA4({ doc, shop, anyVat }: { doc: BillDoc; shop: Shop; anyVat: boole
           <div className="flex-1 px-[2mm] py-[2mm]" style={{ border: B, minHeight: '30mm' }}>
             <Info label="ชื่อลูกค้า">{doc.customer}</Info>
             <div className="pl-[6mm]">
-              <Info label="ที่อยู่" />
+              <Info label="ที่อยู่">{doc.customer_address}</Info>
             </div>
           </div>
           <div className="flex w-[62mm] flex-col gap-[1.6mm] px-[2mm] py-[2mm]" style={{ border: B }}>
@@ -292,6 +293,7 @@ function Receipt80({ doc, shop, anyVat }: { doc: BillDoc; shop: Shop; anyVat: bo
         <span>{fmtDate(doc.sold_at)}</span>
       </div>
       {doc.customer && <div>ลูกค้า: {doc.customer}</div>}
+      {doc.customer_address && <div style={{ whiteSpace: 'pre-line' }}>ที่อยู่: {doc.customer_address}</div>}
       {doc.ref && <div style={{ fontSize: '2.6mm' }}>อ้างอิง: {doc.ref}</div>}
       <div style={dash} />
       {doc.lines.map((l, i) => (

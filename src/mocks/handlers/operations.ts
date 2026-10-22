@@ -44,7 +44,7 @@ function liveItem(items: Item[], id: string, row: number) {
 // ─── ขาย ──────────────────────────────────────────────────────────────────
 type SaleInput = { stock_item_id: string; qty: number; unit_price: number; has_vat: boolean; remark: string | null }
 
-function postSale(email: string, a: { p_sold_at: string; p_customer: string | null; p_note: string | null; p_vat_mode: VatMode; p_lines: SaleInput[] }) {
+function postSale(email: string, a: { p_sold_at: string; p_customer: string | null; p_customer_address?: string | null; p_note: string | null; p_vat_mode: VatMode; p_lines: SaleInput[] }) {
   if (!a.p_lines?.length) throw new PgError('ไม่มีรายการขาย')
   if (a.p_vat_mode !== 'included' && a.p_vat_mode !== 'excluded') throw new PgError('รูปแบบ VAT ไม่ถูกต้อง')
   const rate = vatRate()
@@ -55,6 +55,7 @@ function postSale(email: string, a: { p_sold_at: string; p_customer: string | nu
     sold_at: a.p_sold_at ?? today(),
     bill_id: null,
     customer: blank(a.p_customer),
+    customer_address: blank(a.p_customer_address ?? null),
     vat_mode: a.p_vat_mode,
     vat_rate: rate,
     subtotal: 0,

@@ -174,6 +174,8 @@ type DocBase = Audit & {
 export type VatMode = 'included' | 'excluded'
 
 type SaleRow = DocBase & {
+  /** ที่อยู่ลูกค้า (แสดงในบิล) */
+  customer_address: string | null
   sold_at: string
   /** บิลที่ใช้อยู่ (null = ยังไม่ออกบิล) */
   bill_id: string | null
@@ -206,6 +208,7 @@ type SaleLineRow = Audit & {
 }
 
 type BillRow = Audit & {
+  customer_address: string | null
   id: string
   bill_no: string
   issued_at: string
@@ -425,7 +428,7 @@ export type Database = {
         Returns: WithdrawalRow
       }
       post_sale: {
-        Args: { p_sold_at: string; p_customer: string | null; p_note: string | null; p_vat_mode: VatMode; p_lines: Json }
+        Args: { p_sold_at: string; p_customer: string | null; p_note: string | null; p_vat_mode: VatMode; p_lines: Json; p_customer_address?: string | null }
         Returns: SaleRow
       }
       void_sale: { Args: { p_id: string; p_reason: string | null }; Returns: SaleRow }

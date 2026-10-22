@@ -24,7 +24,9 @@ export const opKeys = {
   transfers: (page: number, size: number, f: DocFilter) => ['ops', 'transfers', { page, size, ...f }] as const,
 }
 
-export type CustomerSuggestion = { name: string; count: number; lastSoldAt: string }
+export type CustomerSuggestion = { name: string; count: number; lastSoldAt: string   /** ที่อยู่จากใบขายล่าสุดของลูกค้านี้ */
+  address: string | null
+}
 
 /** ลูกค้าที่เคยขาย (จำจากใบขายเดิม) เรียงซื้อบ่อย → ล่าสุด · ใบขายใหม่ invalidate ['ops'] อยู่แล้ว */
 export const customersOptions = () =>
@@ -34,7 +36,7 @@ export const customersOptions = () =>
     queryFn: async (): Promise<CustomerSuggestion[]> => {
       const { data, error } = await supabase
         .from('sales')
-        .select('customer, sold_at')
+        .select('customer, customer_address, sold_at')
         .not('customer', 'is', null)
         .order('sold_at', { ascending: false })
         .limit(2000)
@@ -44,8 +46,11 @@ export const customersOptions = () =>
         const name = r.customer?.trim()
         if (!name) continue
         const c = m.get(name)
-        if (c) c.count++
-        else m.set(name, { name, count: 1, lastSoldAt: r.sold_at })
+        // เรียงจากใบขายล่าสุดก่อน → ที่อยู่ที่เจอครั้งแรกคือที่อยู่ล่าสุด
+        if (c) {
+          c.count++
+          c.address ??= r.customer_address?.trim() || null
+        } else m.set(name, { name, count: 1, lastSoldAt: r.sold_at, address: r.customer_address?.trim() || null })
       }
       return [...m.values()].sort((a, b) => b.count - a.count || b.lastSoldAt.localeCompare(a.lastSoldAt))
     },
@@ -133,11 +138,12 @@ const unwrap = <T,>(r: { data: T | null; error: unknown }) => {
 }
 
 export const usePostSale = () =>
-  useStockMutation(async (a: { soldAt: string; customer: string; note: string; vatMode: VatMode; lines: SaleLineInput[] }) =>
+  useStockMutation(async (a: { soldAt: string; customer: string; customerAddress: string; note: string; vatMode: VatMode; lines: SaleLineInput[] }) =>
     unwrap(
       await supabase.rpc('post_sale', {
         p_sold_at: a.soldAt,
         p_customer: a.customer || null,
+        p_customer_address: a.customerAddress.trim() || null,
         p_note: a.note || null,
         p_vat_mode: a.vatMode,
         p_lines: a.lines,

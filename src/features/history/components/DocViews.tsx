@@ -124,6 +124,7 @@ export function buildDocView(type: DocType, raw: RawDoc, stores: Store[]): DocVi
         amount: d.total,
         meta: [
           ['ลูกค้า', d.customer ?? '–'],
+          ['ที่อยู่ลูกค้า', d.customer_address ?? '–'],
           ['วันที่ขาย', fmtDate(d.sold_at)],
           ['ราคาที่กรอก', `${VAT_MODE_LABEL[d.vat_mode]} (VAT ${d.vat_rate}%)`],
           ...base(d),

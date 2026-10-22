@@ -27,7 +27,7 @@ import { BillDialog } from '@/features/billing/components/BillDialog'
 import { customersOptions, usePostSale, type Sale } from '../api/operations.api'
 
 type SaleRow = PickerRow & { qty: number | null; unit_price: number | null; has_vat: boolean; remark: string | null }
-type Draft = { rows: SaleRow[]; soldAt: string; customer: string; note: string; vatMode: VatMode | null }
+type Draft = { rows: SaleRow[]; soldAt: string; customer: string; customerAddress?: string; note: string; vatMode: VatMode | null }
 
 const DRAFT_KEY = 'stock-wine:sale-draft:v1'
 
@@ -65,6 +65,13 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
     [customersQ.data],
   )
   const [note, setNote] = useState(draft?.note ?? '')
+  const [customerAddress, setCustomerAddress] = useState(draft?.customerAddress ?? '')
+  /** เลือกลูกค้าประจำ = เติมที่อยู่ล่าสุดให้ (ถ้ายังไม่ได้กรอกเอง) */
+  function pickCustomer(name: string) {
+    setCustomer(name)
+    const hit = customersQ.data?.find((c) => c.name === name)
+    if (hit?.address && !customerAddress.trim()) setCustomerAddress(hit.address)
+  }
   const [vatModeChoice, setVatMode] = useState<VatMode | null>(draft?.vatMode ?? null)
   const vatMode = vatModeChoice ?? settings.default_vat_mode
   const rate = settings.vat_rate
@@ -103,8 +110,11 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   usePrefillRows({ ids: prefillIds, to: '/sale', setRows, makeRow, isBlank })
 
   const filled = useMemo(() => rows.filter((r) => !isBlank(r)), [rows])
-  const hasContent = filled.length > 0 || !!customer || !!note
-  const draftValue = useMemo(() => ({ rows, soldAt, customer, note, vatMode: vatModeChoice }), [rows, soldAt, customer, note, vatModeChoice])
+  const hasContent = filled.length > 0 || !!customer || !!customerAddress || !!note
+  const draftValue = useMemo(
+    () => ({ rows, soldAt, customer, customerAddress, note, vatMode: vatModeChoice }),
+    [rows, soldAt, customer, customerAddress, note, vatModeChoice],
+  )
   usePersistDraft(DRAFT_KEY, draftValue, !hasContent)
 
   // ยอดของแต่ละแถว (ต้องมีทั้งจำนวนและราคา)
@@ -201,7 +211,6 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
           return <span className={v < 0 ? 'text-danger-700' : 'text-success-700'}>{v > 0 ? '+' : ''}{fmtMoney(v)}</span>
         },
       }),
-      { key: 'remark', title: 'Remark', subtitle: 'หมายเหตุ', width: 200 },
     ]
     return list
   }, [stores, lookups, byId, items, scope, vatMode, rate, calc])
@@ -214,6 +223,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
   function reset() {
     setRows(Array.from({ length: 6 }, () => newRow(null, settings.default_vat_mode === 'included')))
     setCustomer('')
+    setCustomerAddress('')
     setNote('')
     setVatMode(null)
     setShowErrors(false)
@@ -232,6 +242,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
     const doc = await post.mutateAsync({
       soldAt,
       customer,
+      customerAddress,
       note,
       vatMode,
       lines: filled.map((r) => ({
@@ -239,7 +250,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         qty: r.qty!,
         unit_price: r.unit_price!,
         has_vat: r.has_vat,
-        remark: r.remark,
+        remark: null,
       })),
     })
     setConfirm(false)
@@ -261,17 +272,20 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-[160px_1fr_1fr_220px_auto]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 md:grid-cols-2 xl:grid-cols-[160px_1fr_1.4fr_1fr]">
         <Field label="วันที่ขาย">
           <DateInput value={soldAt} max={todayIso()} onChange={setSoldAt} />
         </Field>
         <Field label="ลูกค้า">
-          <SuggestInput value={customer} onChange={setCustomer} suggestions={customerSuggestions} title="ลูกค้าประจำ" placeholder="ชื่อลูกค้า / บริษัท" />
+          <SuggestInput value={customer} onChange={pickCustomer} suggestions={customerSuggestions} title="ลูกค้าประจำ" placeholder="ชื่อลูกค้า / บริษัท" />
         </Field>
-        <Field label="หมายเหตุ">
+        <Field label="ที่อยู่ลูกค้า (แสดงในบิล)">
+          <Input value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)} placeholder="เลขที่ ถนน แขวง/ตำบล เขต/อำเภอ จังหวัด" />
+        </Field>
+        <Field label="หมายเหตุ (แสดงในบิล)">
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="เช่น เลขที่ออเดอร์" />
         </Field>
-        <Field label="ค้นหาไวน์จากคลัง">
+        <Field label="ค้นหาไวน์จากคลัง" className="xl:col-span-2">
           <Combobox
             value={scope}
             onChange={setScope}
@@ -281,7 +295,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
             ]}
           />
         </Field>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 xl:col-span-2">
           <span className="text-xs font-medium text-ink-2">ราคาที่กรอก (VAT {rate}%)</span>
           <Segmented
             className="!mx-0 !px-0"
@@ -339,7 +353,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
           },
-          fields: ['qty', 'unit_price', 'balance', 'remark'],
+          fields: ['qty', 'unit_price', 'balance'],
           aside: (r) => {
             const c = calc(r)
             return c ? <span className="font-semibold tabular-nums text-brand-800">฿{fmtMoney(c.total)}</span> : null
@@ -357,7 +371,7 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
         open={confirm}
         onClose={() => setConfirm(false)}
         title="ยืนยันบันทึกการขาย"
-        description={[customer, VAT_MODE_LABEL[vatMode], note].filter(Boolean).join(' · ')}
+        description={[customer, customerAddress, VAT_MODE_LABEL[vatMode], note].filter(Boolean).join(' · ')}
         size="lg"
         footer={
           <>

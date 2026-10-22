@@ -3,7 +3,7 @@ import type { Tables } from '@/lib/database.types'
 import { auditNow, db, docNo, MOCK_USER, persist, PgError } from '@/mocks/db'
 import { emailOf, requireAuth, respondList, rest, rpc } from '@/mocks/postgrest'
 
-type Group = { sale_ids: string[]; customer?: string | null; note?: string | null }
+type Group = { sale_ids: string[]; customer?: string | null; customer_address?: string | null; note?: string | null }
 const r2 = (n: number) => Math.round(n * 100) / 100
 
 // เลียนแบบ public.issue_bills (ทั้งชุดหรือไม่บันทึกเลย)
@@ -29,7 +29,8 @@ function issueBills(email: string, issuedAt: string | null, groups: Group[]) {
       bill_no: docNo('BL', db.seq.bill),
       issued_at: issuedAt ?? new Date().toISOString().slice(0, 10),
       customer: g.customer?.trim() || sales.map((s) => s.customer).filter(Boolean).sort()[0] || null,
-      note: g.note?.trim() || null,
+      customer_address: g.customer_address?.trim() || sales.map((s) => s.customer_address).filter(Boolean).sort()[0] || null,
+      note: g.note?.trim() || sales.map((s) => s.note).filter(Boolean).join(' · ') || null,
       subtotal: r2(sales.reduce((a, s) => a + s.subtotal, 0)),
       vat_amount: r2(sales.reduce((a, s) => a + s.vat_amount, 0)),
       total: r2(sales.reduce((a, s) => a + s.total, 0)),

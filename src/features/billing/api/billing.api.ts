@@ -44,6 +44,7 @@ export const billDocsOptions = (ids: string[], stores: Store[]) =>
             doc_no: b.bill_no,
             sold_at: b.issued_at,
             customer: b.customer,
+            customer_address: b.customer_address,
             note: b.note,
             status: b.status,
             vat_mode: modes.size === 1 ? [...modes][0] : 'included',
