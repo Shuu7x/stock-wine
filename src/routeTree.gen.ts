@@ -26,6 +26,7 @@ import { Route as AuthenticatedSettingsBillRouteImport } from './routes/_authent
 import { Route as AuthenticatedSettingsDisplayRouteImport } from './routes/_authenticated/settings/display'
 import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings/general'
 import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
+import { Route as AuthenticatedSettingsSortingRouteImport } from './routes/_authenticated/settings/sorting'
 import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
 import { Route as AuthenticatedStockIndexRouteImport } from './routes/_authenticated/stock/index'
 import { Route as AuthenticatedTransferIndexRouteImport } from './routes/_authenticated/transfer/index'
@@ -124,6 +125,12 @@ const AuthenticatedSettingsLookupsRoute =
     path: '/lookups',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsSortingRoute =
+  AuthenticatedSettingsSortingRouteImport.update({
+    id: '/sorting',
+    path: '/sorting',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsStoresRoute =
   AuthenticatedSettingsStoresRouteImport.update({
     id: '/stores',
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/adjust': typeof AuthenticatedAdjustIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/display': typeof AuthenticatedSettingsDisplayRoute
   '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
+  '/_authenticated/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
   '/_authenticated/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/settings/display'
     | '/settings/general'
     | '/settings/lookups'
+    | '/settings/sorting'
     | '/settings/stores'
     | '/adjust/'
     | '/history/'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/settings/display'
     | '/settings/general'
     | '/settings/lookups'
+    | '/settings/sorting'
     | '/settings/stores'
     | '/adjust'
     | '/history'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/display'
     | '/_authenticated/settings/general'
     | '/_authenticated/settings/lookups'
+    | '/_authenticated/settings/sorting'
     | '/_authenticated/settings/stores'
     | '/_authenticated/adjust/'
     | '/_authenticated/history/'
@@ -410,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsLookupsRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/sorting': {
+      id: '/_authenticated/settings/sorting'
+      path: '/sorting'
+      fullPath: '/settings/sorting'
+      preLoaderRoute: typeof AuthenticatedSettingsSortingRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/stores': {
       id: '/_authenticated/settings/stores'
       path: '/stores'
@@ -447,6 +467,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsDisplayRoute: typeof AuthenticatedSettingsDisplayRoute
   AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
   AuthenticatedSettingsLookupsRoute: typeof AuthenticatedSettingsLookupsRoute
+  AuthenticatedSettingsSortingRoute: typeof AuthenticatedSettingsSortingRoute
   AuthenticatedSettingsStoresRoute: typeof AuthenticatedSettingsStoresRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
@@ -457,6 +478,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsDisplayRoute: AuthenticatedSettingsDisplayRoute,
   AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
   AuthenticatedSettingsLookupsRoute: AuthenticatedSettingsLookupsRoute,
+  AuthenticatedSettingsSortingRoute: AuthenticatedSettingsSortingRoute,
   AuthenticatedSettingsStoresRoute: AuthenticatedSettingsStoresRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }

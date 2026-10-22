@@ -33,6 +33,7 @@ import {
   type StockItemPatch,
 } from '../api/stock.api'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
+import { originComparator } from '../origin-order'
 import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
 import { Loading } from '@/components/ui/loading'
 import { cn } from '@/lib/cn'
@@ -80,14 +81,23 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const live = useMemo(() => all.filter((i) => !i.deleted_at), [all])
   const lookupQ = useQuery(lookupValuesOptions())
   const lookups = useMemo(() => buildLookups(live, lookupQ.data), [live, lookupQ.data])
-  const { low_stock_threshold: lowAt } = useAppSettings()
+  const settings = useAppSettings()
+  const lowAt = settings.low_stock_threshold
   const isLow = useCallback((b: number) => lowAt > 0 && b > 0 && b <= lowAt, [lowAt])
   const balanceLabel = useCallback((b: number) => (b <= 0 ? 'หมด' : isLow(b) ? 'ใกล้หมด' : 'มีของ'), [isLow])
   const currentStore = stores.find((s) => s.code === tab)
 
+  // เรียงตามประเทศ → แคว้น ตามลำดับที่ตั้งไว้ (ตั้งค่า › การเรียงลำดับ)
+  const byOrigin = useMemo(
+    () => (settings.stock_sort_by_origin ? originComparator(lookupQ.data ?? []) : null),
+    [settings.stock_sort_by_origin, lookupQ.data],
+  )
   const serverRows = useMemo(
-    () => (currentStore ? all.filter((i) => i.store_id === currentStore.id) : all),
-    [all, currentStore],
+    () => {
+      const list = currentStore ? all.filter((i) => i.store_id === currentStore.id) : all
+      return byOrigin ? [...list].sort(byOrigin) : list
+    },
+    [all, currentStore, byOrigin],
   )
   const rows = useMemo(() => serverRows.map((r) => edits[r.id] ?? r), [serverRows, edits])
   const byId = useMemo(() => new Map(all.map((i) => [i.id, i])), [all])
@@ -313,7 +323,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
         title: `สต็อกไวน์ · ${name}`,
         subtitle: `ส่งออกเมื่อ ${at} · ${rows.length} รายการ${note}`,
         columns: cols(withStore),
-        rows,
+        rows: byOrigin ? [...rows].sort(byOrigin) : rows,
       })
       const live = all.filter((r) => !r.deleted_at)
       const sheets = currentStore

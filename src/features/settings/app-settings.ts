@@ -16,6 +16,8 @@ export const APP_SETTINGS = {
   vat_rate: { schema: z.number().min(0).max(30), default: 7 },
   /** ใบขายใหม่: ราคาที่กรอกรวม VAT แล้ว (included) หรือยังไม่รวม (excluded) */
   default_vat_mode: { schema: z.enum(['included', 'excluded']), default: 'included' as const },
+  /** หน้าสต็อกเรียงตามลำดับประเทศ → แคว้น (ตั้งลำดับที่ ตั้งค่า › การเรียงลำดับ) */
+  stock_sort_by_origin: { schema: z.boolean(), default: false },
 
   // ─── บิล / ใบเสร็จ ───
   shop_name: { schema: z.string().max(120), default: 'Wine Cellar' },
