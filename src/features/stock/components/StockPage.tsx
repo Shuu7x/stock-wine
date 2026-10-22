@@ -64,7 +64,18 @@ function diff(a: StockItem, b: StockItem): StockItemPatch | null {
   return Object.keys(patch).length ? (patch as StockItemPatch) : null
 }
 
-export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t: StoreTab) => void }) {
+export function StockPage({
+  tab,
+  onTabChange,
+  focusId,
+  onClearFocus,
+}: {
+  tab: StoreTab
+  onTabChange: (t: StoreTab) => void
+  /** สแกน QR มา: แสดงเฉพาะไวน์รายการนี้ */
+  focusId?: string
+  onClearFocus?: () => void
+}) {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [edits, setEdits] = useState<Record<string, StockItem>>({})
@@ -98,10 +109,11 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   )
   const serverRows = useMemo(
     () => {
+      if (focusId) return all.filter((i) => i.id === focusId)
       const list = currentStore ? all.filter((i) => i.store_id === currentStore.id) : all
       return byOrigin ? [...list].sort(byOrigin) : list
     },
-    [all, currentStore, byOrigin],
+    [all, currentStore, byOrigin, focusId],
   )
   const rows = useMemo(() => serverRows.map((r) => edits[r.id] ?? r), [serverRows, edits])
   const byId = useMemo(() => new Map(all.map((i) => [i.id, i])), [all])
@@ -391,6 +403,25 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           />
         </label>
       </div>
+
+      {/* มาจากสแกน QR: แสดงเฉพาะไวน์นี้ */}
+      {focusId && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gold-500/50 bg-gold-100 px-3 py-2 text-sm text-ink">
+          <QrCode className="size-4 shrink-0 text-gold-700" />
+          {byId.get(focusId) ? (
+            <span className="min-w-0 flex-1">
+              แสดงไวน์จากป้าย QR: <b>{wineLabel(byId.get(focusId)!)}</b>
+              <span className="text-ink-2"> · {storeName(stores, byId.get(focusId)!.store_id)} · Rack {byId.get(focusId)!.rack ?? '-'}</span>
+              {byId.get(focusId)!.deleted_at && <span className="text-danger-700"> · ถูกลบแล้ว</span>}
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1 text-danger-700">{itemsQ.isLoading ? 'กำลังค้นหาไวน์จากป้าย QR…' : 'ไม่พบไวน์ของป้าย QR นี้ในสต็อก'}</span>
+          )}
+          <Button size="sm" onClick={onClearFocus}>
+            ดูสต็อกทั้งหมด
+          </Button>
+        </div>
+      )}
 
       {/* แถบทำรายการกับแถวที่เลือก */}
       {selectedLive.length > 0 && (
