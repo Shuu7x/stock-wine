@@ -4,12 +4,16 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
+import { permForPath, useAccess } from '@/lib/permissions'
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS } from '../registry'
 
 /** หน้าตั้งค่า: จอใหญ่มีเมนูซ้าย · มือถือมีแถบเมนูแนวนอนเลื่อนได้ */
 export function SettingsLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
-  const current = SETTINGS_SECTIONS.find((s) => s.to && pathname.startsWith(s.to))
+  const { can } = useAccess()
+  // ซ่อนหัวข้อที่ไม่มีสิทธิ์
+  const sections = SETTINGS_SECTIONS.filter((s) => !s.to || can(permForPath(s.to)))
+  const current = sections.find((s) => s.to && pathname.startsWith(s.to))
 
   return (
     <div className="flex flex-col gap-5">
@@ -29,7 +33,7 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
       {/* มือถือ/แท็บเล็ต: เมนูแนวนอน */}
       <nav className="no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 lg:hidden" aria-label="เมนูตั้งค่า">
         <div className="flex w-max gap-1 rounded-xl bg-surface-3 p-1">
-          {SETTINGS_SECTIONS.filter((s) => s.to).map((s) => {
+          {sections.filter((s) => s.to).map((s) => {
             const active = s.id === current?.id
             return (
               <Link
@@ -52,10 +56,10 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
       <div className="flex items-start gap-6">
         {/* จอใหญ่: เมนูซ้าย */}
         <nav className="sticky top-0 hidden w-60 shrink-0 lg:block" aria-label="เมนูตั้งค่า">
-          {SETTINGS_GROUPS.map((group, gi) => (
+          {SETTINGS_GROUPS.filter((g) => sections.some((s) => s.group === g)).map((group, gi) => (
             <div key={group} className={cn(gi > 0 && 'mt-4')}>
               <div className="px-3 pb-1 text-[11px] font-medium text-muted">{group}</div>
-              {SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => {
+              {sections.filter((s) => s.group === group).map((s) => {
                 const active = s.id === current?.id
                 return s.to ? (
                   <Link

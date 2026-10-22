@@ -1,3 +1,4 @@
+import { useAccess } from '@/lib/permissions'
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle,
@@ -111,6 +112,7 @@ export function HistoryPage({
   onView: (v: HistoryView) => void
 }) {
   const stores = useQuery(storesOptions()).data ?? []
+  const { can } = useAccess()
   const [range, setRange] = useState(() => DATE_PRESETS[2].range())
   const [types, setTypes] = useState<Set<MoveType>>(() => new Set(initialType ? [initialType] : MOVE_TYPES))
   const [status, setStatus] = useState<'all' | 'posted' | 'void'>('all')
@@ -308,13 +310,13 @@ export function HistoryPage({
         footer={
           open && (
             <>
-              {open.status === 'posted' && (
+              {open.status === 'posted' && can('history.void') && (
                 <Button variant="ghost" className="text-danger-700" onClick={() => setVoiding(open)}>
                   <Ban className="size-4" /> ยกเลิกเอกสาร
                 </Button>
               )}
               <span className="ml-auto" />
-              {open.type === 'sales' && (open.billId || open.status === 'posted') && (
+              {open.type === 'sales' && can('sale') && (open.billId || open.status === 'posted') && (
                 <Button
                   loading={printBill.isPending}
                   onClick={async () => setBillIds([await printBill.billFor({ id: open.id, bill_id: open.billId, customer: open.party })])}

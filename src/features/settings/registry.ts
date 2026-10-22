@@ -37,8 +37,9 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   },
   {
     id: 'users',
+    to: '/settings/users',
     label: 'ผู้ใช้และสิทธิ์',
-    description: 'กำหนดบทบาท ผู้ดูแล / พนักงาน / ดูอย่างเดียว',
+    description: 'บทบาทและสิทธิ์ของผู้ใช้แต่ละคน',
     icon: Users,
     group: 'ระบบ',
   },

@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw/http'
 import type { Database, Tables } from '@/lib/database.types'
 import { db, logStockChange, MOCK_USER, persist, PgError } from '@/mocks/db'
 import {
+  denyUnless,
   emailOf,
   filterRows,
   pgError,
@@ -93,6 +94,8 @@ export const stockHandlers = [
 
   http.patch(rest('stock_items'), async ({ request }) => {
     if (!requireAuth(request)) return pgError('permission denied', 401, '42501')
+    const denied = denyUnless(request, 'stock.edit', 'ไม่มีสิทธิ์แก้ไขข้อมูลไวน์')
+    if (denied) return denied
     const patch = (await request.json()) as StockUpdate
     if ('balance' in patch) return pgError('permission denied for column balance', 403, '42501')
     const q = new URL(request.url).searchParams

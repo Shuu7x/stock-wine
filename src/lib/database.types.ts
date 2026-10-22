@@ -305,6 +305,28 @@ type StockItemUpdate = Partial<
   >
 >
 
+// ─── ผู้ใช้และสิทธิ์ ───
+type RoleRow = {
+  key: string
+  name: string
+  description: string | null
+  permissions: string[]
+  is_system: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+type ProfileRow = {
+  user_id: string
+  email: string | null
+  display_name: string | null
+  role_key: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+export type MyAccess = { role: string | null; role_name: string | null; is_active: boolean; permissions: string[] }
+
 export type Database = {
   public: {
     Tables: {
@@ -318,6 +340,18 @@ export type Database = {
         Row: LookupValueRow
         Insert: LookupValueWrite & Pick<LookupValueRow, 'category' | 'value'>
         Update: LookupValueWrite
+        Relationships: []
+      }
+      roles: {
+        Row: RoleRow
+        Insert: Pick<RoleRow, 'key' | 'name'> & Partial<Pick<RoleRow, 'description' | 'permissions' | 'sort_order'>>
+        Update: Partial<Pick<RoleRow, 'name' | 'description' | 'permissions' | 'sort_order'>>
+        Relationships: []
+      }
+      profiles: {
+        Row: ProfileRow
+        Insert: never
+        Update: Partial<Pick<ProfileRow, 'display_name' | 'role_key' | 'is_active'>>
         Relationships: []
       }
       app_settings: {
@@ -411,6 +445,7 @@ export type Database = {
       }
       void_receipt: { Args: { p_id: string; p_reason: string | null }; Returns: ReceiptRow }
       void_withdrawal: { Args: { p_id: string; p_reason: string | null }; Returns: WithdrawalRow }
+      my_access: { Args: Record<string, never>; Returns: MyAccess }
     }
     Enums: { [_ in never]: never }
     CompositeTypes: { [_ in never]: never }

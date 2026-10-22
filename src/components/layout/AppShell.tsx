@@ -1,3 +1,4 @@
+import { permForPath, useAccess } from '@/lib/permissions'
 import { Link, useLocation } from '@tanstack/react-router'
 import {
   ArrowLeftRight,
@@ -50,7 +51,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed)
   const [moreOpen, setMoreOpen] = useState(false)
   const { pathname } = useLocation()
-  const inMore = MOBILE_MORE.some((m) => pathname.startsWith(m.to))
+  const { can } = useAccess()
+  const nav = MOBILE_NAV.filter((n) => can(permForPath(n.to)))
+  const more = MOBILE_MORE.filter((m) => can(permForPath(m.to)))
+  const inMore = more.some((m) => pathname.startsWith(m.to))
   // เปลี่ยนหน้าแล้วปิดเมนูเพิ่มเติม
   useEffect(() => setMoreOpen(false), [pathname])
 
@@ -117,7 +121,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {MOBILE_MORE.map((m) => (
+              {more.map((m) => (
                 <Link
                   key={m.to}
                   to={m.to}
@@ -135,8 +139,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
 
       {/* เมนูล่าง (มือถือ/แท็บเล็ต) */}
-      <nav className="relative z-50 grid shrink-0 grid-cols-5 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {MOBILE_NAV.map((n) => (
+      <nav
+        className="relative z-50 grid shrink-0 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{ gridTemplateColumns: `repeat(${nav.length + 1}, minmax(0, 1fr))` }}
+      >
+        {nav.map((n) => (
           <Link
             key={n.to}
             to={n.to}

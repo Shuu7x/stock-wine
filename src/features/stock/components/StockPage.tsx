@@ -1,3 +1,4 @@
+import { permForPath, useAccess } from '@/lib/permissions'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
@@ -82,6 +83,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
   const lookupQ = useQuery(lookupValuesOptions())
   const lookups = useMemo(() => buildLookups(live, lookupQ.data), [live, lookupQ.data])
   const settings = useAppSettings()
+  const { can } = useAccess()
+  /** แก้/ลบข้อมูลไวน์ได้ไหม (ไม่มีสิทธิ์ = ตารางอ่านอย่างเดียว) */
+  const canEdit = can('stock.edit')
   const lowAt = settings.low_stock_threshold
   const isLow = useCallback((b: number) => lowAt > 0 && b > 0 && b <= lowAt, [lowAt])
   const balanceLabel = useCallback((b: number) => (b <= 0 ? 'หมด' : isLow(b) ? 'ใกล้หมด' : 'มีของ'), [isLow])
@@ -139,7 +143,7 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
 
   const columns = useMemo(() => {
     const c = wineColumns<StockItem>(stores, lookups)
-    const ro = (r: StockItem) => pendingSet.has(r.id)
+    const ro = (r: StockItem) => !canEdit || pendingSet.has(r.id)
     const balance: GridColumn<StockItem> = {
       key: 'balance',
       title: 'Balance',
@@ -402,7 +406,9 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
                 { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
                 { to: '/sale', label: 'ขาย', icon: ShoppingBag },
               ] as const
-            ).map((a) => (
+            )
+              .filter((a) => can(permForPath(a.to)))
+              .map((a) => (
               <Button
                 key={a.to}
                 size="sm"
@@ -411,14 +417,18 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
                 <a.icon className="size-4" /> {a.label}
               </Button>
             ))}
-          <Button size="sm" onClick={() => navigate({ to: '/adjust', search: { items: selectedToDelete.join(',') } })}>
-            <ClipboardCheck className="size-4" /> ปรับยอด
-          </Button>
-          <Button size="sm" onClick={() => navigate({ to: '/qr', search: { items: selectedLive.join(',') } })}>
-            <QrCode className="size-4" /> ป้าย QR
-          </Button>
+          {can('adjust') && (
+            <Button size="sm" onClick={() => navigate({ to: '/adjust', search: { items: selectedToDelete.join(',') } })}>
+              <ClipboardCheck className="size-4" /> ปรับยอด
+            </Button>
+          )}
+          {can('qr') && (
+            <Button size="sm" onClick={() => navigate({ to: '/qr', search: { items: selectedLive.join(',') } })}>
+              <QrCode className="size-4" /> ป้าย QR
+            </Button>
+          )}
           <span className="flex-1" />
-          {selectedToDelete.length > 0 && (
+          {canEdit && selectedToDelete.length > 0 && (
             <Button size="sm" variant="ghost" className="text-danger-700" onClick={() => stageDelete(selectedToDelete)}>
               <Archive className="size-4" /> ลบ
             </Button>
@@ -473,8 +483,8 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           ),
         }}
         getRowId={(r) => r.id}
-        onRowsChange={onRowsChange}
-        onDeleteRows={stageDelete}
+        onRowsChange={canEdit ? onRowsChange : undefined}
+        onDeleteRows={canEdit ? stageDelete : undefined}
         onSelectionChange={setSelectedIds}
         rowStatus={(r) => (pendingSet.has(r.id) ? 'deleted' : null)}
         cellChanged={cellChanged}

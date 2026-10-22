@@ -1,5 +1,5 @@
 import { HttpResponse } from 'msw/http'
-import { MOCK_USER, PgError } from '@/mocks/db'
+import { MOCK_USER, mockCan, PgError } from '@/mocks/db'
 import { env } from '@/lib/env'
 
 // helper เลียนแบบ PostgREST เท่าที่หน้าจอใช้: eq neq is in ilike gte lte · order · offset/limit · count
@@ -136,10 +136,37 @@ export function withLines<T extends { id: string }, L>(
   return docs.map((d) => ({ ...d, [embed]: lines.filter((l) => l[fk] === d.id) }))
 }
 
+/** สิทธิ์ที่ต้องมีต่อ rpc (ตรงกับ trigger ในฐานข้อมูล) */
+const RPC_PERMS: Record<string, string> = {
+  post_receipt: 'receive',
+  post_withdrawal: 'withdraw',
+  post_sale: 'sale',
+  issue_bills: 'sale',
+  post_transfer: 'transfer',
+  post_adjustment: 'adjust',
+  save_stock_changes: 'stock.edit',
+  void_receipt: 'history.void',
+  void_withdrawal: 'history.void',
+  void_sale: 'history.void',
+  void_bill: 'history.void',
+  void_transfer: 'history.void',
+  void_adjustment: 'history.void',
+}
+
+/** ไม่มีสิทธิ์ = error แบบ PostgREST (42501) */
+export function denyUnless(request: Request, perm: string, message = 'ไม่มีสิทธิ์ทำรายการนี้') {
+  return mockCan(emailOf(request), perm) ? null : pgError(`${message} (${perm})`, 403, '42501')
+}
+
 /** handler ของ /rpc/<fn> — PgError กลายเป็น error แบบ PostgREST */
 export function rpc<A>(fn: (request: Request, args: A) => unknown) {
   return async ({ request }: { request: Request }) => {
     if (!requireAuth(request)) return pgError('ต้อง login ก่อน', 401, '42501')
+    const fnName = new URL(request.url).pathname.split('/').pop() ?? ''
+    if (RPC_PERMS[fnName]) {
+      const denied = denyUnless(request, RPC_PERMS[fnName], fnName.startsWith('void_') ? 'ไม่มีสิทธิ์ยกเลิกเอกสาร' : 'ไม่มีสิทธิ์ทำรายการนี้')
+      if (denied) return denied
+    }
     try {
       const args = (await request.json()) as A
       return HttpResponse.json(fn(request, args) as never)

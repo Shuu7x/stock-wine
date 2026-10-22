@@ -1,11 +1,11 @@
 import { http, HttpResponse } from 'msw/http'
-import { MOCK_USER } from '@/mocks/db'
+import { MOCK_USER, mockUserId } from '@/mocks/db'
 import { auth } from '@/mocks/postgrest'
 
 // โหมด mock: login ด้วยอีเมลอะไรก็ได้ รหัสผ่าน "password"
 function user(email: string) {
   return {
-    id: MOCK_USER.id,
+    id: mockUserId(email),
     aud: 'authenticated',
     role: 'authenticated',
     email,

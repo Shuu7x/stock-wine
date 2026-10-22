@@ -1,3 +1,4 @@
+import { permForPath, useAccess } from '@/lib/permissions'
 import { RatingChips } from '@/components/ui/rating-chip'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -26,6 +27,7 @@ export function ItemPage({ id }: { id: string }) {
   const itemsQ = useQuery(stockItemsOptions())
   const stores = useQuery(storesOptions()).data ?? []
   const { low_stock_threshold: lowAt } = useAppSettings()
+  const { can } = useAccess()
   const it = itemsQ.data?.find((i) => i.id === id)
 
   if (itemsQ.isLoading) return <Loading screen />
@@ -49,6 +51,7 @@ export function ItemPage({ id }: { id: string }) {
     { to: '/adjust', label: 'ปรับยอด', icon: ClipboardCheck, disabled: false },
     { to: '/qr', label: 'พิมพ์ป้าย', icon: QrIcon, disabled: false },
   ] as const
+  const shownActions = actions.filter((a) => can(permForPath(a.to)))
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -71,7 +74,7 @@ export function ItemPage({ id }: { id: string }) {
         </div>
 
         <div className="grid grid-cols-5 gap-1 border-b border-line p-2">
-          {actions.map((a) => (
+          {shownActions.map((a) => (
             <Link
               key={a.to}
               to={a.to}

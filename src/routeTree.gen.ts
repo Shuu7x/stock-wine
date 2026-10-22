@@ -28,6 +28,7 @@ import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsLookupsRouteImport } from './routes/_authenticated/settings/lookups'
 import { Route as AuthenticatedSettingsSortingRouteImport } from './routes/_authenticated/settings/sorting'
 import { Route as AuthenticatedSettingsStoresRouteImport } from './routes/_authenticated/settings/stores'
+import { Route as AuthenticatedSettingsUsersRouteImport } from './routes/_authenticated/settings/users'
 import { Route as AuthenticatedStockIndexRouteImport } from './routes/_authenticated/stock/index'
 import { Route as AuthenticatedTransferIndexRouteImport } from './routes/_authenticated/transfer/index'
 import { Route as AuthenticatedWithdrawIndexRouteImport } from './routes/_authenticated/withdraw/index'
@@ -137,6 +138,12 @@ const AuthenticatedSettingsStoresRoute =
     path: '/stores',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsUsersRoute =
+  AuthenticatedSettingsUsersRouteImport.update({
+    id: '/users',
+    path: '/users',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedStockIndexRoute = AuthenticatedStockIndexRouteImport.update({
   id: '/stock/',
   path: '/stock/',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/history/': typeof AuthenticatedHistoryIndexRoute
   '/qr/': typeof AuthenticatedQrIndexRoute
@@ -190,6 +198,7 @@ export interface FileRoutesByTo {
   '/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/adjust': typeof AuthenticatedAdjustIndexRoute
   '/history': typeof AuthenticatedHistoryIndexRoute
   '/qr': typeof AuthenticatedQrIndexRoute
@@ -215,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/lookups': typeof AuthenticatedSettingsLookupsRoute
   '/_authenticated/settings/sorting': typeof AuthenticatedSettingsSortingRoute
   '/_authenticated/settings/stores': typeof AuthenticatedSettingsStoresRoute
+  '/_authenticated/settings/users': typeof AuthenticatedSettingsUsersRoute
   '/_authenticated/adjust/': typeof AuthenticatedAdjustIndexRoute
   '/_authenticated/history/': typeof AuthenticatedHistoryIndexRoute
   '/_authenticated/qr/': typeof AuthenticatedQrIndexRoute
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/settings/lookups'
     | '/settings/sorting'
     | '/settings/stores'
+    | '/settings/users'
     | '/adjust/'
     | '/history/'
     | '/qr/'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/settings/lookups'
     | '/settings/sorting'
     | '/settings/stores'
+    | '/settings/users'
     | '/adjust'
     | '/history'
     | '/qr'
@@ -286,6 +298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/lookups'
     | '/_authenticated/settings/sorting'
     | '/_authenticated/settings/stores'
+    | '/_authenticated/settings/users'
     | '/_authenticated/adjust/'
     | '/_authenticated/history/'
     | '/_authenticated/qr/'
@@ -437,6 +450,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsStoresRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/users': {
+      id: '/_authenticated/settings/users'
+      path: '/users'
+      fullPath: '/settings/users'
+      preLoaderRoute: typeof AuthenticatedSettingsUsersRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/stock/': {
       id: '/_authenticated/stock/'
       path: '/stock'
@@ -469,6 +489,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsLookupsRoute: typeof AuthenticatedSettingsLookupsRoute
   AuthenticatedSettingsSortingRoute: typeof AuthenticatedSettingsSortingRoute
   AuthenticatedSettingsStoresRoute: typeof AuthenticatedSettingsStoresRoute
+  AuthenticatedSettingsUsersRoute: typeof AuthenticatedSettingsUsersRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
 }
 
@@ -480,6 +501,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsLookupsRoute: AuthenticatedSettingsLookupsRoute,
   AuthenticatedSettingsSortingRoute: AuthenticatedSettingsSortingRoute,
   AuthenticatedSettingsStoresRoute: AuthenticatedSettingsStoresRoute,
+  AuthenticatedSettingsUsersRoute: AuthenticatedSettingsUsersRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
 }
 

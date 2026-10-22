@@ -1,3 +1,4 @@
+import { permForPath, useAccess } from '@/lib/permissions'
 import { Link, useLocation, type LinkProps } from '@tanstack/react-router'
 import {
   ArrowLeftRight,
@@ -81,6 +82,7 @@ function Group({ title, collapsed, children }: { title?: string; collapsed: bool
 }
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const { can } = useAccess()
   const { pathname } = useLocation()
   const is = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`)
 
@@ -119,18 +121,31 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           <NavItem to="/stock" label="สต็อกไวน์" icon={Warehouse} active={is('/stock')} collapsed={collapsed} />
         </Group>
 
-        <Group title="ทำรายการ" collapsed={collapsed}>
-          <NavItem to="/withdraw" label="เบิก" icon={GlassWater} active={is('/withdraw')} collapsed={collapsed} />
-          <NavItem to="/receive" label="รับเข้า" icon={PackagePlus} active={is('/receive')} collapsed={collapsed} />
-          <NavItem to="/transfer" label="โอนย้าย" icon={ArrowLeftRight} active={is('/transfer')} collapsed={collapsed} />
-          <NavItem to="/sale" label="ขาย" icon={ShoppingBag} active={is('/sale')} collapsed={collapsed} />
-          <NavItem to="/adjust" label="ปรับยอด" icon={ClipboardCheck} active={is('/adjust')} collapsed={collapsed} />
-        </Group>
-
-        <Group title="เครื่องมือ" collapsed={collapsed}>
-          <NavItem to="/history" label="ความเคลื่อนไหว" icon={History} active={is('/history')} collapsed={collapsed} />
-          <NavItem to="/qr" label="ป้าย QR" icon={QrCode} active={is('/qr')} collapsed={collapsed} />
-        </Group>
+        {(
+          [
+            ['ทำรายการ', [
+              ['/withdraw', 'เบิก', GlassWater],
+              ['/receive', 'รับเข้า', PackagePlus],
+              ['/transfer', 'โอนย้าย', ArrowLeftRight],
+              ['/sale', 'ขาย', ShoppingBag],
+              ['/adjust', 'ปรับยอด', ClipboardCheck],
+            ]],
+            ['เครื่องมือ', [
+              ['/history', 'ความเคลื่อนไหว', History],
+              ['/qr', 'ป้าย QR', QrCode],
+            ]],
+          ] as const
+        ).map(([title, items]) => {
+          // เมนูตามสิทธิ์ของผู้ใช้ · กลุ่มที่ไม่เหลือเมนูไม่ต้องแสดงหัวข้อ
+          const visible = items.filter(([to]) => can(permForPath(to)))
+          return visible.length ? (
+            <Group key={title} title={title} collapsed={collapsed}>
+              {visible.map(([to, label, icon]) => (
+                <NavItem key={to} to={to} label={label} icon={icon} active={is(to)} collapsed={collapsed} />
+              ))}
+            </Group>
+          ) : null
+        })}
 
         <div className="mt-auto pt-4 pb-2">
           <NavItem to="/settings" label="ตั้งค่า" icon={Settings} active={is('/settings')} collapsed={collapsed} />

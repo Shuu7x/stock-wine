@@ -22,10 +22,47 @@ type DB = {
   bills: Tables<'bills'>[]
   bill_sales: Tables<'bill_sales'>[]
   receipt_attachments: Tables<'receipt_attachments'>[]
+  roles: Tables<'roles'>[]
+  profiles: Tables<'profiles'>[]
   seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
+
+// ─── ผู้ใช้และสิทธิ์ (ตรงกับ migration 20261018) ───
+const ALL_PERMS = ['stock.edit', 'withdraw', 'receive', 'transfer', 'sale', 'adjust', 'history.view', 'history.void', 'qr', 'settings.manage', 'users.manage']
+function seedRoles(): Tables<'roles'>[] {
+  const t = new Date().toISOString()
+  const role = (key: string, name: string, description: string, permissions: string[], sort_order: number) => ({
+    key, name, description, permissions, is_system: true, sort_order, created_at: t, updated_at: t,
+  })
+  return [
+    role('admin', 'ผู้ดูแลระบบ', 'ทำได้ทุกอย่าง รวมถึงจัดการผู้ใช้และสิทธิ์', ALL_PERMS, 1),
+    role('manager', 'ผู้จัดการ', 'ทำรายการทุกอย่าง ยกเลิกเอกสาร และตั้งค่าระบบ (ยกเว้นจัดการผู้ใช้)', ALL_PERMS.filter((p) => p !== 'users.manage'), 2),
+    role('staff', 'พนักงาน', 'เบิก รับเข้า โอนย้าย ขาย ดูความเคลื่อนไหว พิมพ์ป้าย', ['withdraw', 'receive', 'transfer', 'sale', 'history.view', 'qr'], 3),
+    role('viewer', 'ดูอย่างเดียว', 'ดูสต็อกและความเคลื่อนไหว พิมพ์ป้าย QR', ['history.view', 'qr'], 4),
+  ]
+}
+/** id ผู้ใช้ mock คงที่ตามอีเมล (admin ใช้ id เดิม) */
+export function mockUserId(email: string) {
+  const e = email.trim().toLowerCase()
+  if (e === 'admin@wine.local') return '00000000-0000-4000-8000-000000000001'
+  let h = 0
+  for (const ch of e) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return `00000000-0000-4000-8000-${h.toString(16).padStart(12, '0').slice(-12)}`
+}
+function seedProfiles(): Tables<'profiles'>[] {
+  const t = new Date().toISOString()
+  // ผู้ใช้ตัวอย่างแต่ละบทบาท (login รหัส "password")
+  return ([
+    ['admin@wine.local', 'ผู้ดูแล', 'admin'],
+    ['manager@wine.local', 'ผู้จัดการ', 'manager'],
+    ['staff@wine.local', 'พนักงานหน้าร้าน', 'staff'],
+    ['viewer@wine.local', 'ดูอย่างเดียว', 'viewer'],
+  ] as const).map(([email, display_name, role_key]) => ({
+    user_id: mockUserId(email), email, display_name, role_key, is_active: true, created_at: t, updated_at: t,
+  }))
+}
 export const MOCK_USER = {
   id: '00000000-0000-4000-8000-000000000001',
   email: 'admin@wine.local',
@@ -218,6 +255,8 @@ function seed(): DB {
     withdrawal_lines: [],
     stock_item_logs: [],
     lookup_values: seedLookups(),
+    roles: seedRoles(),
+    profiles: seedProfiles(),
     app_settings: seedSettings(),
     ...emptyOps(),
     seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1 },
@@ -233,6 +272,8 @@ function load(): DB {
       saved.stock_item_logs ??= []
       // ข้อมูลที่บันทึกไว้ก่อนมีหน้าตั้งค่า
       saved.lookup_values ??= seedLookups()
+      saved.roles ??= seedRoles()
+      saved.profiles ??= seedProfiles()
       saved.app_settings ??= seedSettings()
       for (const st of saved.stores) st.is_active ??= true
       // ข้อมูลที่บันทึกไว้ก่อนมีขาย/ปรับยอด/โอนย้าย
@@ -390,3 +431,22 @@ export function logStockChange(
     ...audit(),
   })
 }
+
+/** เลียนแบบ public.my_access() · ผู้ใช้ใหม่ได้บทบาท viewer (เหมือน trigger handle_new_user) */
+export function accessOf(email: string) {
+  let p = db.profiles.find((x) => x.email?.toLowerCase() === email.toLowerCase())
+  if (!p) {
+    const t = new Date().toISOString()
+    p = { user_id: mockUserId(email), email, display_name: null, role_key: 'viewer', is_active: true, created_at: t, updated_at: t }
+    db.profiles.push(p)
+    persist()
+  }
+  const r = db.roles.find((x) => x.key === p.role_key)
+  return {
+    role: r?.key ?? null,
+    role_name: r?.name ?? null,
+    is_active: p.is_active,
+    permissions: p.is_active ? (r?.permissions ?? []) : [],
+  }
+}
+export const mockCan = (email: string, perm: string) => accessOf(email).permissions.includes(perm)

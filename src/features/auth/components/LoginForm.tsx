@@ -84,7 +84,9 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             เข้าสู่ระบบ
           </Button>
           {env.VITE_ENABLE_MOCK && (
-            <p className="text-center text-xs text-muted">โหมดทดลอง (mock): อีเมลใดก็ได้ รหัสผ่าน “password”</p>
+            <p className="text-center text-xs text-muted">
+              โหมดทดลอง (mock): รหัสผ่าน “password” · ลองบทบาทต่างๆ ด้วย admin@ / manager@ / staff@ / viewer@wine.local
+            </p>
           )}
         </div>
       </form>

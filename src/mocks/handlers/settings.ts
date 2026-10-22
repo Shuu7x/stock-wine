@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw/http'
 import type { Tables } from '@/lib/database.types'
 import { auditNow, db, MOCK_USER, persist, PgError } from '@/mocks/db'
-import { filterRows, pgError, requireAuth, respondList, respondMaybeObject, rest } from '@/mocks/postgrest'
+import { denyUnless, filterRows, pgError, requireAuth, respondList, respondMaybeObject, rest } from '@/mocks/postgrest'
 
 type Store = Tables<'stores'>
 type Lookup = Tables<'lookup_values'>
@@ -59,6 +59,8 @@ export const settingsHandlers = [
   http.post(rest('stores'), ({ request }) =>
     guard(async () => {
       if (!requireAuth(request)) return pgError('permission denied', 401, '42501')
+      const denied = denyUnless(request, 'settings.manage', 'ไม่มีสิทธิ์แก้ตั้งค่า')
+      if (denied) return denied
       const body = (await request.json()) as Partial<Store> | Partial<Store>[]
       const input = Array.isArray(body) ? body : [body]
       const created: Store[] = input.map((b, i) => ({
@@ -78,6 +80,8 @@ export const settingsHandlers = [
   http.patch(rest('stores'), ({ request }) =>
     guard(async () => {
       if (!requireAuth(request)) return pgError('permission denied', 401, '42501')
+      const denied = denyUnless(request, 'settings.manage', 'ไม่มีสิทธิ์แก้ตั้งค่า')
+      if (denied) return denied
       const patch = (await request.json()) as Partial<Store>
       const targets = new Set(filterRows(db.stores, new URL(request.url).searchParams))
       const before = new Map(db.stores.map((s) => [s.id, s]))
@@ -98,6 +102,8 @@ export const settingsHandlers = [
   http.post(rest('lookup_values'), ({ request }) =>
     guard(async () => {
       if (!requireAuth(request)) return pgError('permission denied', 401, '42501')
+      const denied = denyUnless(request, 'settings.manage', 'ไม่มีสิทธิ์แก้ตั้งค่า')
+      if (denied) return denied
       const body = (await request.json()) as Partial<Lookup> | Partial<Lookup>[]
       const input = Array.isArray(body) ? body : [body]
       const next = [...db.lookup_values]
@@ -136,6 +142,8 @@ export const settingsHandlers = [
   http.post(rest('app_settings'), ({ request }) =>
     guard(async () => {
       if (!requireAuth(request)) return pgError('permission denied', 401, '42501')
+      const denied = denyUnless(request, 'settings.manage', 'ไม่มีสิทธิ์แก้ตั้งค่า')
+      if (denied) return denied
       const body = (await request.json()) as Array<{ key: string; value: unknown }> | { key: string; value: unknown }
       const input = Array.isArray(body) ? body : [body]
       for (const b of input) {

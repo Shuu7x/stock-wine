@@ -1,3 +1,4 @@
+import { useAccess } from '@/lib/permissions'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronsUpDown, LogOut, RotateCcw, UserCog } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -32,6 +33,7 @@ export function Avatar({ email, className }: { email: string | null; className?:
  */
 export function UserMenu({ placement, compact = false }: { placement: 'sidebar' | 'header'; compact?: boolean }) {
   const email = useSessionEmail()
+  const { roleName } = useAccess()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -88,7 +90,7 @@ export function UserMenu({ placement, compact = false }: { placement: 'sidebar' 
           <>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-white">{email?.split('@')[0] ?? '—'}</span>
-              <span className="block truncate text-xs text-brand-300">{email}</span>
+              <span className="block truncate text-xs text-brand-300">{roleName ?? email}</span>
             </span>
             <ChevronsUpDown className="size-4 shrink-0 text-brand-300" />
           </>
