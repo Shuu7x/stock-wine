@@ -381,9 +381,10 @@ export function StockPage({ tab, onTabChange }: { tab: StoreTab; onTabChange: (t
           {selectedWithStock.length > 0 &&
             (
               [
-                { to: '/sale', label: 'ขาย', icon: ShoppingBag },
+                // เรียงตามเมนู: เบิก · โอนย้าย · ขาย (ปรับยอดต่อท้าย — เลือกไวน์ที่ยอดเป็น 0 ได้)
                 { to: '/withdraw', label: 'เบิก', icon: GlassWater },
                 { to: '/transfer', label: 'โอนย้าย', icon: ArrowLeftRight },
+                { to: '/sale', label: 'ขาย', icon: ShoppingBag },
               ] as const
             ).map((a) => (
               <Button
