@@ -49,8 +49,8 @@ const SIZES = {
 } as const;
 type SizeKey = keyof typeof SIZES;
 
-// กระดาษ A4 ขอบ 6 มม. · เว้นระหว่างป้าย 2 มม. ให้ตัดมุมโค้งได้
-const PAGE = { w: 210, h: 297, margin: 6, gap: 2 };
+// กระดาษ A4 ขอบ 6 มม. · ป้ายวางชิดกัน (ไม่มีช่องว่าง) ตัดตามเส้นตรงเส้นเดียวได้ทั้งแถว/คอลัมน์
+const PAGE = { w: 210, h: 297, margin: 6, gap: 0 };
 
 type Fields = {
   country: boolean;
@@ -137,8 +137,8 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
   return (
     <div
       className="relative overflow-hidden bg-white"
-      // มุมโค้งเท่าแนวตัด แถบหัวสีจะได้โค้งตาม
-      style={{ width: `${s.w}mm`, height: `${s.h}mm`, borderRadius: "2.5mm" }}
+      // ป้ายชิดกัน: มุมฉาก ตัดตรงได้
+      style={{ width: `${s.w}mm`, height: `${s.h}mm` }}
     >
       <div
         className="flex h-full flex-col"
@@ -269,23 +269,22 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
           </div>
         </div>
       </div>
-      {/* แนวตัด */}
+      {/* แนวตัด: วาดทับขอบป้ายพอดี — ป้ายที่ชิดกันใช้เส้นเดียวกัน */}
       <svg
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 overflow-visible"
         width={`${s.w}mm`}
         height={`${s.h}mm`}
         viewBox={`0 0 ${s.w} ${s.h}`}
         aria-hidden
       >
         <rect
-          x={0.15}
-          y={0.15}
-          width={s.w - 0.3}
-          height={s.h - 0.3}
-          rx={2.5}
+          x={0}
+          y={0}
+          width={s.w}
+          height={s.h}
           fill="none"
-          stroke="#b5b5b5"
-          strokeWidth={0.25}
+          stroke="#9a9a9a"
+          strokeWidth={0.2}
           strokeDasharray="1.2 0.9"
         />
       </svg>
