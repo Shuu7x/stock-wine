@@ -16,6 +16,7 @@ import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/set
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
 import { buildLookups, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
+import { DateInput } from '@/components/ui/date-input'
 import { usePostWithdrawal, type WithdrawalLineInput } from '../api/withdrawals.api'
 
 type WithdrawRow = {
@@ -40,7 +41,7 @@ const newRow = (stockItemId: string | null = null, qty: number | null = null): W
 const isBlank = (r: WithdrawRow) => !r.stock_item_id && !r.wine_text?.trim() && r.qty == null && !r.remark
 
 const DRAFT_KEY = 'stock-wine:withdraw-draft:v1'
-type Draft = { rows: WithdrawRow[]; note: string }
+type Draft = { rows: WithdrawRow[]; note: string; withdrawDate?: string }
 function loadDraft(): Draft | null {
   try {
     const raw = localStorage.getItem(DRAFT_KEY)
@@ -75,6 +76,8 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
   const [draft] = useState(loadDraft)
   const [rows, setRows] = useState<WithdrawRow[]>(() => draft?.rows ?? Array.from({ length: 6 }, () => newRow()))
   const [note, setNote] = useState(draft?.note ?? '')
+  /** วันที่เบิก (หัวเอกสาร) ใช้กับทุกรายการ */
+  const [withdrawDate, setWithdrawDate] = useState(draft?.withdrawDate ?? todayIso())
   const [scope, setScope] = useState<number | 0>(0)
   const [showErrors, setShowErrors] = useState(false)
   const [confirm, setConfirm] = useState(false)
@@ -94,8 +97,8 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
 
   useEffect(() => {
     const filled = rows.some((r) => !isBlank(r)) || note
-    saveDraft(filled ? { rows, note } : null)
-  }, [rows, note])
+    saveDraft(filled ? { rows, note, withdrawDate } : null)
+  }, [rows, note, withdrawDate])
 
   const filled = useMemo(() => rows.filter((r) => !isBlank(r)), [rows])
 
@@ -110,7 +113,6 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
       if (r.qty == null) e.qty = 'ระบุจำนวนที่เบิก'
       else if (!Number.isInteger(r.qty) || r.qty <= 0) e.qty = 'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0'
       else if (it && (used.get(it.id) ?? 0) > it.balance) e.qty = `เกินยอดคงเหลือ (เหลือ ${it.balance} ขวด)`
-      if (!r.withdraw_date) e.withdraw_date = 'ระบุวันที่เบิก'
       if (Object.keys(e).length) out.set(r._id, e)
     }
     return out
@@ -221,14 +223,6 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         return Number.isInteger(n) && n >= 0 ? n : undefined
       },
     }
-    const date: GridColumn<WithdrawRow> = {
-      key: 'withdraw_date',
-      title: 'วันที่เบิก',
-      width: 120,
-      type: 'date',
-      align: 'center',
-      placeholder: 'วว/ดด/ปปปป',
-    }
     const remark: GridColumn<WithdrawRow> = {
       key: 'remark',
       title: 'Remark',
@@ -246,7 +240,6 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
       lift(c.rack),
       balance,
       qty,
-      date,
       lift(c.price),
       lift(c.supplier),
       lift(c.purchaseDate),
@@ -263,12 +256,14 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
   function reset() {
     setRows(Array.from({ length: 6 }, () => newRow()))
     setNote('')
+    setWithdrawDate(todayIso())
     setShowErrors(false)
     saveDraft(null)
   }
 
   function trySave() {
     if (!filled.length) return toast.info('ยังไม่มีรายการเบิก')
+    if (!withdrawDate) return toast.error('ระบุวันที่เบิก')
     if (noteRequired && !note.trim()) {
       setNoteError(true)
       return toast.error('ต้องกรอกหมายเหตุ / ผู้เบิก ก่อนบันทึก (ตั้งค่าไว้ในหน้าตั้งค่า)')
@@ -284,7 +279,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
     const lines: WithdrawalLineInput[] = filled.map((r) => ({
       stock_item_id: r.stock_item_id!,
       qty: r.qty!,
-      withdraw_date: r.withdraw_date!,
+      withdraw_date: withdrawDate,
       remark: r.remark,
     }))
     const doc = await post.mutateAsync({ note, lines })
@@ -309,7 +304,10 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[220px_1fr]">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[160px_220px_1fr]">
+        <Field label="วันที่เบิก">
+          <DateInput value={withdrawDate} max={todayIso()} onChange={(v) => v && setWithdrawDate(v)} />
+        </Field>
         <Field label="ค้นหาไวน์จากคลัง">
           <Combobox
             value={scope}
@@ -374,7 +372,7 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
           },
-          fields: ['qty','withdraw_date','balance','remark'],
+          fields: ['qty','balance','remark'],
         }}
         getRowId={(r) => r._id}
         onRowsChange={setRows}
