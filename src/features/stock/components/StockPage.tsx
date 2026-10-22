@@ -35,7 +35,7 @@ import {
 } from '../api/stock.api'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { originComparator } from '../origin-order'
-import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel } from '../columns'
+import { buildLookups, drinkLabel, storeName, wineColumns, wineLabel, WineBadges } from '../columns'
 import { Loading } from '@/components/ui/loading'
 import { cn } from '@/lib/cn'
 
@@ -507,8 +507,10 @@ export function StockPage({
         card={{
           noun: 'ไวน์',
           title: (r) => `${r.wine_name} ${r.vintage ?? 'NV'}`,
-          subtitle: (r) => [storeName(stores, r.store_id), `Rack ${r.rack ?? '-'}`, r.country].filter(Boolean).join(' · '),
-          fields: ['maturity', 'price_per_bottle', 'rating', 'supplier'],
+          subtitle: (r) => `${storeName(stores, r.store_id)} · Rack ${r.rack ?? '-'}`,
+          badges: (r) => <WineBadges w={r} flags={lookups.flags} />,
+          fields: ['maturity', 'price_per_bottle', 'supplier', 'rating'],
+          wide: ['rating'],
           aside: (r) => (
             <div className="leading-tight">
               <div className={cn('text-xl font-bold tabular-nums', r.balance <= 0 ? 'text-muted' : isLow(r.balance) ? 'text-warning-700' : 'text-brand-800')}>{fmtInt(r.balance)}</div>

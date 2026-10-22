@@ -16,7 +16,7 @@ import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { appSettingsOptions, lookupValuesOptions } from '@/features/settings/api/settings.api'
 import { stockItemsOptions, storesOptions, type StockItem, type Store } from '@/features/stock/api/stock.api'
-import { buildLookups, identityKey, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
+import { buildLookups, identityKey, storeName, wineColumns, wineLabel, WineBadges } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { IMPORT_ACCEPT, readTableFile, tableToRows } from '@/lib/import-table'
 import { AttachFiles } from './AttachFiles'
@@ -480,7 +480,9 @@ export function ReceivePage() {
           noun: 'รายการรับเข้า',
           title: (r) => (r.wine_name ? `${r.wine_name} ${r.vintage ?? ''}`.trim() : <span className="text-muted">ยังไม่ได้ระบุไวน์</span>),
           subtitle: (r) => (r.store_id ? `${storeName(stores, r.store_id)} · Rack ${r.rack ?? '-'}` : null),
-          fields: ['qty', 'price_per_bottle', 'rating', 'maturity'],
+          badges: (r) => <WineBadges w={r} flags={lookups.flags} />,
+          fields: ['qty', 'price_per_bottle', 'maturity', 'rating'],
+          wide: ['rating'],
         }}
         getRowId={(r) => r._id}
         onRowsChange={setRows}

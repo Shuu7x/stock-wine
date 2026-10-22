@@ -85,6 +85,29 @@ const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
   burgundy: { bg: '#f4ecfa', fg: '#6a2c91', ring: '#dccaeb' },
   whisky: { bg: '#fcefe4', fg: '#a3500f', ring: '#f1d0b4' },
 }
+/** ป้ายข้อมูลไวน์บนการ์ด (มือถือ): ประเภท · ขนาด (เมื่อไม่ใช่ Normal) · ธง + ประเทศ · แคว้น */
+export function WineBadges({
+  w,
+  flags,
+}: {
+  w: { wine_type?: string | null; bottle_size?: string | null; country?: string | null; region?: string | null }
+  flags?: Map<string, string>
+}) {
+  const size = w.bottle_size?.trim()
+  return (
+    <>
+      {w.wine_type && <WineTypeTag type={w.wine_type} />}
+      {size && size.toLowerCase() !== 'normal' && <SizeTag size={size} />}
+      {w.country && (
+        <span className="text-ink-2">
+          <CountryName country={w.country} flag={flags?.get(w.country.trim().toLowerCase())} />
+        </span>
+      )}
+      {w.region && <span className="text-muted">· {w.region}</span>}
+    </>
+  )
+}
+
 /** ชื่อประเทศพร้อมธงชาติ — ธงที่ตั้งเองมาก่อน · ไม่รู้จักประเทศ = ชื่ออย่างเดียว */
 export function CountryName({ country, flag: custom }: { country: string | null; flag?: string | null }) {
   if (!country) return null

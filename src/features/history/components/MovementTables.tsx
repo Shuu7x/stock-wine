@@ -290,9 +290,9 @@ export function DocLinesGrid({ tab, doc, stores }: { tab: DocTab; doc: Record<st
         pageSizeKey={`history-doc-${tab}`}
         card={{
           noun: 'รายการ',
-          title: (r) => `${r.wine} ${r.vintage}`,
+          title: (r) => `${r.wine} ${r.vintage}${r.size && String(r.size).toLowerCase() !== 'normal' ? ` (${r.size})` : ''}`,
           subtitle: (r) => `ขวดที่ ${r.unit}`,
-          fields: defs.filter((d) => !['wine', 'vintage', 'unit'].includes(d.key)).map((d) => d.key),
+          fields: defs.filter((d) => !['wine', 'vintage', 'unit', 'size'].includes(d.key)).map((d) => d.key),
         }}
         emptyState="ไม่มีรายการ"
       />

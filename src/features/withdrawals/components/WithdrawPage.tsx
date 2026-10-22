@@ -14,7 +14,7 @@ import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { lookupValuesOptions, useAppSettings } from '@/features/settings/api/settings.api'
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
-import { buildLookups, storeName, wineColumns, wineLabel } from '@/features/stock/columns'
+import { buildLookups, storeName, wineColumns, wineLabel, WineBadges } from '@/features/stock/columns'
 import { fmtInt, fmtMoney, todayIso } from '@/lib/format'
 import { DateInput } from '@/components/ui/date-input'
 import { usePostWithdrawal, type WithdrawalLineInput } from '../api/withdrawals.api'
@@ -374,6 +374,10 @@ export function WithdrawPage({ prefillIds }: { prefillIds: string[] }) {
           subtitle: (r) => {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
+          },
+          badges: (r) => {
+            const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
+            return it ? <WineBadges w={it} flags={lookups.flags} /> : null
           },
           fields: ['qty','balance','remark'],
         }}

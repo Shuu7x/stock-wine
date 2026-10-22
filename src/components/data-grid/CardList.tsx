@@ -259,16 +259,20 @@ export function CardList<R>({
                     {card?.title ? card.title(r) : formatValue(titleCol, r) || <span className="text-muted">(ยังไม่ได้เลือก)</span>}
                   </div>
                   {card?.subtitle && <div className="truncate text-xs text-muted">{card.subtitle(r)}</div>}
-                  <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                  {card?.badges && <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs empty:hidden">{card.badges(r)}</div>}
+                  <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
                     {fields.map((k) => {
                       const c = columns.find((x) => x.key === k)
                       if (!c) return null
                       const text = formatValue(c, r)
                       if (!text && !c.render) return null
+                      const wide = card?.wide?.includes(k)
                       return (
-                        <div key={k} className="flex min-w-0 gap-1">
+                        <div key={k} className={cn('flex min-w-0 items-center gap-1', wide && 'col-span-2')}>
                           <dt className="shrink-0 text-muted">{c.title}</dt>
-                          <dd className={cn('min-w-0 truncate font-medium', cellChanged?.(r, k) && 'text-warning-700')}>{c.render ? c.render(r) : text}</dd>
+                          <dd className={cn('min-w-0 font-medium', wide ? 'flex flex-wrap gap-1' : 'truncate', cellChanged?.(r, k) && 'text-warning-700')}>
+                            {c.render ? c.render(r) : text}
+                          </dd>
                         </div>
                       )
                     })}

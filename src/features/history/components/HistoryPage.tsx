@@ -50,6 +50,7 @@ import {
   MOVE_TYPES,
   totals,
   TYPE_META,
+  wineKey,
   useMovements,
   type DocType,
   type GroupBy,
@@ -486,7 +487,7 @@ function RowsTable({ rows, onOpen }: { rows: MovementRow[]; onOpen: (t: DocType 
       rowClassName={(r) => (r.status === 'void' ? 'text-muted' : undefined)}
       card={{
         noun: 'รายการ',
-        title: (r) => `${r.wine} ${r.vintage}`,
+        title: (r) => wineKey(r),
         subtitle: (r) => [fmtDate(r.date), r.kind, r.doc_no, `${r.store} · ${r.rack ?? '-'}`].filter(Boolean).join(' · '),
         fields: ['net', 'amount', 'party', 'remark'],
       }}

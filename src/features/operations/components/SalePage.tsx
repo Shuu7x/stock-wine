@@ -15,7 +15,7 @@ import { Field, Textarea } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
 import { Segmented } from '@/components/ui/segmented'
 import { useAppSettings } from '@/features/settings/api/settings.api'
-import { storeName, wineLabel } from '@/features/stock/columns'
+import { storeName, wineLabel, WineBadges } from '@/features/stock/columns'
 import { makePicker, useStockData, wineError, type PickerRow } from '@/features/stock/item-picker'
 import { usePrefillRows } from '@/features/stock/use-prefill'
 import type { VatMode } from '@/lib/database.types'
@@ -358,6 +358,10 @@ export function SalePage({ prefillIds }: { prefillIds: string[] }) {
           subtitle: (r) => {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
+          },
+          badges: (r) => {
+            const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
+            return it ? <WineBadges w={it} flags={lookups.flags} /> : null
           },
           fields: ['qty', 'unit_price', 'balance'],
           aside: (r) => {

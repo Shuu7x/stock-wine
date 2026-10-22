@@ -12,7 +12,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { DocToolbar } from '@/components/ui/doc-toolbar'
 import { Field, Input } from '@/components/ui/field'
 import { PageHeader } from '@/components/ui/page'
-import { identityKey, storeName, wineLabel } from '@/features/stock/columns'
+import { identityKey, storeName, wineLabel, WineBadges } from '@/features/stock/columns'
 import { makePicker, useStockData, wineError, type PickerRow } from '@/features/stock/item-picker'
 import { usePrefillRows } from '@/features/stock/use-prefill'
 import { fmtInt, todayIso } from '@/lib/format'
@@ -273,6 +273,10 @@ export function TransferPage({ prefillIds }: { prefillIds: string[] }) {
           subtitle: (r) => {
             const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
             return it ? `${storeName(stores, it.store_id)} · Rack ${it.rack ?? '-'}` : null
+          },
+          badges: (r) => {
+            const it = r.stock_item_id ? byId.get(r.stock_item_id) : undefined
+            return it ? <WineBadges w={it} flags={lookups.flags} /> : null
           },
           fields: ['qty','to_store_id','to_rack','remark'],
         }}
