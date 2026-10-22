@@ -122,6 +122,7 @@ export const settingsHandlers = [
             sort_order: b.sort_order ?? 0,
             is_active: b.is_active ?? true,
             parent: b.parent ?? null,
+            icon: b.icon ?? null,
             ...auditNow(),
           }
           next.push(row)

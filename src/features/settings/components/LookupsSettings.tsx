@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
 import { stockItemsOptions, storesOptions, type StockItem } from '@/features/stock/api/stock.api'
-import { storeName } from '@/features/stock/columns'
+import { CountryName, storeName } from '@/features/stock/columns'
+import { allCountryFlags, flagOf, parseFlag } from '@/lib/flags'
 import { fmtInt } from '@/lib/format'
 import { Loading } from '@/components/ui/loading'
 import { StoresSettings } from './StoresSettings'
@@ -32,6 +33,8 @@ type Row = {
   is_active: boolean
   /** แคว้น: ประเทศของแคว้น */
   parent: string | null
+  /** ประเทศ: ธงที่ตั้งเอง · ว่าง = อัตโนมัติ */
+  icon: string | null
 }
 
 const CATEGORIES: Array<{ value: LookupCategory; label: string; valueTitle: string; field: keyof StockItem }> = [
@@ -58,6 +61,7 @@ const toRow = (l: LookupValue): Row => ({
   sort_order: l.sort_order,
   is_active: l.is_active,
   parent: l.parent ?? null,
+  icon: l.icon ?? null,
 })
 
 export type MasterTab = 'stores' | LookupCategory
@@ -86,8 +90,8 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       if (!r.id) return []
       const o = original.get(r.id)
       if (!o) return []
-      return (['value', 'sort_order', 'is_active', 'parent'] as const).filter((k) =>
-        k === 'value' ? (r.value ?? '').trim() !== o.value : k === 'parent' ? (r.parent ?? null) !== (o.parent ?? null) : r[k] !== o[k],
+      return (['value', 'sort_order', 'is_active', 'parent', 'icon'] as const).filter((k) =>
+        k === 'value' ? (r.value ?? '').trim() !== o.value : k === 'parent' || k === 'icon' ? (r[k] ?? null) !== (o[k] ?? null) : r[k] !== o[k],
       )
     },
     [original],
@@ -150,6 +154,23 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
     [rows, items],
   )
 
+  // ธงที่ตั้งเองของแต่ละประเทศ (แสดงในคอลัมน์ประเทศของแคว้น)
+  const flagByCountry = useMemo(
+    () => new Map(rows.filter((r) => r.category === 'country' && r.icon).map((r) => [norm(r.value), r.icon!])),
+    [rows],
+  )
+  // ประเทศที่พบมากที่สุดของแต่ละแคว้นในสต็อก
+  const stockCountry = useMemo(() => {
+    const count = new Map<string, Map<string, number>>()
+    for (const it of items) {
+      if (!it.region?.trim() || !it.country?.trim()) continue
+      const m = count.get(norm(it.region)) ?? new Map<string, number>()
+      m.set(it.country.trim(), (m.get(it.country.trim()) ?? 0) + 1)
+      count.set(norm(it.region), m)
+    }
+    return new Map([...count].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1])[0][0]]))
+  }, [items])
+
   const newRow = useCallback(
     (value: string | null = null, store_id: number | null = null, parent: string | null = null): Row => {
       const inCat = rows.filter((r) => r.category === category)
@@ -162,6 +183,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         sort_order: Math.max(0, ...inCat.map((r) => r.sort_order ?? 0)) + 1,
         is_active: true,
         parent,
+        icon: null,
       }
     },
     [rows, category, stores],
@@ -206,14 +228,57 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         format: (v) => (v == null ? '' : fmtInt(v as number)),
       },
     ]
+    if (category === 'country') {
+      list.splice(1, 0, {
+        key: 'icon',
+        title: 'ธง',
+        subtitle: 'ว่าง = อัตโนมัติ',
+        width: 130,
+        align: 'center',
+        placeholder: 'พิมพ์ชื่อ/รหัสประเทศ',
+        // พิมพ์ชื่อประเทศ (อังกฤษ/ไทย) หรือรหัส เช่น DE แล้วเลือกธง · วางอิโมจิมาเองก็ได้
+        suggest: (q) => {
+          const s = q.trim().toLowerCase()
+          if (!s) return []
+          return allCountryFlags()
+            .filter((c) => c.code.toLowerCase() === s || c.name.toLowerCase().includes(s) || c.th.includes(q.trim()))
+            .slice(0, 30)
+            .map((c) => ({ key: c.code, label: `${c.flag} ${c.name}`, detail: c.th, aside: c.code, apply: (row: Row) => ({ ...row, icon: c.flag }) }))
+        },
+        parse: (t) => parseFlag(t),
+        render: (r) => {
+          const auto = flagOf(r.value)
+          return r.icon ? (
+            <span className="text-lg leading-none">{r.icon}</span>
+          ) : auto ? (
+            <span className="inline-flex items-center gap-1.5 text-muted" title="ธงอัตโนมัติจากชื่อประเทศ">
+              <span className="text-lg leading-none opacity-80">{auto}</span>
+              <span className="text-[11px]">อัตโนมัติ</span>
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted">ไม่รู้จักชื่อนี้</span>
+          )
+        },
+      })
+    }
     if (category === 'region') {
       list.splice(1, 0, {
         key: 'parent',
         title: 'ประเทศ',
         subtitle: 'แคว้นนี้อยู่ประเทศไหน',
-        width: 170,
+        width: 190,
         options: countryOptions,
         parse: (t) => t.trim() || null,
+        // ยังไม่ระบุ: บอกประเทศที่พบในสต็อกให้ (เลือกแล้วบันทึกเพื่อผูกจริง)
+        render: (r) => {
+          if (r.parent) return <CountryName country={r.parent} flag={flagByCountry.get(norm(r.parent))} />
+          const guess = stockCountry.get(norm(r.value))
+          return guess ? (
+            <span className="truncate text-muted italic" title="ยังไม่ได้ผูกประเทศ — ประเทศนี้พบมากที่สุดในสต็อก">
+              {guess} (จากสต็อก)
+            </span>
+          ) : null
+        },
       })
     }
     if (category === 'rack') {
@@ -235,7 +300,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       })
     }
     return list
-  }, [cat.valueTitle, category, stores, usage, countryOptions])
+  }, [cat.valueTitle, category, stores, usage, countryOptions, flagByCountry, stockCountry])
 
   function onRowsChange(next: Row[]) {
     setRows((all) => [...all.filter((r) => r.category !== category), ...next])
@@ -260,6 +325,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         category: r.category,
         store_id: r.store_id,
         parent: r.category === 'region' ? r.parent?.trim() || null : null,
+        icon: r.category === 'country' ? r.icon?.trim() || null : null,
         value: r.value!.trim(),
         sort_order: r.sort_order ?? 0,
         is_active: r.is_active,
@@ -268,6 +334,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         category: r.category,
         store_id: r.store_id,
         parent: r.category === 'region' ? r.parent?.trim() || null : null,
+        icon: r.category === 'country' ? r.icon?.trim() || null : null,
         value: r.value!.trim(),
         sort_order: r.sort_order ?? 0,
         is_active: r.is_active,

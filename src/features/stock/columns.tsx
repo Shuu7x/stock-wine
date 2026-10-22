@@ -50,6 +50,8 @@ export function buildLookups(items: StockItem[], configured: LookupValue[] = [])
     racksByStore.set(id, mergeOptions(of('rack', id), items.filter((i) => i.store_id === id).map((i) => i.rack)))
   }
   // แคว้นแยกตามประเทศจากข้อมูลจริง (ข้อมูลหลักไม่ผูกประเทศ → ขึ้นทุกประเทศ)
+  // ธงที่ตั้งเองในข้อมูลหลัก (ชื่อประเทศตัวเล็ก → อิโมจิ)
+  const flags = new Map(of('country').filter((l) => l.icon).map((l) => [l.value.trim().toLowerCase(), l.icon!]))
   const regionsByCountry = new Map<string, string[]>()
   const countriesSeen = new Set([...(items.map((i) => i.country).filter(Boolean) as string[]), ...(of('region').map((l) => l.parent).filter(Boolean) as string[])])
   for (const country of countriesSeen) {
@@ -66,6 +68,7 @@ export function buildLookups(items: StockItem[], configured: LookupValue[] = [])
     suppliers: mergeOptions(of('supplier'), items.map((i) => i.supplier)),
     allRacks: mergeOptions(of('rack'), items.map((i) => i.rack)),
     racksByStore,
+    flags,
   }
 }
 export type Lookups = ReturnType<typeof buildLookups>
@@ -82,10 +85,10 @@ const TYPE_STYLE: Record<string, { bg: string; fg: string; ring: string }> = {
   burgundy: { bg: '#f4ecfa', fg: '#6a2c91', ring: '#dccaeb' },
   whisky: { bg: '#fcefe4', fg: '#a3500f', ring: '#f1d0b4' },
 }
-/** ชื่อประเทศพร้อมธงชาติ (ไม่รู้จักประเทศ = ชื่ออย่างเดียว) */
-export function CountryName({ country }: { country: string | null }) {
+/** ชื่อประเทศพร้อมธงชาติ — ธงที่ตั้งเองมาก่อน · ไม่รู้จักประเทศ = ชื่ออย่างเดียว */
+export function CountryName({ country, flag: custom }: { country: string | null; flag?: string | null }) {
   if (!country) return null
-  const flag = flagOf(country)
+  const flag = custom || flagOf(country)
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       {flag && (
@@ -167,7 +170,7 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     subtitle: 'ประเทศ',
     width: 140,
     options: lookups.countries,
-    render: (r) => <CountryName country={r.country} />,
+    render: (r) => <CountryName country={r.country} flag={lookups.flags.get(r.country?.trim().toLowerCase() ?? '')} />,
   }
   const region: GridColumn<R> = {
     key: 'region',

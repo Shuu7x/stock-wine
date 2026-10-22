@@ -24,7 +24,7 @@ type DB = {
   receipt_attachments: Tables<'receipt_attachments'>[]
   roles: Tables<'roles'>[]
   profiles: Tables<'profiles'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -155,6 +155,7 @@ function seedLookups(): Tables<'lookup_values'>[] {
     sort_order: i + 1,
     is_active: true,
     parent: null,
+    icon: null,
     ...audit(),
   })
   return [
@@ -322,7 +323,7 @@ function load(): DB {
         }
         WINE_TYPES.forEach((value, i) => {
           if (!saved.lookup_values.some((l) => l.category === 'wine_type' && l.value === value))
-            saved.lookup_values.push({ id: crypto.randomUUID(), category: 'wine_type', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, ...audit() })
+            saved.lookup_values.push({ id: crypto.randomUUID(), category: 'wine_type', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, icon: null, ...audit() })
         })
         saved.seq.type_seed = 1
       }
@@ -330,8 +331,21 @@ function load(): DB {
       for (const x of [...saved.stock_items, ...saved.receipt_lines] as Array<Record<string, unknown>>) x.bottle_size ??= 'Normal'
       ;['Normal', 'Mg.'].forEach((value, i) => {
         if (!saved.lookup_values.some((l) => l.category === 'bottle_size' && l.value === value))
-          saved.lookup_values.push({ id: crypto.randomUUID(), category: 'bottle_size', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, ...audit() })
+          saved.lookup_values.push({ id: crypto.randomUUID(), category: 'bottle_size', store_id: null, value, sort_order: i + 1, is_active: true, parent: null, icon: null, ...audit() })
       })
+      // ธงประเทศ (คอลัมน์ใหม่) · แคว้นที่บันทึกไว้ก่อนมีประเทศของแคว้น → เติมจากประเทศที่พบมากที่สุดในสต็อก (ครั้งเดียว)
+      for (const l of saved.lookup_values) l.icon ??= null
+      if (!saved.seq.region_parent) {
+        for (const l of saved.lookup_values) {
+          if (l.category !== 'region' || l.parent) continue
+          const count = new Map<string, number>()
+          for (const x of saved.stock_items)
+            if (!x.deleted_at && x.country && x.region?.trim().toLowerCase() === l.value.trim().toLowerCase())
+              count.set(x.country, (count.get(x.country) ?? 0) + 1)
+          l.parent = [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null
+        }
+        saved.seq.region_parent = 1
+      }
       // ตัวอย่างไวน์ที่มีหลายคะแนน (เฉพาะที่ยังเป็นค่าตั้งต้น)
       if (!saved.seq.multi_seed) {
         for (const x of saved.stock_items) {

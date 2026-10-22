@@ -24,8 +24,10 @@ type LookupValueRow = Audit & {
   is_active: boolean
   /** แคว้น: ประเทศของแคว้นนี้ · หมวดอื่นว่าง */
   parent: string | null
+  /** ประเทศ: อิโมจิธงที่ตั้งเอง · ว่าง = ธงอัตโนมัติจากชื่อ */
+  icon: string | null
 }
-type LookupValueWrite = Partial<Pick<LookupValueRow, 'id' | 'category' | 'store_id' | 'value' | 'sort_order' | 'is_active' | 'parent'>>
+type LookupValueWrite = Partial<Pick<LookupValueRow, 'id' | 'category' | 'store_id' | 'value' | 'sort_order' | 'is_active' | 'parent' | 'icon'>>
 
 type AppSettingRow = Audit & { key: string; value: Json }
 
