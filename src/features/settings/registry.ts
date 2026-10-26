@@ -1,5 +1,5 @@
 import type { LinkProps } from '@tanstack/react-router'
-import { ArrowDownUp, Database, Receipt, SlidersHorizontal, Type, UserCog, Users, type LucideIcon } from 'lucide-react'
+import { Database, Receipt, SlidersHorizontal, Type, UserCog, Users, type LucideIcon } from 'lucide-react'
 
 export type SettingsSection = {
   id: string
@@ -47,16 +47,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     id: 'lookups',
     to: '/settings/lookups',
     label: 'ข้อมูลหลัก',
-    description: 'ตัวเลือกในตาราง: คลัง ประเภท ขนาด ประเทศ ฯลฯ',
+    description: 'ตัวเลือกในตาราง: คลัง ประเภท ขนาด ประเทศ ฯลฯ · การเรียงลำดับ',
     icon: Database,
-    group: 'ข้อมูลหลัก',
-  },
-  {
-    id: 'sorting',
-    to: '/settings/sorting',
-    label: 'การเรียงลำดับ',
-    description: 'ลำดับประเทศ / แคว้น ในหน้าสต็อก',
-    icon: ArrowDownUp,
     group: 'ข้อมูลหลัก',
   },
   {

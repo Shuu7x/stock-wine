@@ -27,7 +27,7 @@ const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
 /**
  * ความสูงที่พอดีจอ: จากขอบบนขององค์ประกอบถึงขอบล่างของพื้นที่เลื่อน (<main>)
  */
-function useFitHeight(min = 420) {
+function useFitHeight(min = 300) {
   const [el, setEl] = useState<HTMLElement | null>(null)
   const [height, setHeight] = useState<number>()
   useLayoutEffect(() => {
@@ -48,6 +48,9 @@ function useFitHeight(min = 420) {
     const ro = new ResizeObserver(fit)
     if (el.parentElement) ro.observe(el.parentElement)
     ro.observe(main)
+    // ทุกอย่างที่อยู่เหนือแผง (เช่น แถบแท็บที่ขึ้นบรรทัดใหม่) สูงขึ้นแล้วแผงต้องเตี้ยลง
+    for (let n: Element | null = el; n && n !== main; n = n.parentElement)
+      for (let s = n.previousElementSibling; s; s = s.previousElementSibling) ro.observe(s)
     return () => {
       ro.disconnect()
     }

@@ -13,6 +13,7 @@ import { CountryName, storeName } from '@/features/stock/columns'
 import { allCountryFlags, flagOf, parseFlag } from '@/lib/flags'
 import { fmtInt } from '@/lib/format'
 import { Loading } from '@/components/ui/loading'
+import { SortingSettings } from './SortingSettings'
 import { StoresSettings } from './StoresSettings'
 import {
   lookupValuesOptions,
@@ -64,7 +65,8 @@ const toRow = (l: LookupValue): Row => ({
   icon: l.icon ?? null,
 })
 
-export type MasterTab = 'stores' | LookupCategory
+/** แท็บข้อมูลหลัก: คลังสินค้า · ตัวเลือกแต่ละหมวด · การเรียงลำดับ (ประเทศ / แคว้นในหน้าสต็อก) */
+export type MasterTab = 'stores' | LookupCategory | 'sorting'
 
 /** ข้อมูลหลัก: คลังสินค้า + ตัวเลือกที่ขึ้นให้เลือกในตาราง (ประเทศ · ผู้ขาย · ชั้นวาง) */
 export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: MasterTab) => void }) {
@@ -73,7 +75,7 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
   const itemsQ = useQuery(stockItemsOptions())
   const save = useSaveLookupValues()
   // แท็บคลังสินค้าไม่ใช่ตัวเลือก — ตัวแปรของตารางตัวเลือกใช้หมวดล่าสุดต่อไป
-  const category: LookupCategory = tab === 'stores' ? 'country' : tab
+  const category: LookupCategory = tab === 'stores' || tab === 'sorting' ? 'country' : tab
   const [rows, setRows] = useState<Row[]>([])
 
   const stores = useMemo(() => storesQ.data ?? [], [storesQ.data])
@@ -348,14 +350,25 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
 
   const tabs = (
     <Segmented
+      wrap
       value={tab}
       onChange={onTab}
       items={[
         { value: 'stores' as MasterTab, label: 'คลังสินค้า', count: fmtInt(stores.filter((s) => s.is_active).length) },
         ...CATEGORIES.map((c) => ({ value: c.value as MasterTab, label: c.label, count: countOf(c.value) })),
+        { value: 'sorting' as MasterTab, label: 'การเรียงลำดับ' },
       ]}
     />
   )
+
+  if (tab === 'sorting') {
+    return (
+      <div className="flex flex-col gap-4">
+        {tabs}
+        <SortingSettings />
+      </div>
+    )
+  }
 
   if (tab === 'stores') {
     return (
