@@ -355,8 +355,11 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       onChange={onTab}
       items={[
         { value: 'stores' as MasterTab, label: 'คลังสินค้า', count: fmtInt(stores.filter((s) => s.is_active).length) },
-        ...CATEGORIES.map((c) => ({ value: c.value as MasterTab, label: c.label, count: countOf(c.value) })),
-        { value: 'sorting' as MasterTab, label: 'การเรียงลำดับ' },
+        // การเรียงลำดับ (ประเทศ / แคว้น) อยู่ต่อจากแท็บแคว้น
+        ...CATEGORIES.flatMap((c) => {
+          const t = { value: c.value as MasterTab, label: c.label, count: countOf(c.value) }
+          return c.value === 'region' ? [t, { value: 'sorting' as MasterTab, label: 'การเรียงลำดับ' }] : [t]
+        }),
       ]}
     />
   )
