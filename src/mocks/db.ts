@@ -24,7 +24,7 @@ type DB = {
   receipt_attachments: Tables<'receipt_attachments'>[]
   roles: Tables<'roles'>[]
   profiles: Tables<'profiles'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -222,9 +222,19 @@ function ratingText(rp: number | null | undefined, ws: number | null | undefined
   return rp != null ? `${rp}RP` : ws != null ? `${ws}WS` : null
 }
 
+/**
+ * id ของไวน์ตัวอย่างคงที่ (ลำดับในรายการตัวอย่าง) — ทุกเครื่องได้ id เดียวกัน
+ * โหมดเดโมเก็บข้อมูลแยกในเบราว์เซอร์แต่ละเครื่อง ถ้า id สุ่ม ป้าย QR ที่พิมพ์จากคอมจะสแกนจากมือถือไม่เจอ
+ */
+const seedId = (i: number) => `00000000-0000-4000-a000-${String(i + 1).padStart(12, '0')}`
+const allSeedRows = () => [...SEED, ...seedSplitRows()]
+const seedIndex = (r: (typeof SEED)[number]) =>
+  allSeedRows().findIndex((x) => x[0] === r[0] && x[1] === r[1] && x[3] === r[3] && x[4] === r[4])
+
 function seedItem(s: (typeof SEED)[number]): Tables<'stock_items'> {
+  const i = seedIndex(s)
   return {
-    id: crypto.randomUUID(),
+    id: i >= 0 ? seedId(i) : crypto.randomUUID(),
     store_id: s[0],
     rack: s[1],
     country: s[2],
@@ -248,7 +258,7 @@ function seedItem(s: (typeof SEED)[number]): Tables<'stock_items'> {
 }
 
 function seed(): DB {
-  const stock_items = [...SEED, ...seedSplitRows()].map(seedItem)
+  const stock_items = allSeedRows().map(seedItem)
   return {
     stores: [
       { id: 1, code: 'SW1', name: 'Showroom Wines 1', sort_order: 1, is_active: true, ...audit() },
@@ -266,7 +276,34 @@ function seed(): DB {
     profiles: seedProfiles(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1 },
+  }
+}
+
+/** ช่องที่อ้างถึง id ของไวน์ในสต็อก */
+const ITEM_REF_KEYS = new Set(['stock_item_id', 'from_stock_item_id', 'to_stock_item_id'])
+
+function stabilizeSeedIds(saved: DB) {
+  const used = new Set(saved.stock_items.map((x) => x.id))
+  const map = new Map<string, string>()
+  allSeedRows().forEach((r, i) => {
+    const target = seedId(i)
+    if (used.has(target)) return
+    // แถวตัวอย่าง = ไวน์ ปี คลัง ชั้น ตรงกัน (ถ้าซ้ำ ใช้ตัวที่สร้างก่อน)
+    const hit = saved.stock_items
+      .filter((x) => !map.has(x.id) && x.store_id === r[0] && x.rack === r[1] && x.wine_name === r[3] && x.vintage === r[4])
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]
+    if (!hit) return
+    map.set(hit.id, target)
+    used.add(target)
+  })
+  if (!map.size) return
+  for (const x of saved.stock_items) x.id = map.get(x.id) ?? x.id
+  for (const rows of Object.values(saved)) {
+    if (!Array.isArray(rows)) continue
+    for (const row of rows as Array<Record<string, unknown>>) {
+      for (const k of Object.keys(row)) if (ITEM_REF_KEYS.has(k) && typeof row[k] === 'string') row[k] = map.get(row[k] as string) ?? row[k]
+    }
   }
 }
 
@@ -363,6 +400,16 @@ function load(): DB {
         saved.seq.split_seed = 1
         try {
           localStorage.setItem(KEY, JSON.stringify(saved)) // id ไวน์ใหม่ต้องคงที่ข้ามการรีเฟรช
+        } catch {
+          /* ไม่เป็นไร */
+        }
+      }
+      // ไวน์ตัวอย่างที่บันทึกไว้ด้วย id สุ่ม → เปลี่ยนเป็น id คงที่ (แก้ทุกที่ที่อ้างถึง) ครั้งเดียว
+      if (!saved.seq.stable_ids) {
+        stabilizeSeedIds(saved)
+        saved.seq.stable_ids = 1
+        try {
+          localStorage.setItem(KEY, JSON.stringify(saved))
         } catch {
           /* ไม่เป็นไร */
         }
