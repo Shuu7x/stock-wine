@@ -24,7 +24,7 @@ type DB = {
   receipt_attachments: Tables<'receipt_attachments'>[]
   roles: Tables<'roles'>[]
   profiles: Tables<'profiles'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number; /** 1 = รายชื่อประเทศ / แคว้น France ชุดใหม่แล้ว */ country_list?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number; /** 1 = รายชื่อประเทศ / แคว้น France ชุดใหม่แล้ว */ country_list?: number; /** 1 = ข้อมูลไวน์ตามรายชื่อใหม่ · ลบแคว้นนอก France แล้ว */ wine_data?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -84,7 +84,7 @@ const SEED: Array<
   [1, 'A1', 'France', 'Château Lafite Rothschild', 2016, 3, 100, 98, [2032, 2075], 42000, 'Wine Connection', '2024-03-12'],
   [1, 'A2', 'France', 'Château Mouton Rothschild', 2010, 2, 100, 97, [2025, 2060], 45000, 'Italasia', '2023-11-02'],
   [1, 'A2', 'France', 'Château Pichon Baron', 2018, 12, 98, 96, [2028, 2050], 6900, 'Italasia', '2024-06-20'],
-  [1, 'B1', 'France', 'Domaine Leflaive Puligny-Montrachet', 2019, 6, 93, 94, [2024, 2034], 5200, 'Bacchus', '2024-01-15'],
+  [1, 'B1', 'Burgundy', 'Domaine Leflaive Puligny-Montrachet', 2019, 6, 93, 94, [2024, 2034], 5200, 'Bacchus', '2024-01-15'],
   [1, 'B1', 'France', 'Louis Roederer Cristal', 2014, 4, 97, 96, [2022, 2040], 11500, 'Bacchus', '2023-12-01'],
   [1, 'B2', 'Italy', 'Sassicaia', 2017, 6, 96, 95, [2025, 2045], 9800, 'Italasia', '2024-02-28'],
   [1, 'B2', 'Italy', 'Tignanello', 2019, 9, 95, 94, [2024, 2040], 4600, 'Italasia', '2024-02-28'],
@@ -100,10 +100,10 @@ const SEED: Array<
   [3, 'R02', 'France', 'Château Palmer', 2015, 6, 98, 97, [2028, 2060], 14500, 'Italasia', '2023-10-22'],
   [3, 'R03', 'Italy', 'Gaja Barbaresco', 2017, 4, 96, 95, [2025, 2050], 12800, 'Italasia', '2024-03-30'],
   [3, 'R03', 'Italy', 'Antinori Solaia', 2016, 3, 100, 97, [2026, 2055], 17500, 'Italasia', '2024-03-30'],
-  [3, 'R04', 'New Zealand', 'Cloudy Bay Sauvignon Blanc', 2023, 18, 90, 90, [2024, 2027], 1450, 'Wine Garage', '2024-09-02'],
+  [3, 'R04', 'South Africa', 'Hamilton Russell Chardonnay', 2022, 18, 93, 92, [2024, 2030], 1900, 'Wine Garage', '2024-09-02'],
   [3, 'R04', 'Germany', 'Egon Müller Scharzhofberger Riesling Kabinett', 2020, 6, 95, 94, [2025, 2045], 7800, 'Wine Garage', '2024-05-21'],
   [3, 'R05', 'France', 'Château d’Yquem', 2009, 2, 100, 98, [2020, 2080], 24000, 'Wine Connection', '2023-07-12'],
-  [3, 'R05', 'Portugal', "Taylor's Vintage Port", 2017, 6, 98, 97, [2035, 2070], 4200, 'Bacchus', '2024-02-14'],
+  [3, 'R05', 'Argentina', 'Catena Zapata Malbec Argentino', 2019, 6, 97, 96, [2024, 2040], 4200, 'Bacchus', '2024-02-14'],
 ]
 
 /** ไวน์เดียวกันเก็บหลายที่ (ต่างคลัง / คลังเดียวกันแต่ต่างชั้น) — ข้อมูลไวน์เหมือนแถวหลักใน SEED */
@@ -128,7 +128,7 @@ const seedSplitRows = () =>
 const WS_RATED = new Set([
   'Château Lafite Rothschild', 'Château Pichon Baron', 'Louis Roederer Cristal', 'Tignanello',
   'Caymus Cabernet Sauvignon', 'Penfolds Bin 389', 'Almaviva', 'Moët & Chandon Brut Impérial',
-  'Château Palmer', 'Antinori Solaia', 'Cloudy Bay Sauvignon Blanc', "Taylor's Vintage Port",
+  'Château Palmer', 'Antinori Solaia', 'Hamilton Russell Chardonnay', 'Catena Zapata Malbec Argentino',
 ])
 /** ไวน์ที่มีคะแนนหลายค่า (RP + WS) */
 const MULTI_RATED = new Set(['Château Margaux', 'Opus One', 'Penfolds Grange', 'Château d’Yquem'])
@@ -172,32 +172,37 @@ function seedLookups(): Tables<'lookup_values'>[] {
   ]
 }
 
-/** ประเภท + แคว้นของไวน์ตัวอย่าง */
-const TYPE_REGION: Record<string, [type: string | null, region: string]> = {
-  'Château Margaux': ['Red', 'Bordeaux'],
-  'Château Lafite Rothschild': ['Red', 'Bordeaux'],
-  'Château Mouton Rothschild': ['Red', 'Bordeaux'],
-  'Château Pichon Baron': ['Red', 'Bordeaux'],
-  'Château Lynch-Bages': ['Red', 'Bordeaux'],
-  'Château Palmer': ['Red', 'Bordeaux'],
+/** ประเภท + แคว้นของไวน์ตัวอย่าง — แคว้นมีเฉพาะของ France (ประเทศอื่นยังไม่กำหนดแคว้น) */
+const TYPE_REGION: Record<string, [type: string | null, region: string | null]> = {
+  'Château Margaux': ['Red', 'Margaux'],
+  'Château Palmer': ['Red', 'Margaux'],
+  'Château Lafite Rothschild': ['Red', 'Pauillac'],
+  'Château Mouton Rothschild': ['Red', 'Pauillac'],
+  'Château Pichon Baron': ['Red', 'Pauillac'],
+  'Château Lynch-Bages': ['Red', 'Pauillac'],
   'Château d’Yquem': ['White', 'Bordeaux'],
-  'Domaine Leflaive Puligny-Montrachet': ['Burgundy', 'Bourgogne'],
+  'Domaine Leflaive Puligny-Montrachet': ['Burgundy', null],
   'Louis Roederer Cristal': ['Champagne', 'Champagne'],
   'Dom Pérignon': ['Champagne', 'Champagne'],
   'Moët & Chandon Brut Impérial': ['Champagne', 'Champagne'],
-  Sassicaia: ['Red', 'Toscana'],
-  Tignanello: ['Red', 'Toscana'],
-  'Antinori Solaia': ['Red', 'Toscana'],
-  'Gaja Barbaresco': ['Red', 'Piemonte'],
-  'Opus One': ['Red', 'Napa Valley'],
-  'Caymus Cabernet Sauvignon': ['Red', 'Napa Valley'],
-  'Penfolds Grange': ['Red', 'South Australia'],
-  'Penfolds Bin 389': ['Red', 'South Australia'],
-  'Vega Sicilia Único': ['Red', 'Ribera del Duero'],
-  Almaviva: ['Red', 'Maipo Valley'],
-  'Cloudy Bay Sauvignon Blanc': ['White', 'Marlborough'],
-  'Egon Müller Scharzhofberger Riesling Kabinett': ['White', 'Mosel'],
-  "Taylor's Vintage Port": [null, 'Douro'],
+  Sassicaia: ['Red', null],
+  Tignanello: ['Red', null],
+  'Antinori Solaia': ['Red', null],
+  'Gaja Barbaresco': ['Red', null],
+  'Opus One': ['Red', null],
+  'Caymus Cabernet Sauvignon': ['Red', null],
+  'Penfolds Grange': ['Red', null],
+  'Penfolds Bin 389': ['Red', null],
+  'Vega Sicilia Único': ['Red', null],
+  Almaviva: ['Red', null],
+  'Hamilton Russell Chardonnay': ['White', null],
+  'Egon Müller Scharzhofberger Riesling Kabinett': ['White', null],
+  'Catena Zapata Malbec Argentino': ['Red', null],
+}
+/** ไวน์ตัวอย่างเดิมที่ประเทศไม่อยู่ในรายชื่อใหม่ → แทนด้วยไวน์ใหม่ (id เดิม) */
+const REPLACED_WINES: Record<string, string> = {
+  'Cloudy Bay Sauvignon Blanc': 'Hamilton Russell Chardonnay',
+  "Taylor's Vintage Port": 'Catena Zapata Malbec Argentino',
 }
 
 function seedSettings(): Tables<'app_settings'>[] {
@@ -283,7 +288,7 @@ function seed(): DB {
     profiles: seedProfiles(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1, country_list: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1, country_list: 1, wine_data: 1 },
   }
 }
 
@@ -312,6 +317,29 @@ function applyCountryList(saved: DB) {
     else if (l.parent === 'France') l.sort_order = 100 + l.sort_order
   }
   for (const [k, r] of regions) if (!lv.some((l) => l.category === 'region' && key(l.value) === k)) add('region', r.value, r.ord, 'France')
+}
+
+/**
+ * ข้อมูลไวน์ตามรายชื่อประเทศ / แคว้นใหม่ (ตรงกับ migration 20261025 ส่วนที่ไม่ผูกกับชื่อไวน์)
+ * - ไวน์ตัวอย่าง: ประเทศ · ประเภท · แคว้น ตามข้อมูลตัวอย่างชุดใหม่ · ไวน์ที่ประเทศไม่อยู่ในรายชื่อแทนด้วยไวน์ใหม่
+ * - แคว้นที่ไม่ได้อยู่ใต้ France: ลบออกจากข้อมูลหลัก และล้างออกจากไวน์ในสต็อก
+ */
+function applyWineData(saved: DB) {
+  const key = (v: string | null | undefined) => (v ?? '').trim().toLowerCase()
+  for (const x of saved.stock_items) {
+    const name = REPLACED_WINES[x.wine_name] ?? x.wine_name
+    const row = SEED.find((r) => r[3] === name)
+    if (!row) continue
+    if (name !== x.wine_name) {
+      Object.assign(x, { wine_name: name, vintage: row[4], rating: seedRating(name, row[6], row[7]), maturity_from: row[8]?.[0] ?? null, maturity_to: row[8]?.[1] ?? null, price_per_bottle: row[9] })
+    }
+    x.country = row[2]
+    x.wine_type = TYPE_REGION[name]?.[0] ?? x.wine_type
+    x.region = TYPE_REGION[name]?.[1] ?? null
+  }
+  saved.lookup_values = saved.lookup_values.filter((l) => l.category !== 'region' || l.parent === 'France')
+  const french = new Set(saved.lookup_values.filter((l) => l.category === 'region').map((l) => key(l.value)))
+  for (const x of saved.stock_items) if (x.region && !french.has(key(x.region)) && x.country !== 'France') x.region = null
 }
 
 /** ช่องที่อ้างถึง id ของไวน์ในสต็อก */
@@ -442,6 +470,15 @@ function load(): DB {
       if (!saved.seq.country_list) {
         applyCountryList(saved)
         saved.seq.country_list = 1
+        try {
+          localStorage.setItem(KEY, JSON.stringify(saved))
+        } catch {
+          /* ไม่เป็นไร */
+        }
+      }
+      if (!saved.seq.wine_data) {
+        applyWineData(saved)
+        saved.seq.wine_data = 1
         try {
           localStorage.setItem(KEY, JSON.stringify(saved))
         } catch {
