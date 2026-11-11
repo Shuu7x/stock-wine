@@ -43,9 +43,9 @@ import { loadDraft, saveDraft } from "@/lib/use-local-draft";
  * ขนาดป้ายข้อมูล (มม.) — ตัดแปะบนป้ายสวมคอขวดที่มีรูอยู่แล้ว ใต้ส่วนรู
  */
 const SIZES = {
-  s: { label: "เล็ก 35×35", w: 35, h: 35 },
-  m: { label: "มาตรฐาน 40×40", w: 40, h: 40 },
-  l: { label: "ใหญ่ 50×50", w: 50, h: 50 },
+  s: { label: "เล็ก 40×40", w: 40, h: 40 },
+  m: { label: "มาตรฐาน 50×50", w: 50, h: 50 },
+  l: { label: "ใหญ่ 60×60", w: 60, h: 60 },
 } as const;
 type SizeKey = keyof typeof SIZES;
 
@@ -124,7 +124,7 @@ function Tag({ it, opt }: { it: StockItem; opt: Options }) {
   const s = SIZES[opt.size];
   const f = opt.fields;
   const mono = opt.style === "mono";
-  // หน่วยขนาดตามความกว้างป้าย: ป้ายมาตรฐาน 4×4 ซม. (40 มม.) = 1
+  // หน่วยขนาดตามความกว้างป้าย: แบบป้ายออกแบบที่ 4×4 ซม. (40 มม.) = 1 · ป้ายใหญ่กว่าขยายตามสัดส่วน
   const u = s.w / 40;
   const mm = (n: number) => `${(n * u).toFixed(2)}mm`;
   const maturity = fmtMaturity(it.maturity_from, it.maturity_to);
