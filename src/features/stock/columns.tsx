@@ -253,7 +253,7 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
   const rating: GridColumn<R> = {
     key: 'rating',
     title: 'Rate',
-    subtitle: 'ชั้นวาง',
+    subtitle: 'คะแนน',
     width: 190,
     placeholder: '100RP, 98WS',
     parse: parseRating,
