@@ -6,6 +6,22 @@ import { FileLightbox } from '@/components/ui/file-lightbox'
 const MAX_FILES = 10
 const MAX_BYTES = 15 * 1024 * 1024
 
+/** ชนิดไฟล์จากนามสกุล — บางเครื่อง/บางแอป (เช่น Windows บางเครื่อง · ไฟล์จาก LINE) ส่งไฟล์มาโดยไม่บอกชนิด */
+const TYPE_BY_EXT: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', jfif: 'image/jpeg', pjpeg: 'image/jpeg',
+  png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp',
+  heic: 'image/heic', heif: 'image/heif', pdf: 'application/pdf',
+}
+const ACCEPT = `image/*,application/pdf,${Object.keys(TYPE_BY_EXT).map((e) => '.' + e).join(',')}`
+
+/** ไฟล์ที่ไม่มีชนิด → เติมชนิดจากนามสกุล · รองรับไม่ได้ = null */
+function normalize(f: File): File | null {
+  const ok = (t: string) => t.startsWith('image/') || t === 'application/pdf'
+  if (ok(f.type)) return f
+  const guess = TYPE_BY_EXT[f.name.split('.').pop()?.toLowerCase() ?? '']
+  return guess ? new File([f], f.name, { type: guess, lastModified: f.lastModified }) : null
+}
+
 /** แนบรูปบิล/ใบส่งของ (เลือกหลายไฟล์ · ถ่ายจากกล้องมือถือได้) · รูปย่อเล็ก แตะเพื่อดูเต็มจอ · × เพื่อลบ */
 export function AttachFiles({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
   const input = useRef<HTMLInputElement>(null)
@@ -16,12 +32,17 @@ export function AttachFiles({ files, onChange }: { files: File[]; onChange: (f: 
 
   function add(list: FileList | null) {
     if (!list) return
-    const picked = [...list].filter((f) => {
+    const picked = [...list].flatMap((f) => {
       if (f.size > MAX_BYTES) {
         toast.error(`${f.name} ใหญ่เกิน 15 MB`)
-        return false
+        return []
       }
-      return f.type.startsWith('image/') || f.type === 'application/pdf'
+      const n = normalize(f)
+      if (!n) {
+        toast.error(`แนบ ${f.name} ไม่ได้`, { description: 'รองรับรูป (jpg, png, heic ฯลฯ) และ PDF' })
+        return []
+      }
+      return [n]
     })
     const next = [...files, ...picked].slice(0, MAX_FILES)
     if (files.length + picked.length > MAX_FILES) toast.info(`แนบได้สูงสุด ${MAX_FILES} ไฟล์`)
@@ -74,7 +95,7 @@ export function AttachFiles({ files, onChange }: { files: File[]; onChange: (f: 
       <input
         ref={input}
         type="file"
-        accept="image/*,application/pdf"
+        accept={ACCEPT}
         multiple
         hidden
         onChange={(e) => {
