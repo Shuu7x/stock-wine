@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { z } from 'zod'
-import { LookupsSettings } from '@/features/settings/components/LookupsSettings'
+import { LookupsSettings, TAB_ORDER } from '@/features/settings/components/LookupsSettings'
 
 export const Route = createFileRoute('/_authenticated/settings/lookups')({
   validateSearch: z.object({
-    tab: z.enum(['stores', 'wine_type', 'bottle_size', 'country', 'region', 'supplier', 'rack', 'sorting']).default('stores').catch('stores'),
+    // ไม่ระบุแท็บ = แท็บแรก (ประเทศ)
+    tab: z.enum(TAB_ORDER).default('country').catch('country'),
   }),
   component: MasterDataRoute,
 })

@@ -68,6 +68,9 @@ const toRow = (l: LookupValue): Row => ({
 /** แท็บข้อมูลหลัก: คลังสินค้า · ตัวเลือกแต่ละหมวด · การเรียงลำดับ (ประเทศ / แคว้นในหน้าสต็อก) */
 export type MasterTab = 'stores' | LookupCategory | 'sorting'
 
+/** ลำดับแท็บ: ประเทศ → แคว้น → การเรียงลำดับ → คลัง → ชั้นวาง → ประเภท → ขนาด → ผู้ขาย */
+export const TAB_ORDER = ['country', 'region', 'sorting', 'stores', 'rack', 'wine_type', 'bottle_size', 'supplier'] as const satisfies readonly MasterTab[]
+
 /** ข้อมูลหลัก: คลังสินค้า + ตัวเลือกที่ขึ้นให้เลือกในตาราง (ประเทศ · ผู้ขาย · ชั้นวาง) */
 export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: MasterTab) => void }) {
   const lookupsQ = useQuery(lookupValuesOptions())
@@ -353,14 +356,13 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
       wrap
       value={tab}
       onChange={onTab}
-      items={[
-        { value: 'stores' as MasterTab, label: 'คลังสินค้า', count: fmtInt(stores.filter((s) => s.is_active).length) },
-        // การเรียงลำดับ (ประเทศ / แคว้น) อยู่ต่อจากแท็บแคว้น
-        ...CATEGORIES.flatMap((c) => {
-          const t = { value: c.value as MasterTab, label: c.label, count: countOf(c.value) }
-          return c.value === 'region' ? [t, { value: 'sorting' as MasterTab, label: 'การเรียงลำดับ' }] : [t]
-        }),
-      ]}
+      items={TAB_ORDER.map((t) =>
+        t === 'stores'
+          ? { value: t, label: 'คลังสินค้า', count: fmtInt(stores.filter((s) => s.is_active).length) }
+          : t === 'sorting'
+            ? { value: t, label: 'การเรียงลำดับ' }
+            : { value: t as MasterTab, label: CATEGORIES.find((c) => c.value === t)!.label, count: countOf(t) },
+      )}
     />
   )
 
