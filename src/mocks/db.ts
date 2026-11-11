@@ -24,7 +24,7 @@ type DB = {
   receipt_attachments: Tables<'receipt_attachments'>[]
   roles: Tables<'roles'>[]
   profiles: Tables<'profiles'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number; /** 1 = รายชื่อประเทศ / แคว้น France ชุดใหม่แล้ว */ country_list?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -139,10 +139,15 @@ const seedRating = (name: string, rp: number | null, ws: number | null) =>
       ? `${ws}WS`
       : ratingText(rp, ws)
 
+/** ประเทศที่ใช้งาน เรียงตามตัวอักษร (ตรงกับ migration 20261024) */
 const COUNTRIES = [
-  'France', 'Italy', 'Spain', 'Portugal', 'Germany', 'Austria', 'USA', 'Australia',
-  'New Zealand', 'Chile', 'Argentina', 'South Africa', 'Japan', 'Thailand',
+  'Argentina', 'Australia', 'Burgundy', 'Chile', 'France', 'Germany',
+  'Italy', 'Japan', 'South Africa', 'Spain', 'USA',
 ]
+/** ประเทศเดิมที่ไม่อยู่ในรายการ — ปิดใช้งาน (ไวน์ตัวอย่างบางตัวยังอ้างถึง) */
+const OLD_COUNTRIES = ['Portugal', 'Austria', 'New Zealand', 'Thailand']
+/** แคว้นของ France ตามลำดับที่กำหนด */
+const FRANCE_REGIONS = ['Emilion', 'Estephe', 'Julien', 'Margaux', 'Pauillac', 'Pessac', 'Pomerol']
 
 const WINE_TYPES = ['Red', 'White', 'Champagne', 'Burgundy', 'Whisky']
 
@@ -160,6 +165,8 @@ function seedLookups(): Tables<'lookup_values'>[] {
   })
   return [
     ...COUNTRIES.map((v, i) => row('country', v, i)),
+    ...OLD_COUNTRIES.map((v, i) => ({ ...row('country', v, COUNTRIES.length + i), is_active: false })),
+    ...FRANCE_REGIONS.map((v, i) => ({ ...row('region', v, i), parent: 'France' })),
     ...WINE_TYPES.map((v, i) => row('wine_type', v, i)),
     ...['Normal', 'Mg.'].map((v, i) => row('bottle_size', v, i)),
   ]
@@ -276,8 +283,35 @@ function seed(): DB {
     profiles: seedProfiles(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1, country_list: 1 },
   }
+}
+
+function applyCountryList(saved: DB) {
+  const lv = saved.lookup_values
+  const key = (v: string) => v.trim().toLowerCase()
+  const add = (category: 'country' | 'region', value: string, sort_order: number, parent: string | null) =>
+    lv.push({ id: crypto.randomUUID(), category, store_id: null, value, sort_order, is_active: true, parent, icon: null, ...audit() })
+
+  const countries = new Map(COUNTRIES.map((v, i) => [key(v), { value: v, ord: i + 1 }]))
+  for (const l of lv) {
+    if (l.category !== 'country') continue
+    const c = countries.get(key(l.value))
+    if (c) Object.assign(l, { value: c.value, sort_order: c.ord, is_active: true })
+    // ปิดใช้งานและต่อท้ายรายการ (ไม่ปนกับประเทศที่ใช้งาน)
+    else Object.assign(l, { is_active: false, sort_order: 100 + l.sort_order })
+  }
+  for (const [k, c] of countries) if (!lv.some((l) => l.category === 'country' && key(l.value) === k)) add('country', c.value, c.ord, null)
+
+  const regions = new Map(FRANCE_REGIONS.map((v, i) => [key(v), { value: v, ord: i + 1 }]))
+  for (const l of lv) {
+    if (l.category !== 'region') continue
+    const r = regions.get(key(l.value))
+    if (r) Object.assign(l, { value: r.value, parent: 'France', sort_order: r.ord, is_active: true })
+    // แคว้นเดิมของ France ต่อท้ายรายการใหม่
+    else if (l.parent === 'France') l.sort_order = 100 + l.sort_order
+  }
+  for (const [k, r] of regions) if (!lv.some((l) => l.category === 'region' && key(l.value) === k)) add('region', r.value, r.ord, 'France')
 }
 
 /** ช่องที่อ้างถึง id ของไวน์ในสต็อก */
@@ -400,6 +434,16 @@ function load(): DB {
         saved.seq.split_seed = 1
         try {
           localStorage.setItem(KEY, JSON.stringify(saved)) // id ไวน์ใหม่ต้องคงที่ข้ามการรีเฟรช
+        } catch {
+          /* ไม่เป็นไร */
+        }
+      }
+      // รายชื่อประเทศชุดใหม่ (เรียงตามตัวอักษร · อื่นๆ ปิดใช้งาน) + แคว้นของ France — ครั้งเดียว (ตรงกับ migration 20261024)
+      if (!saved.seq.country_list) {
+        applyCountryList(saved)
+        saved.seq.country_list = 1
+        try {
+          localStorage.setItem(KEY, JSON.stringify(saved))
         } catch {
           /* ไม่เป็นไร */
         }
