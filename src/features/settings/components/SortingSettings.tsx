@@ -69,12 +69,16 @@ function buildTree(lookups: LookupValue[], items: StockItem[]): { groups: Group[
     }
     return m
   }
+  // ปิดใช้งานแล้ว = ไม่แสดง แม้ไวน์ในสต็อกยังใช้อยู่
+  const hidden = (c: 'country' | 'region') => new Set(lookups.filter((l) => l.category === c && !l.is_active).map((l) => norm(l.value)))
+  const hiddenC = hidden('country')
+  const hiddenR = hidden('region')
   const countryN = count((i) => i.country)
   const regionN = count((i) => i.region)
 
   // ประเทศ: ข้อมูลหลักตามลำดับ แล้วต่อด้วยที่มีในสต็อก
   const countries: Entry[] = active('country').map((l) => ({ value: l.value, id: l.id, count: countryN.get(norm(l.value)) ?? 0 }))
-  const seenC = new Set(countries.map((c) => norm(c.value)))
+  const seenC = new Set([...countries.map((c) => norm(c.value)), ...hiddenC])
   for (const i of items) {
     const c = i.country?.trim()
     if (c && !seenC.has(norm(c))) {
@@ -100,7 +104,7 @@ function buildTree(lookups: LookupValue[], items: StockItem[]): { groups: Group[
     const g = country ? groups.find((x) => norm(x.country.value) === norm(country)) : undefined
     ;(g ? g.regions : orphans).push(e)
   }
-  const seenR = new Set<string>()
+  const seenR = new Set<string>(hiddenR)
   for (const l of active('region')) {
     seenR.add(norm(l.value))
     place({ value: l.value, id: l.id, count: regionN.get(norm(l.value)) ?? 0 }, l.parent || topCountry(l.value))
@@ -140,7 +144,9 @@ export function SortingSettings() {
   useEffect(reset, [initial])
   // เปิดหน้ามา: เลือกประเทศแรกไว้ให้
   useEffect(() => {
-    if (!picked && initial.groups[0]) setPicked(initial.groups[0].country.value)
+    // เปิดมาเลือกประเทศแรกที่มีแคว้น (ไม่มีเลย = ประเทศแรก)
+    const first = initial.groups.find((g) => g.regions.length) ?? initial.groups[0]
+    if (!picked && first) setPicked(first.country.value)
   }, [initial, picked])
 
   const sig = (gs: Group[], os: Entry[]) =>
