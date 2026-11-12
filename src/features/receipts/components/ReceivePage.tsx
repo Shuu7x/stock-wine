@@ -477,6 +477,7 @@ export function ReceivePage() {
         rows={rows}
         columns={columns}
         card={{
+          isBlank: isBlankRow,
           noun: 'รายการรับเข้า',
           title: (r) => (r.wine_name ? `${r.wine_name} ${r.vintage ?? ''}`.trim() : <span className="text-muted">ยังไม่ได้ระบุไวน์</span>),
           subtitle: (r) => (r.store_id ? `${storeName(stores, r.store_id)} · Rack ${r.rack ?? '-'}` : null),

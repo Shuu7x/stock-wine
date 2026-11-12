@@ -31,7 +31,15 @@ export function SettingsLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* มือถือ/แท็บเล็ต: เมนูแนวนอน */}
-      <nav className="no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 lg:hidden" aria-label="เมนูตั้งค่า">
+      <nav
+        ref={(el) => {
+          // หัวข้อที่เปิดอยู่นอกจอ → เลื่อนแถบให้เห็น
+          const a = el?.querySelector<HTMLElement>('[aria-current="page"]')
+          if (el && a && (a.offsetLeft + a.offsetWidth > el.scrollLeft + el.clientWidth || a.offsetLeft < el.scrollLeft)) el.scrollLeft = a.offsetLeft - 16
+        }}
+        className="no-scrollbar -mx-4 overflow-x-auto overflow-y-hidden px-4 lg:hidden"
+        aria-label="เมนูตั้งค่า"
+      >
         <div className="flex w-max gap-1 rounded-xl bg-surface-3 p-1">
           {sections.filter((s) => s.to).map((s) => {
             const active = s.id === current?.id

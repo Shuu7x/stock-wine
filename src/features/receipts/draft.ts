@@ -14,7 +14,8 @@ export function newReceiveRow(storeId: number | null): ReceiveRow {
     qty: null,
     rating: null,
     wine_type: null,
-    bottle_size: 'Normal',
+    // ว่าง = Normal ตอนบันทึก
+    bottle_size: null,
     region: null,
     maturity_from: null,
     maturity_to: null,

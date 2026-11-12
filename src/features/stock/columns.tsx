@@ -212,7 +212,8 @@ export function wineColumns<R extends WineFields>(stores: Store[], lookups: Look
     options: lookups.bottleSizes,
     // ว่าง = Normal
     parse: (t) => t.trim() || 'Normal',
-    render: (r) => <SizeTag size={r.bottle_size} />,
+    // แถวที่ยังไม่ระบุขนาด (แถวใหม่ในหน้ารับเข้า) ไม่แสดง — บันทึกเป็น Normal
+    render: (r) => (r.bottle_size ? <SizeTag size={r.bottle_size} /> : null),
   }
   const wineType: GridColumn<R> = {
     key: 'wine_type',
