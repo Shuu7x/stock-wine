@@ -24,7 +24,7 @@ type DB = {
   receipt_attachments: Tables<'receipt_attachments'>[]
   roles: Tables<'roles'>[]
   profiles: Tables<'profiles'>[]
-  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number; /** 1 = รายชื่อประเทศ / แคว้น France ชุดใหม่แล้ว */ country_list?: number; /** 1 = ข้อมูลไวน์ตามรายชื่อใหม่ · ลบแคว้นนอก France แล้ว */ wine_data?: number }
+  seq: { receipt: number; withdrawal: number; log: number; sale: number; adjustment: number; transfer: number; bill: number; /** 1 = ข้อมูลตัวอย่างมีคะแนน WS แล้ว */ ws_seed?: number; /** 1 = มีไวน์เดียวกันหลายที่แล้ว */ split_seed?: number; /** 1 = มีไวน์หลายคะแนนแล้ว */ multi_seed?: number; /** 1 = มีประเภท/แคว้นแล้ว */ type_seed?: number; region_parent?: number; /** 1 = ไวน์ตัวอย่างใช้ id คงที่แล้ว */ stable_ids?: number; /** 1 = รายชื่อประเทศ / แคว้น France ชุดใหม่แล้ว */ country_list?: number; /** 1 = ข้อมูลไวน์ตามรายชื่อใหม่ · ลบแคว้นนอก France แล้ว */ wine_data?: number; /** 1 = Burgundy เป็นแคว้นของ France · ลบ Bordeaux / Bourgogne / Champagne แล้ว */ burgundy?: number }
 }
 
 const KEY = 'stock-wine:mock-db:v1'
@@ -84,7 +84,7 @@ const SEED: Array<
   [1, 'A1', 'France', 'Château Lafite Rothschild', 2016, 3, 100, 98, [2032, 2075], 42000, 'Wine Connection', '2024-03-12'],
   [1, 'A2', 'France', 'Château Mouton Rothschild', 2010, 2, 100, 97, [2025, 2060], 45000, 'Italasia', '2023-11-02'],
   [1, 'A2', 'France', 'Château Pichon Baron', 2018, 12, 98, 96, [2028, 2050], 6900, 'Italasia', '2024-06-20'],
-  [1, 'B1', 'Burgundy', 'Domaine Leflaive Puligny-Montrachet', 2019, 6, 93, 94, [2024, 2034], 5200, 'Bacchus', '2024-01-15'],
+  [1, 'B1', 'France', 'Domaine Leflaive Puligny-Montrachet', 2019, 6, 93, 94, [2024, 2034], 5200, 'Bacchus', '2024-01-15'],
   [1, 'B1', 'France', 'Louis Roederer Cristal', 2014, 4, 97, 96, [2022, 2040], 11500, 'Bacchus', '2023-12-01'],
   [1, 'B2', 'Italy', 'Sassicaia', 2017, 6, 96, 95, [2025, 2045], 9800, 'Italasia', '2024-02-28'],
   [1, 'B2', 'Italy', 'Tignanello', 2019, 9, 95, 94, [2024, 2040], 4600, 'Italasia', '2024-02-28'],
@@ -141,13 +141,15 @@ const seedRating = (name: string, rp: number | null, ws: number | null) =>
 
 /** ประเทศที่ใช้งาน เรียงตามตัวอักษร (ตรงกับ migration 20261024) */
 const COUNTRIES = [
-  'Argentina', 'Australia', 'Burgundy', 'Chile', 'France', 'Germany',
+  'Argentina', 'Australia', 'Chile', 'France', 'Germany',
   'Italy', 'Japan', 'South Africa', 'Spain', 'USA',
 ]
 /** ประเทศเดิมที่ไม่อยู่ในรายการ — ปิดใช้งาน (ไวน์ตัวอย่างบางตัวยังอ้างถึง) */
 const OLD_COUNTRIES = ['Portugal', 'Austria', 'New Zealand', 'Thailand']
-/** แคว้นของ France ตามลำดับที่กำหนด */
-const FRANCE_REGIONS = ['Emilion', 'Estephe', 'Julien', 'Margaux', 'Pauillac', 'Pessac', 'Pomerol']
+/** แคว้นของ France ตามลำดับที่กำหนด (Burgundy เป็นแคว้น ไม่ใช่ประเทศ) */
+const FRANCE_REGIONS = ['Burgundy', 'Emilion', 'Estephe', 'Julien', 'Margaux', 'Pauillac', 'Pessac', 'Pomerol']
+/** แคว้นที่ลบออก */
+const REMOVED_REGIONS = ['Bordeaux', 'Bourgogne', 'Champagne']
 
 const WINE_TYPES = ['Red', 'White', 'Champagne', 'Burgundy', 'Whisky']
 
@@ -180,11 +182,11 @@ const TYPE_REGION: Record<string, [type: string | null, region: string | null]> 
   'Château Mouton Rothschild': ['Red', 'Pauillac'],
   'Château Pichon Baron': ['Red', 'Pauillac'],
   'Château Lynch-Bages': ['Red', 'Pauillac'],
-  'Château d’Yquem': ['White', 'Bordeaux'],
-  'Domaine Leflaive Puligny-Montrachet': ['Burgundy', null],
-  'Louis Roederer Cristal': ['Champagne', 'Champagne'],
-  'Dom Pérignon': ['Champagne', 'Champagne'],
-  'Moët & Chandon Brut Impérial': ['Champagne', 'Champagne'],
+  'Château d’Yquem': ['White', null],
+  'Domaine Leflaive Puligny-Montrachet': ['Burgundy', 'Burgundy'],
+  'Louis Roederer Cristal': ['Champagne', null],
+  'Dom Pérignon': ['Champagne', null],
+  'Moët & Chandon Brut Impérial': ['Champagne', null],
   Sassicaia: ['Red', null],
   Tignanello: ['Red', null],
   'Antinori Solaia': ['Red', null],
@@ -288,7 +290,7 @@ function seed(): DB {
     profiles: seedProfiles(),
     app_settings: seedSettings(),
     ...emptyOps(),
-    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1, country_list: 1, wine_data: 1 },
+    seq: { receipt: 0, withdrawal: 0, log: 0, sale: 0, adjustment: 0, transfer: 0, bill: 0, ws_seed: 1, split_seed: 1, multi_seed: 1, type_seed: 1, stable_ids: 1, country_list: 1, wine_data: 1, burgundy: 1 },
   }
 }
 
@@ -340,6 +342,30 @@ function applyWineData(saved: DB) {
   saved.lookup_values = saved.lookup_values.filter((l) => l.category !== 'region' || l.parent === 'France')
   const french = new Set(saved.lookup_values.filter((l) => l.category === 'region').map((l) => key(l.value)))
   for (const x of saved.stock_items) if (x.region && !french.has(key(x.region)) && x.country !== 'France') x.region = null
+}
+
+/** Burgundy เป็นแคว้นของ France (ลำดับ 1) · ลบแคว้น Bordeaux / Bourgogne / Champagne (ตรงกับ migration 20261026) */
+function applyBurgundy(saved: DB) {
+  const key = (v: string | null | undefined) => (v ?? '').trim().toLowerCase()
+  const removed = new Set(REMOVED_REGIONS.map(key))
+  saved.lookup_values = saved.lookup_values.filter(
+    (l) => !(l.category === 'country' && key(l.value) === 'burgundy') && !(l.category === 'region' && removed.has(key(l.value))),
+  )
+  FRANCE_REGIONS.forEach((value, i) => {
+    const hit = saved.lookup_values.find((l) => l.category === 'region' && key(l.value) === key(value))
+    if (hit) Object.assign(hit, { value, parent: 'France', sort_order: i + 1, is_active: true })
+    else saved.lookup_values.push({ id: crypto.randomUUID(), category: 'region', store_id: null, value, sort_order: i + 1, is_active: true, parent: 'France', icon: null, ...audit() })
+  })
+  // ลำดับประเทศที่ใช้งานเรียงต่อกันใหม่ (เอา Burgundy ออกแล้วเหลือช่องว่าง)
+  saved.lookup_values
+    .filter((l) => l.category === 'country' && l.is_active)
+    .sort((a, b) => a.sort_order - b.sort_order || a.value.localeCompare(b.value))
+    .forEach((l, i) => (l.sort_order = i + 1))
+  for (const x of saved.stock_items) {
+    if (key(x.country) === 'burgundy') Object.assign(x, { country: 'France', region: 'Burgundy' })
+    else if (key(x.region) === 'bourgogne') x.region = 'Burgundy'
+    else if (removed.has(key(x.region))) x.region = null
+  }
 }
 
 /** ช่องที่อ้างถึง id ของไวน์ในสต็อก */
@@ -479,6 +505,15 @@ function load(): DB {
       if (!saved.seq.wine_data) {
         applyWineData(saved)
         saved.seq.wine_data = 1
+        try {
+          localStorage.setItem(KEY, JSON.stringify(saved))
+        } catch {
+          /* ไม่เป็นไร */
+        }
+      }
+      if (!saved.seq.burgundy) {
+        applyBurgundy(saved)
+        saved.seq.burgundy = 1
         try {
           localStorage.setItem(KEY, JSON.stringify(saved))
         } catch {
