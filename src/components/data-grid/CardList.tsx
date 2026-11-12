@@ -47,7 +47,7 @@ export function CardList<R>({
   const editable = !!onRowsChange
   // ตารางอ่านอย่างเดียว (ทุกคอลัมน์ readOnly) ไม่มีแถวว่างให้ซ่อน
   const isBlank = (r: R) => (card?.isBlank ? card.isBlank(r) : editable && defaultIsBlank(columns, r))
-  const titleCol = columns.find((c) => c.suggest) ?? columns[0]
+  const titleCol = columns.find((c) => c.frozen) ?? columns.find((c) => c.suggest) ?? columns[0]
 
   const [q, setQ] = useState('')
   const [sort, setSort] = useState<SortState>([])

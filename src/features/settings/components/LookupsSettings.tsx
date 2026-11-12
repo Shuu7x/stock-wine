@@ -425,7 +425,11 @@ export function LookupsSettings({ tab, onTab }: { tab: MasterTab; onTab: (t: Mas
         className="h-[min(560px,70dvh)]"
         rows={shown}
         columns={columns}
-        card={{ noun: 'ตัวเลือก', fields: ['sort_order', 'is_active', 'usage', 'store_id'] }}
+        card={{
+          noun: 'ตัวเลือก',
+          title: (r) => r.value?.trim() || <span className="text-muted">(ยังไม่ได้ตั้งชื่อ)</span>,
+          fields: ['icon', 'parent', 'store_id', 'sort_order', 'is_active', 'usage'],
+        }}
         getRowId={(r) => r._id}
         onRowsChange={onRowsChange}
         createRow={() => newRow()}
